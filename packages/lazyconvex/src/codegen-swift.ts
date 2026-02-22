@@ -1,16 +1,20 @@
+#!/usr/bin/env bun
 import type { ZodType } from 'zod/v4'
 
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 
-import { base, children, orgScoped, owned, singleton } from './t'
-
-const CONVEX_DIR = resolve(import.meta.dir, 'convex'),
-  OUTPUT_PATH = resolve(import.meta.dir, '../../swift-core/Sources/ConvexCore/Generated.swift')
-
 interface FieldEntry {
   isOptional: boolean
   swiftType: string
+}
+
+interface SchemaModule {
+  base?: Record<string, ZodType>
+  children?: Record<string, { schema: ZodType }>
+  orgScoped?: Record<string, ZodType>
+  owned?: Record<string, ZodType>
+  singleton?: Record<string, ZodType>
 }
 
 interface ZodDef {
@@ -24,7 +28,29 @@ interface ZodDef {
   values?: string[]
 }
 
-const getDef = (schema: ZodType): ZodDef => (schema as unknown as { _zod: { def: ZodDef } })._zod.def,
+const parseArgs = (): { convex: string; output: string; schema: string } => {
+    const args = process.argv.slice(2),
+      r = { convex: '', output: '', schema: '' }
+    for (let i = 0; i < args.length; i += 1) {
+      const arg = args[i] ?? ''
+      if (arg === '--schema' && args[i + 1]) r.schema = args[(i += 1)] ?? ''
+      else if (arg === '--convex' && args[i + 1]) r.convex = args[(i += 1)] ?? ''
+      else if (arg === '--output' && args[i + 1]) r.output = args[(i += 1)] ?? ''
+    }
+    if (!(r.schema && r.convex && r.output)) {
+      process.stderr.write('Usage: lazyconvex-codegen-swift --schema <path> --convex <path> --output <path>\n')
+      process.exit(1)
+    }
+    return { convex: resolve(r.convex), output: resolve(r.output), schema: resolve(r.schema) }
+  },
+  { convex: CONVEX_DIR, output: OUTPUT_PATH, schema: SCHEMA_PATH } = parseArgs(),
+  mod = (await import(SCHEMA_PATH)) as SchemaModule,
+  owned = mod.owned ?? {},
+  orgScoped = mod.orgScoped ?? {},
+  base = mod.base ?? {},
+  singleton = mod.singleton ?? {},
+  children = (mod.children ?? {}) as Record<string, { schema: ZodType }>,
+  getDef = (schema: ZodType): ZodDef => (schema as unknown as { _zod: { def: ZodDef } })._zod.def,
   indent = (n: number) => '    '.repeat(n),
   capitalize = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1),
   SPLIT_RE = /[_-]/u,
@@ -43,10 +69,15 @@ const getDef = (schema: ZodType): ZodDef => (schema as unknown as { _zod: { def:
   pendingLines: string[][] = [],
   nestedEmitted = new Set<string>(),
   unionDiscriminantEnums = new Set<string>(),
-  FILE_FIELDS: Record<string, string[]> = {
-    blog: ['coverImage', 'attachments'],
-    blogProfile: ['avatar'],
-    orgProfile: ['avatar']
+  detectFileKind = (def: ZodDef): 'file' | 'files' | null => {
+    const { type } = def
+    if (type === 'optional' || type === 'nullable') return detectFileKind(def.innerType?._zod.def ?? def)
+    if (type === 'custom') return 'file'
+    if (type === 'array') {
+      const elDef = def.element?._zod.def
+      if (elDef && detectFileKind(elDef) === 'file') return 'files'
+    }
+    return null
   },
   resolveSimpleType = (type: string): null | { isOptional: boolean; swiftType: string } => {
     if (type === 'string') return { isOptional: false, swiftType: 'String' }
@@ -179,17 +210,12 @@ const getDef = (schema: ZodType): ZodDef => (schema as unknown as { _zod: { def:
     emitUnionBlock(fieldTypes, name)
   },
   factoryFields: Record<string, Map<string, FieldEntry>> = {},
-  addFileUrlFields = (fields: Map<string, FieldEntry>, tableName: string) => {
-    const fileFields = FILE_FIELDS[tableName]
-    if (fileFields)
-      for (const ff of fileFields) {
-        const existing = fields.get(ff)
-        if (existing) {
-          const isArray = existing.swiftType.startsWith('[')
-          if (isArray) fields.set(`${ff}Urls`, { isOptional: true, swiftType: '[String]' })
-          else fields.set(`${ff}Url`, { isOptional: true, swiftType: 'String' })
-        }
-      }
+  addAutoFileUrlFields = (fields: Map<string, FieldEntry>, shape: Record<string, { _zod: { def: ZodDef } }>) => {
+    for (const [fieldName, fieldSchema] of Object.entries(shape)) {
+      const kind = detectFileKind(fieldSchema._zod.def)
+      if (kind === 'files') fields.set(`${fieldName}Urls`, { isOptional: true, swiftType: '[String]' })
+      else if (kind === 'file') fields.set(`${fieldName}Url`, { isOptional: true, swiftType: 'String' })
+    }
   },
   resolveSchemaFields = (
     shape: Record<string, { _zod: { def: ZodDef } }>,
@@ -201,7 +227,7 @@ const getDef = (schema: ZodType): ZodDef => (schema as unknown as { _zod: { def:
       const resolved = resolveType(fieldSchema._zod.def, tableName, fieldName)
       fields.set(fieldName, resolved)
     }
-    addFileUrlFields(fields, tableName)
+    addAutoFileUrlFields(fields, shape)
     return fields
   },
   collectSchemas = (schemas: Record<string, ZodType>, extraFields: Map<string, FieldEntry>) => {
@@ -378,18 +404,7 @@ const getDef = (schema: ZodType): ZodDef => (schema as unknown as { _zod: { def:
       return []
     }
   },
-  SKIP_MODULES = new Set([
-    '_generated',
-    'auth',
-    'auth.config',
-    'edge.test',
-    'f.test',
-    'http',
-    'org-api.test',
-    'schema',
-    'testauth',
-    'tools'
-  ]),
+  SKIP_MODULES = new Set(['_generated', 'auth', 'auth.config', 'http', 'schema', 'testauth']),
   collectModules = (): Record<string, string[]> => {
     const modules: Record<string, string[]> = {},
       files = readdirSync(CONVEX_DIR)
@@ -440,15 +455,7 @@ collectSchemas(singleton, singletonExtra)
 for (const [childName, childDef] of Object.entries(children)) {
   const def = getDef(childDef.schema),
     shape = def.shape ?? def.properties
-  if (shape) {
-    const fields = new Map<string, FieldEntry>(childExtra)
-
-    for (const [fieldName, fieldSchema] of Object.entries(shape)) {
-      const resolved = resolveType(fieldSchema._zod.def, childName, fieldName)
-      fields.set(fieldName, resolved)
-    }
-    factoryFields[childName] = fields
-  }
+  if (shape) factoryFields[childName] = resolveSchemaFields(shape, childName, childExtra)
 }
 
 const lines: string[] = [],
@@ -475,11 +482,10 @@ for (const [name, values] of enumRegistry) {
 }
 
 const emittedStructs = new Set<string>(),
-  emitIdAccessor = (tableName: string, fields: Map<string, FieldEntry>) => {
+  emitIdAccessor = (fields: Map<string, FieldEntry>) => {
     const idField = fields.get('_id')
     emit('')
-    if (tableName === 'movie') emit(`${indent(1)}public var id: String { _id ?? String(Int(tmdb_id)) }`)
-    else if (idField?.isOptional) emit(`${indent(1)}public var id: String { _id ?? "" }`)
+    if (idField?.isOptional) emit(`${indent(1)}public var id: String { _id ?? "" }`)
     else emit(`${indent(1)}public var id: String { _id }`)
   }
 
@@ -498,7 +504,7 @@ for (const [tableName, fields] of Object.entries(factoryFields)) {
       emit(`${indent(1)}public let ${fieldName}: ${swiftType}`)
     }
 
-    if (hasId) emitIdAccessor(tableName, fields)
+    if (hasId) emitIdAccessor(fields)
 
     emit('}')
     emit('')
@@ -509,18 +515,6 @@ emit('public struct Author: Codable, Sendable {')
 emit(`${indent(1)}public let name: String?`)
 emit(`${indent(1)}public let email: String?`)
 emit(`${indent(1)}public let imageUrl: String?`)
-emit('}')
-emit('')
-
-emit('public struct SearchResult: Codable, Identifiable, Sendable {')
-emit(`${indent(1)}public let tmdb_id: Double`)
-emit(`${indent(1)}public let title: String`)
-emit(`${indent(1)}public let overview: String`)
-emit(`${indent(1)}public let poster_path: String?`)
-emit(`${indent(1)}public let release_date: String?`)
-emit(`${indent(1)}public let vote_average: Double`)
-emit('')
-emit(`${indent(1)}public var id: Int { Int(tmdb_id) }`)
 emit('}')
 emit('')
 
@@ -620,10 +614,6 @@ emit(`${indent(1)}public let status: String`)
 emit('')
 emit(`${indent(1)}public var id: String { _id }`)
 emit('}')
-emit('')
-
-emit('public typealias ProfileData = BlogProfile')
-emit('public typealias Genre = MovieGenre')
 emit('')
 
 const modules = collectModules()

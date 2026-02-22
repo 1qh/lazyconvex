@@ -37,6 +37,9 @@
     "./components": "./src/components/index.ts",
     "./next": "./src/next/index.ts"
   },
+  "bin": {
+    "lazyconvex-codegen-swift": "./src/codegen-swift.ts"
+  },
   "files": [
     "src",
     "!src/__tests__"

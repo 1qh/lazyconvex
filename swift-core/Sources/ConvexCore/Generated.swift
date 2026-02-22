@@ -74,8 +74,8 @@ public struct Blog: Codable, Identifiable, Sendable {
     public let published: Bool
     public let tags: [String]?
     public let title: String
-    public let coverImageUrl: String?
     public let attachmentsUrls: [String]?
+    public let coverImageUrl: String?
 
     public var id: String {
         _id
@@ -106,6 +106,7 @@ public struct Project: Codable, Identifiable, Sendable {
     public let editors: [String]?
     public let name: String
     public let status: ProjectStatus?
+    public let editorsUrls: [String]?
 
     public var id: String {
         _id
@@ -123,6 +124,8 @@ public struct TaskItem: Codable, Identifiable, Sendable {
     public let priority: TaskPriority?
     public let projectId: String
     public let title: String
+    public let assigneeIdUrl: String?
+    public let projectIdUrl: String?
 
     public var id: String {
         _id
@@ -141,6 +144,7 @@ public struct Wiki: Codable, Identifiable, Sendable {
     public let slug: String
     public let status: WikiStatus
     public let title: String
+    public let editorsUrls: [String]?
 
     public var id: String {
         _id
@@ -167,7 +171,7 @@ public struct Movie: Codable, Identifiable, Sendable {
     public let vote_count: Double
 
     public var id: String {
-        _id ?? String(Int(tmdb_id))
+        _id ?? ""
     }
 }
 
@@ -207,6 +211,7 @@ public struct Message: Codable, Identifiable, Sendable {
     public let chatId: String
     public let parts: [MessagePart]
     public let role: MessageRole
+    public let chatIdUrl: String?
 
     public var id: String {
         _id
@@ -217,19 +222,6 @@ public struct Author: Codable, Sendable {
     public let name: String?
     public let email: String?
     public let imageUrl: String?
-}
-
-public struct SearchResult: Codable, Identifiable, Sendable {
-    public let tmdb_id: Double
-    public let title: String
-    public let overview: String
-    public let poster_path: String?
-    public let release_date: String?
-    public let vote_average: Double
-
-    public var id: Int {
-        Int(tmdb_id)
-    }
 }
 
 #if !SKIP
@@ -333,9 +325,6 @@ public struct OrgJoinRequest: Codable, Identifiable, Sendable {
         _id
     }
 }
-
-public typealias ProfileData = BlogProfile
-public typealias Genre = MovieGenre
 
 public enum BlogProfileAPI {
     public static let get = "blogProfile:get"
