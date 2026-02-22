@@ -1,0 +1,41 @@
+'use client'
+
+import { api } from '@a/be'
+import { Spinner } from '@a/ui/spinner'
+import { useMutation } from 'convex/react'
+import { useList } from 'lazyconvex/react'
+import { Check } from 'lucide-react'
+import { useEffect } from 'react'
+import { useInView } from 'react-intersection-observer'
+
+import ChatSidebar from './chat-sidebar'
+
+const Sb = () => {
+  const { inView, ref } = useInView(),
+    { items, loadMore, status } = useList(api.chat.list, { where: { own: true } }),
+    deleteChat = useMutation(api.chat.rm),
+    handleDelete = async (chatId: string) => {
+      await deleteChat({ id: chatId })
+    }
+
+  useEffect(() => {
+    if (inView && status === 'CanLoadMore') loadMore()
+  }, [inView, loadMore, status])
+
+  return (
+    <>
+      <ChatSidebar basePath='' onDelete={handleDelete} threads={items} />
+      <div className='flex justify-center p-2'>
+        {status === 'LoadingMore' ? (
+          <Spinner />
+        ) : status === 'CanLoadMore' ? (
+          <p className='h-4' ref={ref} />
+        ) : status === 'Exhausted' && items.length > 20 ? (
+          <Check className='animate-[fadeOut_2s_forwards] text-green-500' />
+        ) : null}
+      </div>
+    </>
+  )
+}
+
+export default Sb

@@ -1,0 +1,110 @@
+services:
+  postgres:
+    image: postgres:alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: convex_self_hosted
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d convex_self_hosted"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - net0
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    entrypoint: /bin/sh -c "mkdir -p /data/exports /data/imports /data/modules /data/files /data/search && minio server /data --console-address ':9001'"
+    environment:
+      MINIO_ROOT_USER: sss
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_ACCESS_KEY}
+    volumes:
+      - minio_data:/data
+    ports:
+      - 9000:9000
+      - 9001:9001
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - net0
+
+  backend:
+    image: ghcr.io/get-convex/convex-backend:latest
+    restart: unless-stopped
+    stop_grace_period: 10s
+    stop_signal: SIGINT
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    ports:
+      - 3212:3210
+      - 3211:3211
+    volumes:
+      - convex_data:/convex/data
+    environment:
+      AWS_ACCESS_KEY_ID: sss
+      AWS_REGION: us-east-1
+      AWS_S3_DISABLE_CHECKSUMS: "true"
+      AWS_S3_DISABLE_SSE: "true"
+      AWS_S3_FORCE_PATH_STYLE: "true"
+      AWS_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY}
+      CONVEX_CLOUD_ORIGIN: http://127.0.0.1:3210
+      CONVEX_SITE_ORIGIN: http://127.0.0.1:3211
+      DOCUMENT_RETENTION_DELAY: "172800"
+      DO_NOT_REQUIRE_SSL: 1
+      POSTGRES_URL: postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432
+      RUST_LOG: info
+      S3_ENDPOINT_URL: http://minio:9000
+      S3_STORAGE_EXPORTS_BUCKET: exports
+      S3_STORAGE_FILES_BUCKET: files
+      S3_STORAGE_MODULES_BUCKET: modules
+      S3_STORAGE_SEARCH_BUCKET: search
+      S3_STORAGE_SNAPSHOT_IMPORTS_BUCKET: imports
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3210/version"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - net0
+
+  dashboard:
+    image: ghcr.io/get-convex/convex-dashboard:latest
+    restart: unless-stopped
+    stop_grace_period: 10s
+    stop_signal: SIGINT
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - 6791:6791
+    environment:
+      NEXT_PUBLIC_DEPLOYMENT_URL: http://127.0.0.1:3210
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6791"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - net0
+
+volumes:
+  postgres_data:
+  minio_data:
+  convex_data:
+
+networks:
+  net0:

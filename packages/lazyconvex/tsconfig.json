@@ -1,0 +1,9 @@
+{
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "lib": ["dom", "dom.iterable", "ESNext"]
+  },
+  "exclude": ["dist", "node_modules"],
+  "extends": "@a/tsconfig/base.json",
+  "include": ["src", "*.config.ts"]
+}

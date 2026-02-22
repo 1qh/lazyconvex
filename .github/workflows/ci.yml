@@ -1,0 +1,167 @@
+name: ' '
+
+on:
+  push:
+    branches: ['*']
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      ts: ${{ steps.filter.outputs.ts }}
+      swift: ${{ steps.filter.outputs.swift }}
+      desktop: ${{ steps.filter.outputs.desktop }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            ts:
+              - 'packages/**'
+              - 'apps/**'
+              - 'package.json'
+              - 'bun.lock'
+              - 'tsconfig*.json'
+              - 'turbo.json'
+              - 'biome.json'
+              - '.oxlintrc.json'
+              - '.eslintrc*'
+              - '.github/workflows/**'
+            swift:
+              - 'mobile/**'
+              - 'swift-core/**'
+              - '.swiftlint.yml'
+              - '.swiftformat'
+              - '.github/workflows/**'
+            desktop:
+              - 'desktop/**'
+              - 'swift-core/**'
+              - '.swiftlint.yml'
+              - '.swiftformat'
+              - '.github/workflows/**'
+
+  tsc:
+    needs: changes
+    if: needs.changes.outputs.ts == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+      - run: bun i && bun tsc
+
+  format:
+    needs: [changes, tsc]
+    if: needs.changes.outputs.ts == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: biomejs/setup-biome@v2
+      - uses: oven-sh/setup-bun@v2
+      - run: bun i && bun format:check
+
+  lint-ts:
+    needs: [changes, format]
+    if: needs.changes.outputs.ts == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+      - run: bun i && bun lint:ts
+
+  build-ts:
+    needs: [changes, lint-ts]
+    if: needs.changes.outputs.ts == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+      - run: bun i && cp .env.example .env && bun build:ts
+
+  lint-swift:
+    needs: changes
+    if: needs.changes.outputs.swift == 'true' || needs.changes.outputs.desktop == 'true'
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+      - run: brew install swiftformat swiftlint ktlint yamllint
+      - run: swiftformat --lint . && ktlint '**/*.kt' && swiftlint lint --strict && yamllint .
+
+  build-swift:
+    needs: [changes, lint-swift]
+    if: needs.changes.outputs.swift == 'true'
+    runs-on: macos-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        app:
+          - { dir: blog, scheme: 'App' }
+          - { dir: chat, scheme: 'App' }
+          - { dir: movie, scheme: 'App' }
+          - { dir: org, scheme: 'App' }
+    steps:
+      - uses: actions/checkout@v5
+      - run: brew install skiptools/skip/skip
+      - name: Build ${{ matrix.app.dir }} (iOS + Android)
+        run: |
+          xcodebuild build \
+            -workspace "mobile/${{ matrix.app.dir }}/Project.xcworkspace" \
+            -scheme "${{ matrix.app.scheme }}" \
+            -destination "generic/platform=iOS Simulator" \
+            -skipMacroValidation -skipPackagePluginValidation \
+            CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            ARCHS=arm64 SKIP_ACTION=build -quiet
+
+  build-desktop:
+    needs: [changes, lint-swift]
+    if: needs.changes.outputs.desktop == 'true'
+    runs-on: macos-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [blog, chat, movie, org]
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build ${{ matrix.app }}
+        run: swift build --package-path desktop/${{ matrix.app }}
+
+  test-desktop:
+    needs: [changes, build-desktop]
+    if: needs.changes.outputs.desktop == 'true'
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Test swift-core
+        run: swift test --package-path swift-core
+      - name: Test desktop/shared
+        run: swift test --package-path desktop/shared
+
+  e2e-desktop:
+    needs: [changes, build-desktop]
+    if: needs.changes.outputs.desktop == 'true'
+    runs-on: macos-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        app:
+          - { dir: movie, project: MovieDesktop, scheme: MovieUITests }
+          - { dir: blog, project: BlogDesktop, scheme: BlogUITests }
+          - { dir: chat, project: ChatDesktop, scheme: ChatUITests }
+          - { dir: org, project: OrgDesktop, scheme: OrgUITests }
+    steps:
+      - uses: actions/checkout@v5
+      - run: brew install xcodegen
+      - name: Generate Xcode project
+        run: xcodegen generate --spec desktop/${{ matrix.app.dir }}/project.yml --project desktop/${{ matrix.app.dir }}
+      - name: Build E2E tests for ${{ matrix.app.dir }}
+        run: |
+          xcodebuild build-for-testing \
+            -project "desktop/${{ matrix.app.dir }}/${{ matrix.app.project }}.xcodeproj" \
+            -scheme "${{ matrix.app.scheme }}" \
+            -destination 'platform=macOS' \
+            -skipMacroValidation -quiet

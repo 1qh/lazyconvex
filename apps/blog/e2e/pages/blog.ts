@@ -1,0 +1,122 @@
+// biome-ignore-all lint/style/useConsistentMemberAccessibility: x
+import type { Locator } from '@playwright/test'
+
+import BasePage from '@a/e2e/base-page'
+
+class BlogPage extends BasePage {
+  public async addTags(tags: string[]): Promise<void> {
+    const tagsInput = this.getTagsInput()
+    await tagsInput.scrollIntoViewIfNeeded()
+    await tagsInput.waitFor({ state: 'visible', timeout: 5000 })
+    for (const tag of tags) {
+      // eslint-disable-next-line no-await-in-loop
+      await tagsInput.fill(tag)
+      // eslint-disable-next-line no-await-in-loop
+      await tagsInput.press('Enter')
+    }
+  }
+  public async clearSearch(): Promise<void> {
+    await this.getSearchInput().clear()
+  }
+  // eslint-disable-next-line max-statements
+  public async createBlog(
+    title: string,
+    content: string,
+    options?: { category?: string; tags?: string[] }
+  ): Promise<void> {
+    await this.getCreateTrigger().click()
+    await this.getCreateDialog().waitFor({ state: 'visible' })
+    await this.getTitleInput().fill(title)
+    await this.getContentTextarea().fill(content)
+    if (options?.category) {
+      await this.getCategorySelect().click()
+      await this.page.getByRole('option', { name: options.category }).click()
+    }
+    if (options?.tags) await this.addTags(options.tags)
+    await this.getCreateSubmit().click()
+    await this.getCreateDialog().waitFor({ state: 'hidden' })
+  }
+  public async deleteBlog(): Promise<void> {
+    await this.getDeleteTrigger().click()
+    await this.getDeleteDialog().waitFor({ state: 'visible' })
+    await this.getDeleteConfirm().click()
+    await this.getDeleteDialog().waitFor({ state: 'hidden' })
+  }
+  public getAttachmentsInput(): Locator {
+    return this.$('blog-attachments', 'input[type="file"]')
+  }
+  public getBlogCards(): Locator {
+    return this.$$('blog-card')
+  }
+  public getBlogList(): Locator {
+    return this.$('blog-list')
+  }
+  public getCategorySelect(): Locator {
+    return this.$('blog-category', 'button')
+  }
+  public getContentTextarea(): Locator {
+    return this.$('blog-content', 'textarea')
+  }
+  public getCoverImageInput(): Locator {
+    return this.$('blog-cover-image', 'input[type="file"]')
+  }
+  public getCreateDialog(): Locator {
+    return this.$('create-blog-dialog')
+  }
+  public getCreateSubmit(): Locator {
+    return this.$('create-blog-submit')
+  }
+  public getCreateTrigger(): Locator {
+    return this.$('create-blog-trigger').first()
+  }
+  public getDeleteCancel(): Locator {
+    return this.$('delete-cancel')
+  }
+  public getDeleteConfirm(): Locator {
+    return this.$('delete-confirm')
+  }
+  public getDeleteDialog(): Locator {
+    return this.$('delete-dialog')
+  }
+  public getDeleteTrigger(): Locator {
+    return this.$('delete-blog-trigger').first()
+  }
+  public getAutoSaveIndicator(): Locator {
+    return this.$('auto-save-indicator')
+  }
+  public getEmptyState(): Locator {
+    return this.$('empty-state')
+  }
+  public getLoadingMore(): Locator {
+    return this.$('loading-more')
+  }
+  public getLoadMoreTrigger(): Locator {
+    return this.$('load-more-trigger')
+  }
+
+  public getPaginationExhausted(): Locator {
+    return this.$('pagination-exhausted')
+  }
+
+  public getSearchInput(): Locator {
+    return this.$('blog-search-input').first()
+  }
+
+  public getTagsInput(): Locator {
+    return this.page.getByRole('textbox', { name: 'Tags' })
+  }
+
+  public getTitleInput(): Locator {
+    return this.$('blog-title', 'input')
+  }
+
+  public async goto(path: '/' | '/pagination' = '/'): Promise<void> {
+    await this.page.goto(path)
+    await this.page.locator('[data-testid="blog-list"], [data-testid="empty-state"]').first().waitFor()
+  }
+  public async search(query: string): Promise<void> {
+    await this.getSearchInput().fill(query)
+  }
+}
+
+export default BlogPage

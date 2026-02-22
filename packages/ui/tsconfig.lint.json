@@ -1,0 +1,8 @@
+{
+  "extends": "@a/tsconfig/compiled-package.json",
+  "compilerOptions": {
+    "outDir": "dist"
+  },
+  "include": ["src", "turbo"],
+  "exclude": ["node_modules", "dist"]
+}

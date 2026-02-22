@@ -1,0 +1,72 @@
+{
+  "name": "lazyconvex",
+  "version": "0.0.1",
+  "description": "Zod schema to fullstack app. One schema, zero boilerplate.",
+  "keywords": [
+    "convex",
+    "crud",
+    "zod",
+    "react",
+    "nextjs",
+    "fullstack",
+    "forms",
+    "file-upload",
+    "pagination",
+    "multi-tenancy",
+    "acl",
+    "soft-delete",
+    "rate-limiting"
+  ],
+  "homepage": "https://github.com/1qh/lazyconvex",
+  "bugs": "https://github.com/1qh/lazyconvex/issues",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/1qh/lazyconvex.git",
+    "directory": "packages/lazyconvex"
+  },
+  "license": "MIT",
+  "author": "1qh",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./server": "./src/server/index.ts",
+    "./zod": "./src/zod.ts",
+    "./retry": "./src/retry.ts",
+    "./schema": "./src/schema.ts",
+    "./react": "./src/react/index.ts",
+    "./components": "./src/components/index.ts",
+    "./next": "./src/next/index.ts"
+  },
+  "files": [
+    "src",
+    "!src/__tests__"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "clean": "git clean -xdf dist node_modules",
+    "lint": "bun test src/__tests__ && eslint",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "browser-image-compression": "latest",
+    "next-navigation-guard": "latest",
+    "react-dropzone": "latest",
+    "sharp": "latest"
+  },
+  "devDependencies": {
+    "tsdown": "latest"
+  },
+  "peerDependencies": {
+    "@auth/core": "^0.41",
+    "@convex-dev/auth": "latest",
+    "@stepperize/react": "latest",
+    "@tanstack/react-form": "latest",
+    "convex": "latest",
+    "convex-helpers": "latest",
+    "next": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "zod": "latest"
+  }
+}

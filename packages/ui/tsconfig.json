@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "jsx": "preserve",
+    "lib": ["dom", "dom.iterable", "ESNext"],
+    "paths": {
+      "@a/ui/*": ["./src/*"]
+    },
+    "rootDir": "."
+  },
+  "exclude": ["dist", "node_modules"],
+  "extends": "@a/tsconfig/base.json",
+  "include": ["."]
+}

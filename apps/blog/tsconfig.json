@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "jsx": "preserve",
+    "lib": ["dom", "dom.iterable", "ESNext"],
+    "paths": {
+      "~/*": ["./src/*"]
+    },
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ]
+  },
+  "exclude": ["node_modules"],
+  "extends": "@a/tsconfig/base.json",
+  "include": [".", ".next/types/**/*.ts"]
+}

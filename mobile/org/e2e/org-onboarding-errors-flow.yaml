@@ -1,0 +1,51 @@
+appId: dev.lazyconvex.org
+---
+- runFlow: login.yaml
+
+- assertVisible: "No Organizations"
+- tapOn: "Get Started"
+- waitForAnimationToEnd
+- assertVisible: "Profile"
+
+- tapOn: "Next"
+- waitForAnimationToEnd
+- assertVisible: "Profile"
+
+- tapOn: "Display Name"
+- inputText: "   "
+- tapOn: "Next"
+- waitForAnimationToEnd
+- assertVisible: "Profile"
+
+- tapOn: "Display Name"
+- eraseText: 50
+- inputText: "Error Test User"
+
+- tapOn: "Next"
+- waitForAnimationToEnd
+- assertVisible: "Organization"
+
+- tapOn: "Next"
+- waitForAnimationToEnd
+- assertVisible: "Organization"
+
+- tapOn: "Organization Name"
+- inputText: "Error Org"
+- tapOn: "URL Slug"
+- inputText: "!!invalid!!"
+- tapOn: "Next"
+- waitForAnimationToEnd
+- assertVisible: "Organization"
+
+- tapOn: "URL Slug"
+- eraseText: 50
+- inputText: "error-org-valid"
+
+- tapOn: "Next"
+- waitForAnimationToEnd
+- assertVisible: "Appearance"
+
+- tapOn: "Next"
+- waitForAnimationToEnd
+- assertVisible: "Preferences"
+- assertVisible: "Complete"

@@ -1,0 +1,34 @@
+root = true
+
+[*.{kt,kts}]
+end_of_line = lf
+indent_size = 4
+indent_style = space
+max_line_length = 140
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+ij_kotlin_allow_trailing_comma = true
+ij_kotlin_allow_trailing_comma_on_call_site = true
+ij_kotlin_imports_layout = *,java.**,javax.**,kotlin.**,^
+ij_kotlin_indent_before_arrow_on_new_line = false
+ij_kotlin_line_break_after_multiline_when_entry = true
+ij_kotlin_packages_to_use_import_on_demand = unset
+
+ktlint_code_style = ktlint_official
+ktlint_chain_method_rule_force_multiline_when_chain_operator_count_greater_or_equal_than = 4
+ktlint_class_signature_rule_force_multiline_when_parameter_count_greater_or_equal_than = 1
+ktlint_enum_entry_name_casing = upper_or_camel_cases
+ktlint_function_signature_body_expression_wrapping = multiline
+ktlint_function_signature_rule_force_multiline_when_parameter_count_greater_or_equal_than = 2
+ktlint_ignore_back_ticked_identifier = false
+ktlint_property_naming_constant_naming = screaming_snake_case
+
+ktlint_standard_no-wildcard-imports = disabled
+ktlint_standard_package-name = disabled
+
+[mobile/**/Android/**/*.kt]
+ktlint = disabled
+
+[mobile/**/.build/**/*.kt]
+ktlint = disabled

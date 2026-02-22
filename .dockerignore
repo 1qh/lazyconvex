@@ -1,0 +1,12 @@
+.cache
+.dockerignore
+.git
+.next
+.turbo
+.vscode
+Dockerfile
+README.md
+bun.lock
+dist
+node_modules
+npm-debug.log
