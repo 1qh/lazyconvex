@@ -554,7 +554,7 @@ public enum BlogProfileAPI {
     public static let get = "blogProfile:get"
     public static let upsert = "blogProfile:upsert"
 
-    #if !SKIP && !canImport(ConvexMobile)
+    #if DESKTOP
     public static func upsert(
         _ client: ConvexClientProtocol,
         avatar: String? = nil,
@@ -619,7 +619,7 @@ public enum ProjectAPI {
         return args
     }
 
-    #if !SKIP && !canImport(ConvexMobile)
+    #if DESKTOP
     public static func list(
         _ client: ConvexClientProtocol,
         orgId: String,
@@ -723,7 +723,7 @@ public enum WikiAPI {
         return args
     }
 
-    #if !SKIP && !canImport(ConvexMobile)
+    #if DESKTOP
     public static func list(
         _ client: ConvexClientProtocol,
         orgId: String,
@@ -836,7 +836,7 @@ public enum BlogAPI {
         return args
     }
 
-    #if !SKIP && !canImport(ConvexMobile)
+    #if DESKTOP
     public static func list(
         _ client: ConvexClientProtocol,
         numItems: Int = 50,
@@ -951,7 +951,7 @@ public enum MovieAPI {
     public static let set = "movie:set"
     public static let update = "movie:update"
 
-    #if !SKIP && !canImport(ConvexMobile)
+    #if DESKTOP
     #endif
 }
 
@@ -996,7 +996,7 @@ public enum ChatAPI {
         return args
     }
 
-    #if !SKIP && !canImport(ConvexMobile)
+    #if DESKTOP
     public static func list(
         _ client: ConvexClientProtocol,
         numItems: Int = 50,
@@ -1052,7 +1052,7 @@ public enum MessageAPI {
     public static let pubGet = "message:pubGet"
     public static let pubList = "message:pubList"
 
-    #if !SKIP && !canImport(ConvexMobile)
+    #if DESKTOP
     #endif
 }
 
@@ -1060,7 +1060,7 @@ public enum OrgProfileAPI {
     public static let get = "orgProfile:get"
     public static let upsert = "orgProfile:upsert"
 
-    #if !SKIP && !canImport(ConvexMobile)
+    #if DESKTOP
     public static func upsert(
         _ client: ConvexClientProtocol,
         avatar: String? = nil,
@@ -1157,7 +1157,7 @@ public enum TaskAPI {
         return args
     }
 
-    #if !SKIP && !canImport(ConvexMobile)
+    #if DESKTOP
     public static func list(
         _ client: ConvexClientProtocol,
         orgId: String,

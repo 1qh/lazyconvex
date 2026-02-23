@@ -8,7 +8,7 @@ let package = Package(
         .library(name: "ConvexCore", targets: ["ConvexCore"]),
     ],
     targets: [
-        .target(name: "ConvexCore"),
+        .target(name: "ConvexCore", swiftSettings: [.define("DESKTOP")]),
         .testTarget(name: "ConvexCoreTests", dependencies: ["ConvexCore"]),
     ]
 )
