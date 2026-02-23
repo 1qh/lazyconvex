@@ -1,7 +1,7 @@
 import Foundation
 
 extension BlogProfileAPI {
-    static func upsert(
+    public static func upsert(
         avatar: String? = nil,
         bio: String? = nil,
         displayName: String? = nil,
@@ -29,7 +29,7 @@ extension BlogProfileAPI {
 }
 
 extension ProjectAPI {
-    static func create(
+    public static func create(
         orgId: String,
         description: String? = nil,
         editors: [String]? = nil,
@@ -49,7 +49,7 @@ extension ProjectAPI {
         try await ConvexService.shared.mutate("project:create", args: args)
     }
 
-    static func update(
+    public static func update(
         orgId: String,
         id: String,
         description: String? = nil,
@@ -77,13 +77,13 @@ extension ProjectAPI {
         try await ConvexService.shared.mutate("project:update", args: args)
     }
 
-    static func rm(orgId: String, id: String) async throws {
+    public static func rm(orgId: String, id: String) async throws {
         try await ConvexService.shared.mutate("project:rm", args: ["id": id, "orgId": orgId])
     }
 }
 
 extension WikiAPI {
-    static func create(
+    public static func create(
         orgId: String,
         content: String? = nil,
         deletedAt: Double? = nil,
@@ -105,7 +105,7 @@ extension WikiAPI {
         try await ConvexService.shared.mutate("wiki:create", args: args)
     }
 
-    static func update(
+    public static func update(
         orgId: String,
         id: String,
         content: String? = nil,
@@ -141,13 +141,13 @@ extension WikiAPI {
         try await ConvexService.shared.mutate("wiki:update", args: args)
     }
 
-    static func rm(orgId: String, id: String) async throws {
+    public static func rm(orgId: String, id: String) async throws {
         try await ConvexService.shared.mutate("wiki:rm", args: ["id": id, "orgId": orgId])
     }
 }
 
 extension BlogAPI {
-    static func create(
+    public static func create(
         attachments: [String]? = nil,
         category: BlogCategory,
         content: String,
@@ -169,7 +169,7 @@ extension BlogAPI {
         try await ConvexService.shared.mutate("blog:create", args: args)
     }
 
-    static func update(
+    public static func update(
         id: String,
         attachments: [String]? = nil,
         category: BlogCategory? = nil,
@@ -208,13 +208,13 @@ extension BlogAPI {
         try await ConvexService.shared.mutate("blog:update", args: args)
     }
 
-    static func rm(id: String) async throws {
+    public static func rm(id: String) async throws {
         try await ConvexService.shared.mutate("blog:rm", args: ["id": id])
     }
 }
 
 extension ChatAPI {
-    static func create(
+    public static func create(
         isPublic: Bool,
         title: String
     ) async throws {
@@ -222,7 +222,7 @@ extension ChatAPI {
         try await ConvexService.shared.mutate("chat:create", args: args)
     }
 
-    static func update(
+    public static func update(
         id: String,
         isPublic: Bool? = nil,
         title: String? = nil,
@@ -241,13 +241,13 @@ extension ChatAPI {
         try await ConvexService.shared.mutate("chat:update", args: args)
     }
 
-    static func rm(id: String) async throws {
+    public static func rm(id: String) async throws {
         try await ConvexService.shared.mutate("chat:rm", args: ["id": id])
     }
 }
 
 extension OrgProfileAPI {
-    static func upsert(
+    public static func upsert(
         avatar: String? = nil,
         bio: String? = nil,
         displayName: String? = nil,
@@ -275,7 +275,7 @@ extension OrgProfileAPI {
 }
 
 extension TaskAPI {
-    static func create(
+    public static func create(
         orgId: String,
         assigneeId: String? = nil,
         completed: Bool? = nil,
@@ -296,7 +296,7 @@ extension TaskAPI {
         try await ConvexService.shared.mutate("task:create", args: args)
     }
 
-    static func update(
+    public static func update(
         orgId: String,
         id: String,
         assigneeId: String? = nil,
@@ -328,7 +328,7 @@ extension TaskAPI {
         try await ConvexService.shared.mutate("task:update", args: args)
     }
 
-    static func rm(orgId: String, id: String) async throws {
+    public static func rm(orgId: String, id: String) async throws {
         try await ConvexService.shared.mutate("task:rm", args: ["id": id, "orgId": orgId])
     }
 }

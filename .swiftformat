@@ -92,4 +92,5 @@
 --enable wrapMultilineFunctionChains
 --enable wrapSwitchCases
 --disable wrapMultilineStatementBraces
+--extensionacl on-declarations
 

@@ -1019,7 +1019,7 @@ if (MOBILE_OUTPUT_PATH) {
         else required.push(`"${fname}": ${value}`)
       }
       if (factoryType === 'orgScoped') required.unshift('"orgId": orgId')
-      me(`${indent(1)}static func create(`)
+      me(`${indent(1)}public static func create(`)
       me(`${indent(2)}${params.join(`,\n${indent(2)}`)}`)
       me(`${indent(1)}) async throws {`)
       const binding = optional.length > 0 ? 'var' : 'let'
@@ -1050,7 +1050,7 @@ if (MOBILE_OUTPUT_PATH) {
       }
       params.push('expectedUpdatedAt: Double? = nil')
       optional.push('expectedUpdatedAt')
-      me(`${indent(1)}static func update(`)
+      me(`${indent(1)}public static func update(`)
       me(`${indent(2)}${params.join(`,\n${indent(2)}`)}`)
       me(`${indent(1)}) async throws {`)
       me(`${indent(2)}var args: [String: Any] = [${required.join(', ')}]`)
@@ -1073,7 +1073,7 @@ if (MOBILE_OUTPUT_PATH) {
         argParts.push('"orgId": orgId')
       }
       params.push('id: String')
-      me(`${indent(1)}static func rm(${params.join(', ')}) async throws {`)
+      me(`${indent(1)}public static func rm(${params.join(', ')}) async throws {`)
       me(`${indent(2)}try await ConvexService.shared.mutate("${modName}:rm", args: [${argParts.join(', ')}])`)
       me(`${indent(1)}}`)
     },
@@ -1085,7 +1085,7 @@ if (MOBILE_OUTPUT_PATH) {
         params.push(`${fname}: ${field.swiftType}? = nil`)
         optional.push(fname)
       }
-      me(`${indent(1)}static func upsert(`)
+      me(`${indent(1)}public static func upsert(`)
       me(`${indent(2)}${params.join(`,\n${indent(2)}`)}`)
       me(`${indent(1)}) async throws {`)
       me(`${indent(2)}var args: [String: Any] = [:]`)
