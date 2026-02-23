@@ -83,10 +83,7 @@ internal final class WikiListViewModel {
     func restoreWiki(orgID: String, id: String) {
         Task {
             do {
-                try await ConvexService.shared.mutate(WikiAPI.restore, args: [
-                    "orgId": orgID,
-                    "id": id,
-                ])
+                try await WikiAPI.restore(orgId: orgID, id: id)
             } catch {
                 errorMessage = error.localizedDescription
             }

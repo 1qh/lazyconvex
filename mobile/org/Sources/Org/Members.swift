@@ -81,51 +81,37 @@ internal final class MembersViewModel {
     func inviteMember(orgID: String, email: String) {
         Task {
             do {
-                try await ConvexService.shared.mutate(OrgAPI.invite, args: [
-                    "orgId": orgID,
-                    "email": email,
-                    "isAdmin": false,
-                ])
+                try await OrgAPI.invite(email: email, isAdmin: false, orgId: orgID)
             } catch {
                 errorMessage = error.localizedDescription
             }
         }
     }
 
-    func revokeInvite(orgID: String, inviteID: String) {
+    func revokeInvite(orgID _: String, inviteID: String) {
         Task {
             do {
-                try await ConvexService.shared.mutate(OrgAPI.revokeInvite, args: [
-                    "orgId": orgID,
-                    "inviteId": inviteID,
-                ])
+                try await OrgAPI.revokeInvite(inviteId: inviteID)
             } catch {
                 errorMessage = error.localizedDescription
             }
         }
     }
 
-    func setAdmin(orgID: String, userID: String, isAdmin: Bool) {
+    func setAdmin(memberId: String, isAdmin: Bool) {
         Task {
             do {
-                try await ConvexService.shared.mutate(OrgAPI.setAdmin, args: [
-                    "orgId": orgID,
-                    "userId": userID,
-                    "isAdmin": isAdmin,
-                ])
+                try await OrgAPI.setAdmin(isAdmin: isAdmin, memberId: memberId)
             } catch {
                 errorMessage = error.localizedDescription
             }
         }
     }
 
-    func removeMember(orgID: String, userID: String) {
+    func removeMember(memberId: String) {
         Task {
             do {
-                try await ConvexService.shared.mutate(OrgAPI.removeMember, args: [
-                    "orgId": orgID,
-                    "userId": userID,
-                ])
+                try await OrgAPI.removeMember(memberId: memberId)
             } catch {
                 errorMessage = error.localizedDescription
             }

@@ -14,16 +14,8 @@ internal final class MembersViewModel: SwiftCrossUI.ObservableObject {
         isLoading = true
         errorMessage = nil
         do {
-            let loadedMembers: [OrgMemberEntry] = try await client.query(
-                OrgAPI.members,
-                args: ["orgId": orgID]
-            )
-            members = loadedMembers
-            let loadedInvites: [OrgInvite] = try await client.query(
-                OrgAPI.pendingInvites,
-                args: ["orgId": orgID]
-            )
-            invites = loadedInvites
+            members = try await OrgAPI.members(client, orgId: orgID)
+            invites = try await OrgAPI.pendingInvites(client, orgId: orgID)
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -33,11 +25,7 @@ internal final class MembersViewModel: SwiftCrossUI.ObservableObject {
     @MainActor
     func inviteMember(orgID: String, email: String) async {
         do {
-            try await client.mutation(OrgAPI.invite, args: [
-                "orgId": orgID,
-                "email": email,
-                "isAdmin": false,
-            ])
+            try await OrgAPI.invite(client, email: email, isAdmin: false, orgId: orgID)
             await load(orgID: orgID)
         } catch {
             errorMessage = error.localizedDescription
@@ -47,10 +35,7 @@ internal final class MembersViewModel: SwiftCrossUI.ObservableObject {
     @MainActor
     func revokeInvite(orgID: String, inviteID: String) async {
         do {
-            try await client.mutation(OrgAPI.revokeInvite, args: [
-                "orgId": orgID,
-                "inviteId": inviteID,
-            ])
+            try await OrgAPI.revokeInvite(client, inviteId: inviteID)
             await load(orgID: orgID)
         } catch {
             errorMessage = error.localizedDescription
@@ -58,13 +43,9 @@ internal final class MembersViewModel: SwiftCrossUI.ObservableObject {
     }
 
     @MainActor
-    func setAdmin(orgID: String, userID: String, isAdmin: Bool) async {
+    func setAdmin(orgID: String, memberId: String, isAdmin: Bool) async {
         do {
-            try await client.mutation(OrgAPI.setAdmin, args: [
-                "orgId": orgID,
-                "userId": userID,
-                "isAdmin": isAdmin,
-            ])
+            try await OrgAPI.setAdmin(client, isAdmin: isAdmin, memberId: memberId)
             await load(orgID: orgID)
         } catch {
             errorMessage = error.localizedDescription
@@ -72,12 +53,9 @@ internal final class MembersViewModel: SwiftCrossUI.ObservableObject {
     }
 
     @MainActor
-    func removeMember(orgID: String, userID: String) async {
+    func removeMember(orgID: String, memberId: String) async {
         do {
-            try await client.mutation(OrgAPI.removeMember, args: [
-                "orgId": orgID,
-                "userId": userID,
-            ])
+            try await OrgAPI.removeMember(client, memberId: memberId)
             await load(orgID: orgID)
         } catch {
             errorMessage = error.localizedDescription
@@ -135,7 +113,9 @@ internal struct MembersView: View {
                             Text(member.role.capitalized)
                             if role == "owner" || role == "admin" {
                                 Button("Remove") {
-                                    Task { await viewModel.removeMember(orgID: orgID, userID: member.userId) }
+                                    if let mid = member.memberId {
+                                        Task { await viewModel.removeMember(orgID: orgID, memberId: mid) }
+                                    }
                                 }
                             }
                         }

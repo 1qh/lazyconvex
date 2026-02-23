@@ -68,14 +68,12 @@ internal struct SettingsView: View {
         isSaving = true
         errorMessage = nil
         do {
-            var data: [String: Any] = ["name": editedName]
-            if !editedSlug.isEmpty {
-                data["slug"] = editedSlug
-            }
-            try await client.mutation(OrgAPI.update, args: [
-                "orgId": orgID,
-                "data": data as [String: Any],
-            ] as [String: Any])
+            try await OrgAPI.update(
+                client,
+                orgId: orgID,
+                name: editedName,
+                slug: editedSlug.isEmpty ? nil : editedSlug
+            )
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -85,7 +83,7 @@ internal struct SettingsView: View {
     @MainActor
     private func leaveOrg() async {
         do {
-            try await client.mutation(OrgAPI.leave, args: ["orgId": orgID])
+            try await OrgAPI.leave(client, orgId: orgID)
             onSwitchOrg()
         } catch {
             errorMessage = error.localizedDescription
@@ -95,7 +93,7 @@ internal struct SettingsView: View {
     @MainActor
     private func deleteOrg() async {
         do {
-            try await client.mutation(OrgAPI.remove, args: ["orgId": orgID])
+            try await OrgAPI.remove(client, orgId: orgID)
             onSwitchOrg()
         } catch {
             errorMessage = error.localizedDescription

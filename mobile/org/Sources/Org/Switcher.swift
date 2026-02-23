@@ -53,12 +53,7 @@ internal final class SwitcherViewModel {
     func createOrg(name: String, slug: String) {
         Task {
             do {
-                try await ConvexService.shared.mutate(OrgAPI.create, args: [
-                    "data": [
-                        "name": name,
-                        "slug": slug,
-                    ] as [String: Any],
-                ])
+                try await OrgAPI.create(name: name, slug: slug)
             } catch {
                 errorMessage = error.localizedDescription
             }

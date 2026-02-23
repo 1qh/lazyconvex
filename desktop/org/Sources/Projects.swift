@@ -132,11 +132,7 @@ internal final class TasksViewModel: SwiftCrossUI.ObservableObject {
         isLoading = true
         errorMessage = nil
         do {
-            let loaded: [TaskItem] = try await client.query(
-                TaskAPI.byProject,
-                args: ["orgId": orgID, "projectId": projectID]
-            )
-            tasks = loaded
+            tasks = try await TaskAPI.byProject(client, orgId: orgID, projectId: projectID)
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -161,10 +157,7 @@ internal final class TasksViewModel: SwiftCrossUI.ObservableObject {
     @MainActor
     func toggleTask(orgID: String, projectID: String, taskID: String) async {
         do {
-            try await client.mutation(TaskAPI.toggle, args: [
-                "orgId": orgID,
-                "id": taskID,
-            ])
+            try await TaskAPI.toggle(client, orgId: orgID, id: taskID)
             await load(orgID: orgID, projectID: projectID)
         } catch {
             errorMessage = error.localizedDescription

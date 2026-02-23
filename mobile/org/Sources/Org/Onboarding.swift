@@ -183,12 +183,7 @@ internal struct OnboardingView: View {
                     notifications: notifications,
                     theme: OrgProfileTheme(rawValue: theme)
                 )
-                try await ConvexService.shared.mutate(OrgAPI.create, args: [
-                    "data": [
-                        "name": orgName,
-                        "slug": orgSlug,
-                    ] as [String: Any],
-                ])
+                try await OrgAPI.create(name: orgName, slug: orgSlug)
                 isSubmitting = false
                 onComplete()
             } catch {

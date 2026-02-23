@@ -636,6 +636,7 @@ emit('}')
 emit('')
 
 emit('public struct OrgMemberEntry: Codable, Identifiable, Sendable {')
+emit(`${indent(1)}public let memberId: String?`)
 emit(`${indent(1)}public let userId: String`)
 emit(`${indent(1)}public let role: String`)
 emit(`${indent(1)}public let name: String?`)
@@ -680,6 +681,17 @@ emit(`${indent(1)}public let userId: String`)
 emit(`${indent(1)}public let status: String`)
 emit('')
 emit(`${indent(1)}public var id: String { _id }`)
+emit('}')
+emit('')
+
+emit('public struct SlugAvailability: Codable, Sendable {')
+emit(`${indent(1)}public let available: Bool`)
+emit('}')
+emit('')
+
+emit('public struct OrgGetOrCreateResult: Codable, Sendable {')
+emit(`${indent(1)}public let created: Bool`)
+emit(`${indent(1)}public let orgId: String`)
 emit('}')
 emit('')
 
@@ -938,6 +950,192 @@ const SAFE_ARG_TYPES = new Set(['[Bool]', '[Double]', '[String]', 'Bool', 'Doubl
         `${indent(2)}return try await client.query("${modName}:search", args: ["paginationOpts": paginationOpts, "query": searchQuery])`
       )
     emit(`${indent(1)}}`)
+  },
+  emitRestoreWrapper = (modName: string, factoryType: string) => {
+    const params = ['_ client: ConvexClientProtocol'],
+      argParts = ['"id": id']
+    if (factoryType === 'orgScoped') {
+      params.push('orgId: String')
+      argParts.push('"orgId": orgId')
+    }
+    params.push('id: String')
+    emit(`${indent(1)}public static func restore(${params.join(', ')}) async throws {`)
+    emit(`${indent(2)}try await client.mutation("${modName}:restore", args: [${argParts.join(', ')}])`)
+    emit(`${indent(1)}}`)
+  },
+  emitBulkRmWrapper = (modName: string, factoryType: string) => {
+    const params = ['_ client: ConvexClientProtocol'],
+      argParts = ['"ids": ids']
+    if (factoryType === 'orgScoped') {
+      params.push('orgId: String')
+      argParts.push('"orgId": orgId')
+    }
+    params.push('ids: [String]')
+    emit(`${indent(1)}public static func bulkRm(${params.join(', ')}) async throws {`)
+    emit(`${indent(2)}try await client.mutation("${modName}:bulkRm", args: [${argParts.join(', ')}])`)
+    emit(`${indent(1)}}`)
+  },
+  emitTaskDesktopWrappers = (fns: Set<string>, structName: string) => {
+    if (fns.has('toggle')) {
+      emit(
+        `${indent(1)}public static func toggle(_ client: ConvexClientProtocol, orgId: String, id: String) async throws {`
+      )
+      emit(`${indent(2)}try await client.mutation("task:toggle", args: ["orgId": orgId, "id": id])`)
+      emit(`${indent(1)}}`)
+    }
+    if (fns.has('byProject')) {
+      emit(
+        `${indent(1)}public static func byProject(_ client: ConvexClientProtocol, orgId: String, projectId: String) async throws -> [${structName}] {`
+      )
+      emit(`${indent(2)}try await client.query("task:byProject", args: ["orgId": orgId, "projectId": projectId])`)
+      emit(`${indent(1)}}`)
+    }
+  },
+  // eslint-disable-next-line max-statements
+  emitOrgDesktopWrappers = () => {
+    emit(
+      `${indent(1)}public static func create(_ client: ConvexClientProtocol, name: String, slug: String, avatarId: String? = nil) async throws {`
+    )
+    emit(`${indent(2)}var data: [String: Any] = ["name": name, "slug": slug]`)
+    emit(`${indent(2)}if let avatarId { data["avatarId"] = avatarId }`)
+    emit(`${indent(2)}try await client.mutation("org:create", args: ["data": data])`)
+    emit(`${indent(1)}}`)
+
+    emit(
+      `${indent(1)}public static func update(_ client: ConvexClientProtocol, orgId: String, name: String? = nil, slug: String? = nil, avatarId: String? = nil) async throws {`
+    )
+    emit(`${indent(2)}var data: [String: Any] = [:]`)
+    emit(`${indent(2)}if let name { data["name"] = name }`)
+    emit(`${indent(2)}if let slug { data["slug"] = slug }`)
+    emit(`${indent(2)}if let avatarId { data["avatarId"] = avatarId }`)
+    emit(`${indent(2)}try await client.mutation("org:update", args: ["orgId": orgId, "data": data])`)
+    emit(`${indent(1)}}`)
+
+    emit(`${indent(1)}public static func get(_ client: ConvexClientProtocol, orgId: String) async throws -> Org {`)
+    emit(`${indent(2)}try await client.query("org:get", args: ["orgId": orgId])`)
+    emit(`${indent(1)}}`)
+
+    emit(`${indent(1)}public static func getBySlug(_ client: ConvexClientProtocol, slug: String) async throws -> Org? {`)
+    emit(`${indent(2)}try await client.query("org:getBySlug", args: ["slug": slug])`)
+    emit(`${indent(1)}}`)
+
+    emit(`${indent(1)}public static func getPublic(_ client: ConvexClientProtocol, slug: String) async throws -> Org? {`)
+    emit(`${indent(2)}try await client.query("org:getPublic", args: ["slug": slug])`)
+    emit(`${indent(1)}}`)
+
+    emit(`${indent(1)}public static func myOrgs(_ client: ConvexClientProtocol) async throws -> [OrgWithRole] {`)
+    emit(`${indent(2)}try await client.query("org:myOrgs", args: [:])`)
+    emit(`${indent(1)}}`)
+
+    emit(`${indent(1)}public static func remove(_ client: ConvexClientProtocol, orgId: String) async throws {`)
+    emit(`${indent(2)}try await client.mutation("org:remove", args: ["orgId": orgId])`)
+    emit(`${indent(1)}}`)
+
+    emit(
+      `${indent(1)}public static func isSlugAvailable(_ client: ConvexClientProtocol, slug: String) async throws -> SlugAvailability {`
+    )
+    emit(`${indent(2)}try await client.query("org:isSlugAvailable", args: ["slug": slug])`)
+    emit(`${indent(1)}}`)
+
+    emit(
+      `${indent(1)}public static func getOrCreate(_ client: ConvexClientProtocol) async throws -> OrgGetOrCreateResult {`
+    )
+    emit(`${indent(2)}try await client.mutation("org:getOrCreate", args: [:])`)
+    emit(`${indent(1)}}`)
+
+    emit(
+      `${indent(1)}public static func membership(_ client: ConvexClientProtocol, orgId: String) async throws -> OrgMembership {`
+    )
+    emit(`${indent(2)}try await client.query("org:membership", args: ["orgId": orgId])`)
+    emit(`${indent(1)}}`)
+
+    emit(
+      `${indent(1)}public static func members(_ client: ConvexClientProtocol, orgId: String) async throws -> [OrgMemberEntry] {`
+    )
+    emit(`${indent(2)}try await client.query("org:members", args: ["orgId": orgId])`)
+    emit(`${indent(1)}}`)
+
+    emit(
+      `${indent(1)}public static func setAdmin(_ client: ConvexClientProtocol, isAdmin: Bool, memberId: String) async throws {`
+    )
+    emit(`${indent(2)}try await client.mutation("org:setAdmin", args: ["isAdmin": isAdmin, "memberId": memberId])`)
+    emit(`${indent(1)}}`)
+
+    emit(`${indent(1)}public static func removeMember(_ client: ConvexClientProtocol, memberId: String) async throws {`)
+    emit(`${indent(2)}try await client.mutation("org:removeMember", args: ["memberId": memberId])`)
+    emit(`${indent(1)}}`)
+
+    emit(`${indent(1)}public static func leave(_ client: ConvexClientProtocol, orgId: String) async throws {`)
+    emit(`${indent(2)}try await client.mutation("org:leave", args: ["orgId": orgId])`)
+    emit(`${indent(1)}}`)
+
+    emit(
+      `${indent(1)}public static func transferOwnership(_ client: ConvexClientProtocol, newOwnerId: String, orgId: String) async throws {`
+    )
+    emit(
+      `${indent(2)}try await client.mutation("org:transferOwnership", args: ["newOwnerId": newOwnerId, "orgId": orgId])`
+    )
+    emit(`${indent(1)}}`)
+
+    emit(
+      `${indent(1)}public static func invite(_ client: ConvexClientProtocol, email: String, isAdmin: Bool, orgId: String) async throws {`
+    )
+    emit(`${indent(2)}try await client.mutation("org:invite", args: ["email": email, "isAdmin": isAdmin, "orgId": orgId])`)
+    emit(`${indent(1)}}`)
+
+    emit(`${indent(1)}public static func acceptInvite(_ client: ConvexClientProtocol, token: String) async throws {`)
+    emit(`${indent(2)}try await client.mutation("org:acceptInvite", args: ["token": token])`)
+    emit(`${indent(1)}}`)
+
+    emit(`${indent(1)}public static func revokeInvite(_ client: ConvexClientProtocol, inviteId: String) async throws {`)
+    emit(`${indent(2)}try await client.mutation("org:revokeInvite", args: ["inviteId": inviteId])`)
+    emit(`${indent(1)}}`)
+
+    emit(
+      `${indent(1)}public static func pendingInvites(_ client: ConvexClientProtocol, orgId: String) async throws -> [OrgInvite] {`
+    )
+    emit(`${indent(2)}try await client.query("org:pendingInvites", args: ["orgId": orgId])`)
+    emit(`${indent(1)}}`)
+
+    emit(
+      `${indent(1)}public static func requestJoin(_ client: ConvexClientProtocol, orgId: String, message: String? = nil) async throws {`
+    )
+    emit(`${indent(2)}var args: [String: Any] = ["orgId": orgId]`)
+    emit(`${indent(2)}if let message { args["message"] = message }`)
+    emit(`${indent(2)}try await client.mutation("org:requestJoin", args: args)`)
+    emit(`${indent(1)}}`)
+
+    emit(
+      `${indent(1)}public static func approveJoinRequest(_ client: ConvexClientProtocol, requestId: String, isAdmin: Bool? = nil) async throws {`
+    )
+    emit(`${indent(2)}var args: [String: Any] = ["requestId": requestId]`)
+    emit(`${indent(2)}if let isAdmin { args["isAdmin"] = isAdmin }`)
+    emit(`${indent(2)}try await client.mutation("org:approveJoinRequest", args: args)`)
+    emit(`${indent(1)}}`)
+
+    emit(
+      `${indent(1)}public static func rejectJoinRequest(_ client: ConvexClientProtocol, requestId: String) async throws {`
+    )
+    emit(`${indent(2)}try await client.mutation("org:rejectJoinRequest", args: ["requestId": requestId])`)
+    emit(`${indent(1)}}`)
+
+    emit(
+      `${indent(1)}public static func cancelJoinRequest(_ client: ConvexClientProtocol, requestId: String) async throws {`
+    )
+    emit(`${indent(2)}try await client.mutation("org:cancelJoinRequest", args: ["requestId": requestId])`)
+    emit(`${indent(1)}}`)
+
+    emit(
+      `${indent(1)}public static func pendingJoinRequests(_ client: ConvexClientProtocol, orgId: String) async throws -> [OrgJoinRequest] {`
+    )
+    emit(`${indent(2)}try await client.query("org:pendingJoinRequests", args: ["orgId": orgId])`)
+    emit(`${indent(1)}}`)
+
+    emit(
+      `${indent(1)}public static func myJoinRequest(_ client: ConvexClientProtocol, orgId: String) async throws -> OrgJoinRequest? {`
+    )
+    emit(`${indent(2)}try await client.query("org:myJoinRequest", args: ["orgId": orgId])`)
+    emit(`${indent(1)}}`)
   }
 
 for (const [modName, fns] of Object.entries(modules)) {
@@ -968,11 +1166,21 @@ for (const [modName, fns] of Object.entries(modules)) {
       if (fnSet.has('update')) emitUpdateWrapper(modName, fields, factoryType)
       if (fnSet.has('rm')) emitRmWrapper(modName, factoryType)
       if (fnSet.has('read')) emitReadWrapper(modName, structName, factoryType)
+      if (fnSet.has('restore')) emitRestoreWrapper(modName, factoryType)
+      if (fnSet.has('bulkRm')) emitBulkRmWrapper(modName, factoryType)
+      if (modName === 'task') emitTaskDesktopWrappers(fnSet, structName)
     } else if (factoryType === 'singleton') {
       if (fnSet.has('upsert')) emitUpsertWrapper(modName, fields)
       if (fnSet.has('get')) emitGetWrapper(modName, structName)
     } else if (factoryType === 'child' && fnSet.has('create') && allFieldsArgSafe(fields))
       emitChildCreateWrapper(modName, fields)
+    emit(`${indent(1)}#endif`)
+  }
+
+  if (modName === 'org') {
+    emit('')
+    emit(`${indent(1)}#if DESKTOP`)
+    emitOrgDesktopWrappers()
     emit(`${indent(1)}#endif`)
   }
 
@@ -1098,6 +1306,110 @@ if (MOBILE_OUTPUT_PATH) {
       }
       me(`${indent(2)}try await ConvexService.shared.mutate("${modName}:upsert", args: args)`)
       me(`${indent(1)}}`)
+    },
+    emitMobileRestoreWrapper = (modName: string, factoryType: string) => {
+      const params: string[] = [],
+        argParts = ['"id": id']
+      if (factoryType === 'orgScoped') {
+        params.push('orgId: String')
+        argParts.push('"orgId": orgId')
+      }
+      params.push('id: String')
+      me(`${indent(1)}public static func restore(${params.join(', ')}) async throws {`)
+      me(`${indent(2)}try await ConvexService.shared.mutate("${modName}:restore", args: [${argParts.join(', ')}])`)
+      me(`${indent(1)}}`)
+    },
+    emitMobileBulkRmWrapper = (modName: string, factoryType: string) => {
+      const params: string[] = [],
+        argParts = ['"ids": ids']
+      if (factoryType === 'orgScoped') {
+        params.push('orgId: String')
+        argParts.push('"orgId": orgId')
+      }
+      params.push('ids: [String]')
+      me(`${indent(1)}public static func bulkRm(${params.join(', ')}) async throws {`)
+      me(`${indent(2)}try await ConvexService.shared.mutate("${modName}:bulkRm", args: [${argParts.join(', ')}])`)
+      me(`${indent(1)}}`)
+    },
+    // eslint-disable-next-line max-statements
+    emitOrgMobileWrappers = () => {
+      me(`${indent(1)}public static func create(name: String, slug: String, avatarId: String? = nil) async throws {`)
+      me(`${indent(2)}var data: [String: Any] = ["name": name, "slug": slug]`)
+      me(`${indent(2)}if let avatarId { data["avatarId"] = avatarId }`)
+      me(`${indent(2)}try await ConvexService.shared.mutate("org:create", args: ["data": data])`)
+      me(`${indent(1)}}`)
+
+      me(
+        `${indent(1)}public static func update(orgId: String, name: String? = nil, slug: String? = nil, avatarId: String? = nil) async throws {`
+      )
+      me(`${indent(2)}var data: [String: Any] = [:]`)
+      me(`${indent(2)}if let name { data["name"] = name }`)
+      me(`${indent(2)}if let slug { data["slug"] = slug }`)
+      me(`${indent(2)}if let avatarId { data["avatarId"] = avatarId }`)
+      me(`${indent(2)}try await ConvexService.shared.mutate("org:update", args: ["orgId": orgId, "data": data])`)
+      me(`${indent(1)}}`)
+
+      me(`${indent(1)}public static func remove(orgId: String) async throws {`)
+      me(`${indent(2)}try await ConvexService.shared.mutate("org:remove", args: ["orgId": orgId])`)
+      me(`${indent(1)}}`)
+
+      me(`${indent(1)}public static func getOrCreate() async throws {`)
+      me(`${indent(2)}try await ConvexService.shared.mutate("org:getOrCreate", args: [:])`)
+      me(`${indent(1)}}`)
+
+      me(`${indent(1)}public static func setAdmin(isAdmin: Bool, memberId: String) async throws {`)
+      me(
+        `${indent(2)}try await ConvexService.shared.mutate("org:setAdmin", args: ["isAdmin": isAdmin, "memberId": memberId])`
+      )
+      me(`${indent(1)}}`)
+
+      me(`${indent(1)}public static func removeMember(memberId: String) async throws {`)
+      me(`${indent(2)}try await ConvexService.shared.mutate("org:removeMember", args: ["memberId": memberId])`)
+      me(`${indent(1)}}`)
+
+      me(`${indent(1)}public static func leave(orgId: String) async throws {`)
+      me(`${indent(2)}try await ConvexService.shared.mutate("org:leave", args: ["orgId": orgId])`)
+      me(`${indent(1)}}`)
+
+      me(`${indent(1)}public static func transferOwnership(newOwnerId: String, orgId: String) async throws {`)
+      me(
+        `${indent(2)}try await ConvexService.shared.mutate("org:transferOwnership", args: ["newOwnerId": newOwnerId, "orgId": orgId])`
+      )
+      me(`${indent(1)}}`)
+
+      me(`${indent(1)}public static func invite(email: String, isAdmin: Bool, orgId: String) async throws {`)
+      me(
+        `${indent(2)}try await ConvexService.shared.mutate("org:invite", args: ["email": email, "isAdmin": isAdmin, "orgId": orgId])`
+      )
+      me(`${indent(1)}}`)
+
+      me(`${indent(1)}public static func acceptInvite(token: String) async throws {`)
+      me(`${indent(2)}try await ConvexService.shared.mutate("org:acceptInvite", args: ["token": token])`)
+      me(`${indent(1)}}`)
+
+      me(`${indent(1)}public static func revokeInvite(inviteId: String) async throws {`)
+      me(`${indent(2)}try await ConvexService.shared.mutate("org:revokeInvite", args: ["inviteId": inviteId])`)
+      me(`${indent(1)}}`)
+
+      me(`${indent(1)}public static func requestJoin(orgId: String, message: String? = nil) async throws {`)
+      me(`${indent(2)}var args: [String: Any] = ["orgId": orgId]`)
+      me(`${indent(2)}if let message { args["message"] = message }`)
+      me(`${indent(2)}try await ConvexService.shared.mutate("org:requestJoin", args: args)`)
+      me(`${indent(1)}}`)
+
+      me(`${indent(1)}public static func approveJoinRequest(requestId: String, isAdmin: Bool? = nil) async throws {`)
+      me(`${indent(2)}var args: [String: Any] = ["requestId": requestId]`)
+      me(`${indent(2)}if let isAdmin { args["isAdmin"] = isAdmin }`)
+      me(`${indent(2)}try await ConvexService.shared.mutate("org:approveJoinRequest", args: args)`)
+      me(`${indent(1)}}`)
+
+      me(`${indent(1)}public static func rejectJoinRequest(requestId: String) async throws {`)
+      me(`${indent(2)}try await ConvexService.shared.mutate("org:rejectJoinRequest", args: ["requestId": requestId])`)
+      me(`${indent(1)}}`)
+
+      me(`${indent(1)}public static func cancelJoinRequest(requestId: String) async throws {`)
+      me(`${indent(2)}try await ConvexService.shared.mutate("org:cancelJoinRequest", args: ["requestId": requestId])`)
+      me(`${indent(1)}}`)
     }
 
   me('import Foundation')
@@ -1117,6 +1429,20 @@ if (MOBILE_OUTPUT_PATH) {
         if (fnSet.has('create')) emitMobileCreateWrapper(modName, fields, factoryType)
         if (fnSet.has('update')) emitMobileUpdateWrapper(modName, fields, factoryType)
         if (fnSet.has('rm')) emitMobileRmWrapper(modName, factoryType)
+        if (fnSet.has('restore')) emitMobileRestoreWrapper(modName, factoryType)
+        if (fnSet.has('bulkRm')) emitMobileBulkRmWrapper(modName, factoryType)
+        if (modName === 'task' && fnSet.has('toggle')) {
+          me(`${indent(1)}public static func toggle(orgId: String, id: String) async throws {`)
+          me(`${indent(2)}try await ConvexService.shared.mutate("task:toggle", args: ["orgId": orgId, "id": id])`)
+          me(`${indent(1)}}`)
+        }
+        if (modName === 'task' && fnSet.has('byProject')) {
+          me(`${indent(1)}public static func byProject(orgId: String, projectId: String) async throws -> [TaskItem] {`)
+          me(
+            `${indent(2)}try await ConvexService.shared.query("task:byProject", args: ["orgId": orgId, "projectId": projectId])`
+          )
+          me(`${indent(1)}}`)
+        }
       } else if (factoryType === 'singleton' && fnSet.has('upsert')) emitMobileUpsertWrapper(modName, fields)
 
       if (mLines.length > prevLen) {
@@ -1126,6 +1452,13 @@ if (MOBILE_OUTPUT_PATH) {
         for (const line of wrappedLines) me(line)
         me('}')
       }
+    }
+
+    if (modName === 'org') {
+      me('')
+      me(`extension ${apiName} {`)
+      emitOrgMobileWrappers()
+      me('}')
     }
   }
 

@@ -276,6 +276,7 @@ public struct OrgMember: Codable, Identifiable, Sendable {
 }
 
 public struct OrgMemberEntry: Codable, Identifiable, Sendable {
+    public let memberId: String?
     public let userId: String
     public let role: String
     public let name: String?
@@ -324,6 +325,15 @@ public struct OrgJoinRequest: Codable, Identifiable, Sendable {
     public var id: String {
         _id
     }
+}
+
+public struct SlugAvailability: Codable, Sendable {
+    public let available: Bool
+}
+
+public struct OrgGetOrCreateResult: Codable, Sendable {
+    public let created: Bool
+    public let orgId: String
 }
 
 public struct BlogWhere: Sendable {
@@ -687,6 +697,10 @@ public enum ProjectAPI {
     public static func read(_ client: ConvexClientProtocol, orgId: String, id: String) async throws -> Project {
         try await client.query("project:read", args: ["id": id, "orgId": orgId])
     }
+
+    public static func bulkRm(_ client: ConvexClientProtocol, orgId: String, ids: [String]) async throws {
+        try await client.mutation("project:bulkRm", args: ["ids": ids, "orgId": orgId])
+    }
     #endif
 }
 
@@ -800,6 +814,14 @@ public enum WikiAPI {
 
     public static func read(_ client: ConvexClientProtocol, orgId: String, id: String) async throws -> Wiki {
         try await client.query("wiki:read", args: ["id": id, "orgId": orgId])
+    }
+
+    public static func restore(_ client: ConvexClientProtocol, orgId: String, id: String) async throws {
+        try await client.mutation("wiki:restore", args: ["id": id, "orgId": orgId])
+    }
+
+    public static func bulkRm(_ client: ConvexClientProtocol, orgId: String, ids: [String]) async throws {
+        try await client.mutation("wiki:bulkRm", args: ["ids": ids, "orgId": orgId])
     }
     #endif
 }
@@ -930,6 +952,10 @@ public enum BlogAPI {
 
     public static func read(_ client: ConvexClientProtocol, id: String) async throws -> Blog {
         try await client.query("blog:read", args: ["id": id])
+    }
+
+    public static func bulkRm(_ client: ConvexClientProtocol, ids: [String]) async throws {
+        try await client.mutation("blog:bulkRm", args: ["ids": ids])
     }
     #endif
 }
@@ -1120,6 +1146,136 @@ public enum OrgAPI {
     public static let transferOwnership = "org:transferOwnership"
     public static let update = "org:update"
     public static let getOrCreate = "org:getOrCreate"
+
+    #if DESKTOP
+    public static func create(_ client: ConvexClientProtocol, name: String, slug: String, avatarId: String? = nil) async throws {
+        var data: [String: Any] = ["name": name, "slug": slug]
+        if let avatarId {
+            data["avatarId"] = avatarId
+        }
+        try await client.mutation("org:create", args: ["data": data])
+    }
+
+    public static func update(
+        _ client: ConvexClientProtocol,
+        orgId: String,
+        name: String? = nil,
+        slug: String? = nil,
+        avatarId: String? = nil
+    ) async throws {
+        var data = [String: Any]()
+        if let name {
+            data["name"] = name
+        }
+        if let slug {
+            data["slug"] = slug
+        }
+        if let avatarId {
+            data["avatarId"] = avatarId
+        }
+        try await client.mutation("org:update", args: ["orgId": orgId, "data": data])
+    }
+
+    public static func get(_ client: ConvexClientProtocol, orgId: String) async throws -> Org {
+        try await client.query("org:get", args: ["orgId": orgId])
+    }
+
+    public static func getBySlug(_ client: ConvexClientProtocol, slug: String) async throws -> Org? {
+        try await client.query("org:getBySlug", args: ["slug": slug])
+    }
+
+    public static func getPublic(_ client: ConvexClientProtocol, slug: String) async throws -> Org? {
+        try await client.query("org:getPublic", args: ["slug": slug])
+    }
+
+    public static func myOrgs(_ client: ConvexClientProtocol) async throws -> [OrgWithRole] {
+        try await client.query("org:myOrgs", args: [:])
+    }
+
+    public static func remove(_ client: ConvexClientProtocol, orgId: String) async throws {
+        try await client.mutation("org:remove", args: ["orgId": orgId])
+    }
+
+    public static func isSlugAvailable(_ client: ConvexClientProtocol, slug: String) async throws -> SlugAvailability {
+        try await client.query("org:isSlugAvailable", args: ["slug": slug])
+    }
+
+    public static func getOrCreate(_ client: ConvexClientProtocol) async throws -> OrgGetOrCreateResult {
+        try await client.mutation("org:getOrCreate", args: [:])
+    }
+
+    public static func membership(_ client: ConvexClientProtocol, orgId: String) async throws -> OrgMembership {
+        try await client.query("org:membership", args: ["orgId": orgId])
+    }
+
+    public static func members(_ client: ConvexClientProtocol, orgId: String) async throws -> [OrgMemberEntry] {
+        try await client.query("org:members", args: ["orgId": orgId])
+    }
+
+    public static func setAdmin(_ client: ConvexClientProtocol, isAdmin: Bool, memberId: String) async throws {
+        try await client.mutation("org:setAdmin", args: ["isAdmin": isAdmin, "memberId": memberId])
+    }
+
+    public static func removeMember(_ client: ConvexClientProtocol, memberId: String) async throws {
+        try await client.mutation("org:removeMember", args: ["memberId": memberId])
+    }
+
+    public static func leave(_ client: ConvexClientProtocol, orgId: String) async throws {
+        try await client.mutation("org:leave", args: ["orgId": orgId])
+    }
+
+    public static func transferOwnership(_ client: ConvexClientProtocol, newOwnerId: String, orgId: String) async throws {
+        try await client.mutation("org:transferOwnership", args: ["newOwnerId": newOwnerId, "orgId": orgId])
+    }
+
+    public static func invite(_ client: ConvexClientProtocol, email: String, isAdmin: Bool, orgId: String) async throws {
+        try await client.mutation("org:invite", args: ["email": email, "isAdmin": isAdmin, "orgId": orgId])
+    }
+
+    public static func acceptInvite(_ client: ConvexClientProtocol, token: String) async throws {
+        try await client.mutation("org:acceptInvite", args: ["token": token])
+    }
+
+    public static func revokeInvite(_ client: ConvexClientProtocol, inviteId: String) async throws {
+        try await client.mutation("org:revokeInvite", args: ["inviteId": inviteId])
+    }
+
+    public static func pendingInvites(_ client: ConvexClientProtocol, orgId: String) async throws -> [OrgInvite] {
+        try await client.query("org:pendingInvites", args: ["orgId": orgId])
+    }
+
+    public static func requestJoin(_ client: ConvexClientProtocol, orgId: String, message: String? = nil) async throws {
+        var args: [String: Any] = ["orgId": orgId]
+        if let message {
+            args["message"] = message
+        }
+        try await client.mutation("org:requestJoin", args: args)
+    }
+
+    public static func approveJoinRequest(_ client: ConvexClientProtocol, requestId: String, isAdmin: Bool? = nil) async throws {
+        var args: [String: Any] = ["requestId": requestId]
+        if let isAdmin {
+            args["isAdmin"] = isAdmin
+        }
+        try await client.mutation("org:approveJoinRequest", args: args)
+    }
+
+    public static func rejectJoinRequest(_ client: ConvexClientProtocol, requestId: String) async throws {
+        try await client.mutation("org:rejectJoinRequest", args: ["requestId": requestId])
+    }
+
+    public static func cancelJoinRequest(_ client: ConvexClientProtocol, requestId: String) async throws {
+        try await client.mutation("org:cancelJoinRequest", args: ["requestId": requestId])
+    }
+
+    public static func pendingJoinRequests(_ client: ConvexClientProtocol, orgId: String) async throws -> [OrgJoinRequest] {
+        try await client.query("org:pendingJoinRequests", args: ["orgId": orgId])
+    }
+
+    public static func myJoinRequest(_ client: ConvexClientProtocol, orgId: String) async throws -> OrgJoinRequest? {
+        try await client.query("org:myJoinRequest", args: ["orgId": orgId])
+    }
+    #endif
 }
 
 public enum UserAPI {
@@ -1229,6 +1385,18 @@ public enum TaskAPI {
 
     public static func read(_ client: ConvexClientProtocol, orgId: String, id: String) async throws -> TaskItem {
         try await client.query("task:read", args: ["id": id, "orgId": orgId])
+    }
+
+    public static func bulkRm(_ client: ConvexClientProtocol, orgId: String, ids: [String]) async throws {
+        try await client.mutation("task:bulkRm", args: ["ids": ids, "orgId": orgId])
+    }
+
+    public static func toggle(_ client: ConvexClientProtocol, orgId: String, id: String) async throws {
+        try await client.mutation("task:toggle", args: ["orgId": orgId, "id": id])
+    }
+
+    public static func byProject(_ client: ConvexClientProtocol, orgId: String, projectId: String) async throws -> [TaskItem] {
+        try await client.query("task:byProject", args: ["orgId": orgId, "projectId": projectId])
     }
     #endif
 }

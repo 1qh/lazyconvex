@@ -69,10 +69,7 @@ internal final class TasksViewModel {
     func toggleTask(orgID: String, taskID: String) {
         Task {
             do {
-                try await ConvexService.shared.mutate(TaskAPI.toggle, args: [
-                    "orgId": orgID,
-                    "id": taskID,
-                ])
+                try await TaskAPI.toggle(orgId: orgID, id: taskID)
             } catch {
                 errorMessage = error.localizedDescription
             }

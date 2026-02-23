@@ -70,10 +70,7 @@ internal final class WikiListViewModel: SwiftCrossUI.ObservableObject {
     @MainActor
     func restoreWiki(orgID: String, id: String) async {
         do {
-            try await client.mutation(WikiAPI.restore, args: [
-                "orgId": orgID,
-                "id": id,
-            ])
+            try await WikiAPI.restore(client, orgId: orgID, id: id)
             await load(orgID: orgID)
         } catch {
             errorMessage = error.localizedDescription

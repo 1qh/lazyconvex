@@ -91,14 +91,11 @@ internal struct SettingsView: View {
         isSaving = true
         Task {
             do {
-                var data: [String: Any] = ["name": editedName]
-                if !editedSlug.isEmpty {
-                    data["slug"] = editedSlug
-                }
-                try await ConvexService.shared.mutate(OrgAPI.update, args: [
-                    "orgId": orgID,
-                    "data": data as [String: Any],
-                ] as [String: Any])
+                try await OrgAPI.update(
+                    orgId: orgID,
+                    name: editedName,
+                    slug: editedSlug.isEmpty ? nil : editedSlug
+                )
                 isSaving = false
             } catch {
                 errorMessage = error.localizedDescription
@@ -110,7 +107,7 @@ internal struct SettingsView: View {
     private func leaveOrg() {
         Task {
             do {
-                try await ConvexService.shared.mutate(OrgAPI.leave, args: ["orgId": orgID])
+                try await OrgAPI.leave(orgId: orgID)
                 onSwitchOrg()
             } catch {
                 errorMessage = error.localizedDescription
@@ -121,7 +118,7 @@ internal struct SettingsView: View {
     private func deleteOrg() {
         Task {
             do {
-                try await ConvexService.shared.mutate(OrgAPI.remove, args: ["orgId": orgID])
+                try await OrgAPI.remove(orgId: orgID)
                 onSwitchOrg()
             } catch {
                 errorMessage = error.localizedDescription

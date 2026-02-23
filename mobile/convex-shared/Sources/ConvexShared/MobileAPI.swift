@@ -80,6 +80,10 @@ extension ProjectAPI {
     public static func rm(orgId: String, id: String) async throws {
         try await ConvexService.shared.mutate("project:rm", args: ["id": id, "orgId": orgId])
     }
+
+    public static func bulkRm(orgId: String, ids: [String]) async throws {
+        try await ConvexService.shared.mutate("project:bulkRm", args: ["ids": ids, "orgId": orgId])
+    }
 }
 
 extension WikiAPI {
@@ -143,6 +147,14 @@ extension WikiAPI {
 
     public static func rm(orgId: String, id: String) async throws {
         try await ConvexService.shared.mutate("wiki:rm", args: ["id": id, "orgId": orgId])
+    }
+
+    public static func restore(orgId: String, id: String) async throws {
+        try await ConvexService.shared.mutate("wiki:restore", args: ["id": id, "orgId": orgId])
+    }
+
+    public static func bulkRm(orgId: String, ids: [String]) async throws {
+        try await ConvexService.shared.mutate("wiki:bulkRm", args: ["ids": ids, "orgId": orgId])
     }
 }
 
@@ -211,6 +223,10 @@ extension BlogAPI {
     public static func rm(id: String) async throws {
         try await ConvexService.shared.mutate("blog:rm", args: ["id": id])
     }
+
+    public static func bulkRm(ids: [String]) async throws {
+        try await ConvexService.shared.mutate("blog:bulkRm", args: ["ids": ids])
+    }
 }
 
 extension ChatAPI {
@@ -274,6 +290,90 @@ extension OrgProfileAPI {
     }
 }
 
+extension OrgAPI {
+    public static func create(name: String, slug: String, avatarId: String? = nil) async throws {
+        var data: [String: Any] = ["name": name, "slug": slug]
+        if let avatarId {
+            data["avatarId"] = avatarId
+        }
+        try await ConvexService.shared.mutate("org:create", args: ["data": data])
+    }
+
+    public static func update(orgId: String, name: String? = nil, slug: String? = nil, avatarId: String? = nil) async throws {
+        var data = [String: Any]()
+        if let name {
+            data["name"] = name
+        }
+        if let slug {
+            data["slug"] = slug
+        }
+        if let avatarId {
+            data["avatarId"] = avatarId
+        }
+        try await ConvexService.shared.mutate("org:update", args: ["orgId": orgId, "data": data])
+    }
+
+    public static func remove(orgId: String) async throws {
+        try await ConvexService.shared.mutate("org:remove", args: ["orgId": orgId])
+    }
+
+    public static func getOrCreate() async throws {
+        try await ConvexService.shared.mutate("org:getOrCreate", args: [:])
+    }
+
+    public static func setAdmin(isAdmin: Bool, memberId: String) async throws {
+        try await ConvexService.shared.mutate("org:setAdmin", args: ["isAdmin": isAdmin, "memberId": memberId])
+    }
+
+    public static func removeMember(memberId: String) async throws {
+        try await ConvexService.shared.mutate("org:removeMember", args: ["memberId": memberId])
+    }
+
+    public static func leave(orgId: String) async throws {
+        try await ConvexService.shared.mutate("org:leave", args: ["orgId": orgId])
+    }
+
+    public static func transferOwnership(newOwnerId: String, orgId: String) async throws {
+        try await ConvexService.shared.mutate("org:transferOwnership", args: ["newOwnerId": newOwnerId, "orgId": orgId])
+    }
+
+    public static func invite(email: String, isAdmin: Bool, orgId: String) async throws {
+        try await ConvexService.shared.mutate("org:invite", args: ["email": email, "isAdmin": isAdmin, "orgId": orgId])
+    }
+
+    public static func acceptInvite(token: String) async throws {
+        try await ConvexService.shared.mutate("org:acceptInvite", args: ["token": token])
+    }
+
+    public static func revokeInvite(inviteId: String) async throws {
+        try await ConvexService.shared.mutate("org:revokeInvite", args: ["inviteId": inviteId])
+    }
+
+    public static func requestJoin(orgId: String, message: String? = nil) async throws {
+        var args: [String: Any] = ["orgId": orgId]
+        if let message {
+            args["message"] = message
+        }
+        try await ConvexService.shared.mutate("org:requestJoin", args: args)
+    }
+
+    public static func approveJoinRequest(requestId: String, isAdmin: Bool? = nil) async throws {
+        var args: [String: Any] = ["requestId": requestId]
+        if let isAdmin {
+            args["isAdmin"] = isAdmin
+        }
+        try await ConvexService.shared.mutate("org:approveJoinRequest", args: args)
+    }
+
+    public static func rejectJoinRequest(requestId: String) async throws {
+        try await ConvexService.shared.mutate("org:rejectJoinRequest", args: ["requestId": requestId])
+    }
+
+    public static func cancelJoinRequest(requestId: String) async throws {
+        try await ConvexService.shared.mutate("org:cancelJoinRequest", args: ["requestId": requestId])
+    }
+}
+
 extension TaskAPI {
     public static func create(
         orgId: String,
@@ -330,5 +430,17 @@ extension TaskAPI {
 
     public static func rm(orgId: String, id: String) async throws {
         try await ConvexService.shared.mutate("task:rm", args: ["id": id, "orgId": orgId])
+    }
+
+    public static func bulkRm(orgId: String, ids: [String]) async throws {
+        try await ConvexService.shared.mutate("task:bulkRm", args: ["ids": ids, "orgId": orgId])
+    }
+
+    public static func toggle(orgId: String, id: String) async throws {
+        try await ConvexService.shared.mutate("task:toggle", args: ["orgId": orgId, "id": id])
+    }
+
+    public static func byProject(orgId: String, projectId: String) async throws -> [TaskItem] {
+        try await ConvexService.shared.query("task:byProject", args: ["orgId": orgId, "projectId": projectId])
     }
 }
