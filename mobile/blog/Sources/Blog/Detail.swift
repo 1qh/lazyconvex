@@ -5,35 +5,28 @@ import SwiftUI
 
 @MainActor
 @Observable
-internal final class DetailViewModel {
-    var isLoading = true
+internal final class DetailViewModel: Performing {
+    let sub = Sub<Blog>()
+    var mutationError: String?
 
-    var blog: Blog?
-
-    var errorMessage: String?
-
-    private var subscriptionID: String?
-
-    func startSubscription(blogID: String) {
-        stopSubscription()
-        isLoading = true
-        errorMessage = nil
-
-        subscriptionID = BlogAPI.subscribeRead(
-            id: blogID,
-            onUpdate: { [weak self] result in
-                self?.blog = result
-                self?.isLoading = false
-            },
-            onError: { [weak self] error in
-                self?.errorMessage = error.localizedDescription
-                self?.isLoading = false
-            }
-        )
+    var blog: Blog? {
+        sub.data
     }
 
-    func stopSubscription() {
-        cancelSubscription(&subscriptionID)
+    var isLoading: Bool {
+        sub.isLoading
+    }
+
+    var errorMessage: String? {
+        sub.error ?? mutationError
+    }
+
+    func start(blogID: String) {
+        sub.bind { BlogAPI.subscribeRead(id: blogID, onUpdate: $0, onError: $1) }
+    }
+
+    func stop() {
+        sub.cancel()
     }
 
     func deleteBlog() {
@@ -41,13 +34,7 @@ internal final class DetailViewModel {
             return
         }
 
-        Task {
-            do {
-                try await BlogAPI.rm(id: blog._id)
-            } catch {
-                errorMessage = error.localizedDescription
-            }
-        }
+        perform { try await BlogAPI.rm(id: blog._id) }
     }
 }
 
@@ -55,9 +42,7 @@ internal struct DetailView: View {
     let blogID: String
 
     @State private var viewModel = DetailViewModel()
-
     @State private var showDeleteConfirmation = false
-
     @State private var showEditSheet = false
 
     @Environment(\.dismiss)
@@ -180,10 +165,10 @@ internal struct DetailView: View {
         }
         .navigationTitle("Detail")
         .task {
-            viewModel.startSubscription(blogID: blogID)
+            viewModel.start(blogID: blogID)
         }
         .onDisappear {
-            viewModel.stopSubscription()
+            viewModel.stop()
         }
     }
 }

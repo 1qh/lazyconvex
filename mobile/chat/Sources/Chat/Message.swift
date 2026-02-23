@@ -6,38 +6,25 @@ import SwiftUI
 @MainActor
 @Observable
 internal final class MessageViewModel {
-    var messages = [Message]()
-
-    var isLoading = true
-
+    let sub = Sub<[Message]>()
     var isAiLoading = false
-
     var messageText = ""
-
     var errorMessage: String?
 
-    private var subscriptionID: String?
-
-    func startSubscription(chatID: String) {
-        stopSubscription()
-        isLoading = true
-        errorMessage = nil
-
-        subscriptionID = MessageAPI.subscribeList(
-            chatId: chatID,
-            onUpdate: { [weak self] result in
-                self?.messages = result
-                self?.isLoading = false
-            },
-            onError: { [weak self] error in
-                self?.errorMessage = error.localizedDescription
-                self?.isLoading = false
-            }
-        )
+    var messages: [Message] {
+        sub.data ?? []
     }
 
-    func stopSubscription() {
-        cancelSubscription(&subscriptionID)
+    var isLoading: Bool {
+        sub.isLoading
+    }
+
+    func start(chatID: String) {
+        sub.bind { MessageAPI.subscribeList(chatId: chatID, onUpdate: $0, onError: $1) }
+    }
+
+    func stop() {
+        sub.cancel()
     }
 
     func sendMessage(chatID: String) {
@@ -47,7 +34,6 @@ internal final class MessageViewModel {
         }
 
         messageText = ""
-
         Task {
             do {
                 try await MessageAPI.create(
@@ -55,7 +41,6 @@ internal final class MessageViewModel {
                     parts: [MessagePart(type: .text, text: text)],
                     role: "user"
                 )
-
                 isAiLoading = true
                 try await MobileAiAPI.chat(chatId: chatID)
                 isAiLoading = false
@@ -152,10 +137,10 @@ internal struct MessageView: View {
         }
         .navigationTitle("Chat")
         .task {
-            viewModel.startSubscription(chatID: chatID)
+            viewModel.start(chatID: chatID)
         }
         .onDisappear {
-            viewModel.stopSubscription()
+            viewModel.stop()
         }
     }
 }

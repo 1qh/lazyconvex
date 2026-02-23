@@ -1,10 +1,70 @@
 import Foundation
+import Observation
 import SwiftUI
 
 public func cancelSubscription(_ subscriptionID: inout String?) {
     if let subID = subscriptionID {
         ConvexService.shared.cancelSubscription(subID)
         subscriptionID = nil
+    }
+}
+
+@preconcurrency
+@MainActor
+@Observable
+public final class Sub<T> {
+    public var data: T?
+    public var isLoading = true
+    public var error: String?
+    private var subID: String?
+
+    // swiftlint:disable:next no_empty_block
+    public init() {}
+    @preconcurrency
+    public func bind(
+        _ subscribe: (
+            _ onUpdate: @escaping @Sendable @MainActor (T) -> Void,
+            _ onError: @escaping @Sendable @MainActor (Error) -> Void
+        ) -> String
+    ) {
+        cancel()
+        isLoading = true
+        error = nil
+        subID = subscribe(
+            { [weak self] result in
+                self?.data = result
+                self?.isLoading = false
+            },
+            { [weak self] err in
+                self?.error = err.localizedDescription
+                self?.isLoading = false
+            }
+        )
+    }
+
+    public func cancel() {
+        if let id = subID {
+            ConvexService.shared.cancelSubscription(id)
+            subID = nil
+        }
+    }
+}
+
+@preconcurrency
+@MainActor
+public protocol Performing: AnyObject {
+    var mutationError: String? { get set }
+}
+
+extension Performing {
+    public func perform(_ action: @escaping () async throws -> Void) {
+        Task { [weak self] in
+            do {
+                try await action()
+            } catch {
+                self?.mutationError = error.localizedDescription
+            }
+        }
     }
 }
 

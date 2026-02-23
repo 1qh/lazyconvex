@@ -5,70 +5,40 @@ import SwiftUI
 
 @MainActor
 @Observable
-internal final class WikiListViewModel {
-    var wikis = [Wiki]()
+internal final class WikiListViewModel: Performing {
+    let sub = Sub<PaginatedResult<Wiki>>()
+    var mutationError: String?
 
-    var isLoading = true
-
-    var errorMessage: String?
-
-    private var subscriptionID: String?
-
-    func startSubscription(orgID: String) {
-        stopSubscription()
-        isLoading = true
-
-        subscriptionID = WikiAPI.subscribeList(
-            orgId: orgID,
-            onUpdate: { [weak self] result in
-                self?.wikis = result.page
-                self?.isLoading = false
-            },
-            onError: { [weak self] error in
-                self?.errorMessage = error.localizedDescription
-                self?.isLoading = false
-            }
-        )
+    var wikis: [Wiki] {
+        sub.data?.page ?? []
     }
 
-    func stopSubscription() {
-        cancelSubscription(&subscriptionID)
+    var isLoading: Bool {
+        sub.isLoading
+    }
+
+    var errorMessage: String? {
+        sub.error ?? mutationError
+    }
+
+    func start(orgID: String) {
+        sub.bind { WikiAPI.subscribeList(orgId: orgID, onUpdate: $0, onError: $1) }
+    }
+
+    func stop() {
+        sub.cancel()
     }
 
     func createWiki(orgID: String, title: String, slug: String) {
-        Task {
-            do {
-                try await WikiAPI.create(
-                    orgId: orgID,
-                    content: "",
-                    slug: slug,
-                    status: .draft,
-                    title: title
-                )
-            } catch {
-                errorMessage = error.localizedDescription
-            }
-        }
+        perform { try await WikiAPI.create(orgId: orgID, content: "", slug: slug, status: .draft, title: title) }
     }
 
     func deleteWiki(orgID: String, id: String) {
-        Task {
-            do {
-                try await WikiAPI.rm(orgId: orgID, id: id)
-            } catch {
-                errorMessage = error.localizedDescription
-            }
-        }
+        perform { try await WikiAPI.rm(orgId: orgID, id: id) }
     }
 
     func restoreWiki(orgID: String, id: String) {
-        Task {
-            do {
-                try await WikiAPI.restore(orgId: orgID, id: id)
-            } catch {
-                errorMessage = error.localizedDescription
-            }
-        }
+        perform { try await WikiAPI.restore(orgId: orgID, id: id) }
     }
 }
 
@@ -193,10 +163,10 @@ internal struct WikiListView: View {
             }
         }
         .task {
-            viewModel.startSubscription(orgID: orgID)
+            viewModel.start(orgID: orgID)
         }
         .onDisappear {
-            viewModel.stopSubscription()
+            viewModel.stop()
         }
     }
 }

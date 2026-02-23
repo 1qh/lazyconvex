@@ -5,14 +5,22 @@ import SwiftUI
 
 @MainActor
 @Observable
-internal final class ListViewModel {
-    var blogs = [Blog]()
-
-    var isLoading = false
-
+internal final class ListViewModel: Performing {
+    let sub = Sub<PaginatedResult<Blog>>()
+    var mutationError: String?
     var searchQuery = ""
 
-    var errorMessage: String?
+    var blogs: [Blog] {
+        sub.data?.page ?? []
+    }
+
+    var isLoading: Bool {
+        sub.isLoading
+    }
+
+    var errorMessage: String? {
+        sub.error ?? mutationError
+    }
 
     var displayedBlogs: [Blog] {
         if searchQuery.isEmpty {
@@ -37,52 +45,26 @@ internal final class ListViewModel {
         return filtered
     }
 
-    private var subscriptionID: String?
-
-    func startSubscription() {
-        stopSubscription()
-        isLoading = true
-        errorMessage = nil
-
-        subscriptionID = BlogAPI.subscribeList(
-            where: BlogWhere(or: [.init(published: true), .init(own: true)]),
-            onUpdate: { [weak self] result in
-                guard let self else {
-                    return
-                }
-
-                blogs = result.page
-                isLoading = false
-            },
-            onError: { [weak self] error in
-                self?.errorMessage = error.localizedDescription
-                self?.isLoading = false
-            }
-        )
+    func start() {
+        sub.bind { onUpdate, onError in
+            BlogAPI.subscribeList(
+                where: BlogWhere(or: [.init(published: true), .init(own: true)]),
+                onUpdate: onUpdate,
+                onError: onError
+            )
+        }
     }
 
-    func stopSubscription() {
-        cancelSubscription(&subscriptionID)
+    func stop() {
+        sub.cancel()
     }
 
     func deleteBlog(id: String) {
-        Task {
-            do {
-                try await BlogAPI.rm(id: id)
-            } catch {
-                errorMessage = error.localizedDescription
-            }
-        }
+        perform { try await BlogAPI.rm(id: id) }
     }
 
     func togglePublished(id: String, published: Bool) {
-        Task {
-            do {
-                try await BlogAPI.update(id: id, published: !published)
-            } catch {
-                errorMessage = error.localizedDescription
-            }
-        }
+        perform { try await BlogAPI.update(id: id, published: !published) }
     }
 }
 
@@ -214,10 +196,10 @@ internal struct ListView: View {
             }
         }
         .task {
-            viewModel.startSubscription()
+            viewModel.start()
         }
         .onDisappear {
-            viewModel.stopSubscription()
+            viewModel.stop()
         }
     }
 }

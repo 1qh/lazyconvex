@@ -5,59 +5,36 @@ import SwiftUI
 
 @MainActor
 @Observable
-internal final class ListViewModel {
-    var chats = [Chat]()
+internal final class ListViewModel: Performing {
+    let sub = Sub<PaginatedResult<Chat>>()
+    var mutationError: String?
 
-    var isLoading = false
-
-    var errorMessage: String?
-
-    private var subscriptionID: String?
-
-    func startSubscription() {
-        stopSubscription()
-        isLoading = true
-        errorMessage = nil
-
-        subscriptionID = ChatAPI.subscribeList(
-            where: ChatWhere(own: true),
-            onUpdate: { [weak self] result in
-                guard let self else {
-                    return
-                }
-
-                chats = result.page
-                isLoading = false
-            },
-            onError: { [weak self] error in
-                self?.errorMessage = error.localizedDescription
-                self?.isLoading = false
-            }
-        )
+    var chats: [Chat] {
+        sub.data?.page ?? []
     }
 
-    func stopSubscription() {
-        cancelSubscription(&subscriptionID)
+    var isLoading: Bool {
+        sub.isLoading
+    }
+
+    var errorMessage: String? {
+        sub.error ?? mutationError
+    }
+
+    func start() {
+        sub.bind { ChatAPI.subscribeList(where: ChatWhere(own: true), onUpdate: $0, onError: $1) }
+    }
+
+    func stop() {
+        sub.cancel()
     }
 
     func createChat() {
-        Task {
-            do {
-                try await ChatAPI.create(isPublic: false, title: "New Chat")
-            } catch {
-                errorMessage = error.localizedDescription
-            }
-        }
+        perform { try await ChatAPI.create(isPublic: false, title: "New Chat") }
     }
 
     func deleteChat(id: String) {
-        Task {
-            do {
-                try await ChatAPI.rm(id: id)
-            } catch {
-                errorMessage = error.localizedDescription
-            }
-        }
+        perform { try await ChatAPI.rm(id: id) }
     }
 }
 
@@ -114,10 +91,10 @@ internal struct ListView: View {
             }
         }
         .task {
-            viewModel.startSubscription()
+            viewModel.start()
         }
         .onDisappear {
-            viewModel.stopSubscription()
+            viewModel.stop()
         }
     }
 }

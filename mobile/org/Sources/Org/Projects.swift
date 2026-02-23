@@ -5,58 +5,36 @@ import SwiftUI
 
 @MainActor
 @Observable
-internal final class ProjectsViewModel {
-    var projects = [Project]()
+internal final class ProjectsViewModel: Performing {
+    let sub = Sub<PaginatedResult<Project>>()
+    var mutationError: String?
 
-    var isLoading = true
-
-    var errorMessage: String?
-
-    private var subscriptionID: String?
-
-    func startSubscription(orgID: String) {
-        stopSubscription()
-        isLoading = true
-
-        subscriptionID = ProjectAPI.subscribeList(
-            orgId: orgID,
-            onUpdate: { [weak self] result in
-                self?.projects = result.page
-                self?.isLoading = false
-            },
-            onError: { [weak self] error in
-                self?.errorMessage = error.localizedDescription
-                self?.isLoading = false
-            }
-        )
+    var projects: [Project] {
+        sub.data?.page ?? []
     }
 
-    func stopSubscription() {
-        cancelSubscription(&subscriptionID)
+    var isLoading: Bool {
+        sub.isLoading
+    }
+
+    var errorMessage: String? {
+        sub.error ?? mutationError
+    }
+
+    func start(orgID: String) {
+        sub.bind { ProjectAPI.subscribeList(orgId: orgID, onUpdate: $0, onError: $1) }
+    }
+
+    func stop() {
+        sub.cancel()
     }
 
     func createProject(orgID: String, name: String, description: String) {
-        Task {
-            do {
-                try await ProjectAPI.create(
-                    orgId: orgID,
-                    description: description.isEmpty ? nil : description,
-                    name: name
-                )
-            } catch {
-                errorMessage = error.localizedDescription
-            }
-        }
+        perform { try await ProjectAPI.create(orgId: orgID, description: description.isEmpty ? nil : description, name: name) }
     }
 
     func deleteProject(orgID: String, id: String) {
-        Task {
-            do {
-                try await ProjectAPI.rm(orgId: orgID, id: id)
-            } catch {
-                errorMessage = error.localizedDescription
-            }
-        }
+        perform { try await ProjectAPI.rm(orgId: orgID, id: id) }
     }
 }
 
@@ -147,10 +125,10 @@ internal struct ProjectsView: View {
             }
         }
         .task {
-            viewModel.startSubscription(orgID: orgID)
+            viewModel.start(orgID: orgID)
         }
         .onDisappear {
-            viewModel.stopSubscription()
+            viewModel.stop()
         }
     }
 }

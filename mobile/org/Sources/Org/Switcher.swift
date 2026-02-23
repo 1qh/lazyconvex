@@ -5,43 +5,32 @@ import SwiftUI
 
 @MainActor
 @Observable
-internal final class SwitcherViewModel {
-    var orgs = [OrgWithRole]()
+internal final class SwitcherViewModel: Performing {
+    let sub = Sub<[OrgWithRole]>()
+    var mutationError: String?
 
-    var isLoading = true
-
-    var errorMessage: String?
-
-    private var subscriptionID: String?
-
-    func startSubscription() {
-        stopSubscription()
-        isLoading = true
-
-        subscriptionID = OrgAPI.subscribeMyOrgs(
-            onUpdate: { [weak self] result in
-                self?.orgs = result
-                self?.isLoading = false
-            },
-            onError: { [weak self] error in
-                self?.errorMessage = error.localizedDescription
-                self?.isLoading = false
-            }
-        )
+    var orgs: [OrgWithRole] {
+        sub.data ?? []
     }
 
-    func stopSubscription() {
-        cancelSubscription(&subscriptionID)
+    var isLoading: Bool {
+        sub.isLoading
+    }
+
+    var errorMessage: String? {
+        sub.error ?? mutationError
+    }
+
+    func start() {
+        sub.bind { OrgAPI.subscribeMyOrgs(onUpdate: $0, onError: $1) }
+    }
+
+    func stop() {
+        sub.cancel()
     }
 
     func createOrg(name: String, slug: String) {
-        Task {
-            do {
-                try await OrgAPI.create(name: name, slug: slug)
-            } catch {
-                errorMessage = error.localizedDescription
-            }
-        }
+        perform { try await OrgAPI.create(name: name, slug: slug) }
     }
 }
 
@@ -177,10 +166,10 @@ internal struct SwitcherView: View {
                 }
             }
             .task {
-                viewModel.startSubscription()
+                viewModel.start()
             }
             .onDisappear {
-                viewModel.stopSubscription()
+                viewModel.stop()
             }
         }
     }

@@ -5,69 +5,40 @@ import SwiftUI
 
 @MainActor
 @Observable
-internal final class TasksViewModel {
-    var tasks = [TaskItem]()
+internal final class TasksViewModel: Performing {
+    let sub = Sub<[TaskItem]>()
+    var mutationError: String?
 
-    var isLoading = true
-
-    var errorMessage: String?
-
-    private var subscriptionID: String?
-
-    func startSubscription(orgID: String, projectID: String) {
-        stopSubscription()
-        isLoading = true
-
-        subscriptionID = TaskAPI.subscribeByProject(
-            orgId: orgID,
-            projectId: projectID,
-            onUpdate: { [weak self] result in
-                self?.tasks = result
-                self?.isLoading = false
-            },
-            onError: { [weak self] error in
-                self?.errorMessage = error.localizedDescription
-                self?.isLoading = false
-            }
-        )
+    var tasks: [TaskItem] {
+        sub.data ?? []
     }
 
-    func stopSubscription() {
-        cancelSubscription(&subscriptionID)
+    var isLoading: Bool {
+        sub.isLoading
+    }
+
+    var errorMessage: String? {
+        sub.error ?? mutationError
+    }
+
+    func start(orgID: String, projectID: String) {
+        sub.bind { TaskAPI.subscribeByProject(orgId: orgID, projectId: projectID, onUpdate: $0, onError: $1) }
+    }
+
+    func stop() {
+        sub.cancel()
     }
 
     func createTask(orgID: String, projectID: String, title: String) {
-        Task {
-            do {
-                try await TaskAPI.create(
-                    orgId: orgID,
-                    projectId: projectID,
-                    title: title
-                )
-            } catch {
-                errorMessage = error.localizedDescription
-            }
-        }
+        perform { try await TaskAPI.create(orgId: orgID, projectId: projectID, title: title) }
     }
 
     func toggleTask(orgID: String, taskID: String) {
-        Task {
-            do {
-                try await TaskAPI.toggle(orgId: orgID, id: taskID)
-            } catch {
-                errorMessage = error.localizedDescription
-            }
-        }
+        perform { try await TaskAPI.toggle(orgId: orgID, id: taskID) }
     }
 
     func deleteTask(orgID: String, id: String) {
-        Task {
-            do {
-                try await TaskAPI.rm(orgId: orgID, id: id)
-            } catch {
-                errorMessage = error.localizedDescription
-            }
-        }
+        perform { try await TaskAPI.rm(orgId: orgID, id: id) }
     }
 }
 
@@ -156,10 +127,10 @@ internal struct TasksView: View {
         }
         .navigationTitle("Tasks")
         .task {
-            viewModel.startSubscription(orgID: orgID, projectID: projectID)
+            viewModel.start(orgID: orgID, projectID: projectID)
         }
         .onDisappear {
-            viewModel.stopSubscription()
+            viewModel.stop()
         }
     }
 

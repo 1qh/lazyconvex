@@ -5,88 +5,51 @@ import SwiftUI
 
 @MainActor
 @Observable
-internal final class MembersViewModel {
-    var members = [OrgMemberEntry]()
+internal final class MembersViewModel: Performing {
+    let membersSub = Sub<[OrgMemberEntry]>()
+    let invitesSub = Sub<[OrgInvite]>()
+    var mutationError: String?
 
-    var invites = [OrgInvite]()
-
-    var isLoading = true
-
-    var errorMessage: String?
-
-    private var membersSubID: String?
-
-    private var invitesSubID: String?
-
-    func startSubscription(orgID: String) {
-        stopSubscription()
-        isLoading = true
-
-        membersSubID = OrgAPI.subscribeMembers(
-            orgId: orgID,
-            onUpdate: { [weak self] result in
-                self?.members = result
-                self?.isLoading = false
-            },
-            onError: { [weak self] error in
-                self?.errorMessage = error.localizedDescription
-                self?.isLoading = false
-            }
-        )
-        invitesSubID = OrgAPI.subscribePendingInvites(
-            orgId: orgID,
-            onUpdate: { [weak self] result in
-                self?.invites = result
-            },
-            onError: { [weak self] error in
-                self?.errorMessage = error.localizedDescription
-            }
-        )
+    var members: [OrgMemberEntry] {
+        membersSub.data ?? []
     }
 
-    func stopSubscription() {
-        cancelSubscription(&membersSubID)
-        cancelSubscription(&invitesSubID)
+    var invites: [OrgInvite] {
+        invitesSub.data ?? []
+    }
+
+    var isLoading: Bool {
+        membersSub.isLoading
+    }
+
+    var errorMessage: String? {
+        membersSub.error ?? invitesSub.error ?? mutationError
+    }
+
+    func start(orgID: String) {
+        membersSub.bind { OrgAPI.subscribeMembers(orgId: orgID, onUpdate: $0, onError: $1) }
+        invitesSub.bind { OrgAPI.subscribePendingInvites(orgId: orgID, onUpdate: $0, onError: $1) }
+    }
+
+    func stop() {
+        membersSub.cancel()
+        invitesSub.cancel()
     }
 
     func inviteMember(orgID: String, email: String) {
-        Task {
-            do {
-                try await OrgAPI.invite(email: email, isAdmin: false, orgId: orgID)
-            } catch {
-                errorMessage = error.localizedDescription
-            }
-        }
+        perform { try await OrgAPI.invite(email: email, isAdmin: false, orgId: orgID) }
     }
 
     func revokeInvite(inviteID: String) {
-        Task {
-            do {
-                try await OrgAPI.revokeInvite(inviteId: inviteID)
-            } catch {
-                errorMessage = error.localizedDescription
-            }
-        }
+        perform { try await OrgAPI.revokeInvite(inviteId: inviteID) }
     }
 
     func setAdmin(memberId: String, isAdmin: Bool) {
-        Task {
-            do {
-                try await OrgAPI.setAdmin(isAdmin: isAdmin, memberId: memberId)
-            } catch {
-                errorMessage = error.localizedDescription
-            }
-        }
+        perform { try await OrgAPI.setAdmin(isAdmin: isAdmin, memberId: memberId) }
     }
 
     func removeMember(memberId: String) {
-        Task {
-            do {
-                try await OrgAPI.removeMember(memberId: memberId)
-            } catch {
-                errorMessage = error.localizedDescription
-            }
-        }
+        perform { try await OrgAPI.removeMember(memberId: memberId) }
     }
 }
 
@@ -183,10 +146,10 @@ internal struct MembersView: View {
             }
         }
         .task {
-            viewModel.startSubscription(orgID: orgID)
+            viewModel.start(orgID: orgID)
         }
         .onDisappear {
-            viewModel.stopSubscription()
+            viewModel.stop()
         }
     }
 }
