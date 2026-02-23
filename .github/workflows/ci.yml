@@ -95,7 +95,6 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 30
     strategy:
-      fail-fast: false
       matrix:
         app:
           - { dir: blog, scheme: 'App' }
@@ -121,11 +120,11 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 30
     strategy:
-      fail-fast: false
       matrix:
         app: [blog, chat, movie, org]
     steps:
       - uses: actions/checkout@v5
+      - run: rm -rf ~/Library/Caches/org.swift.swiftpm/repositories
       - name: Build ${{ matrix.app }}
         run: swift build --package-path desktop/${{ matrix.app }}
 
@@ -146,7 +145,6 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 45
     strategy:
-      fail-fast: false
       matrix:
         app:
           - { dir: movie, project: MovieDesktop, scheme: MovieUITests }

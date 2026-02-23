@@ -1436,13 +1436,6 @@ if (MOBILE_OUTPUT_PATH) {
           me(`${indent(2)}try await ConvexService.shared.mutate("task:toggle", args: ["orgId": orgId, "id": id])`)
           me(`${indent(1)}}`)
         }
-        if (modName === 'task' && fnSet.has('byProject')) {
-          me(`${indent(1)}public static func byProject(orgId: String, projectId: String) async throws -> [TaskItem] {`)
-          me(
-            `${indent(2)}try await ConvexService.shared.query("task:byProject", args: ["orgId": orgId, "projectId": projectId])`
-          )
-          me(`${indent(1)}}`)
-        }
       } else if (factoryType === 'singleton' && fnSet.has('upsert')) emitMobileUpsertWrapper(modName, fields)
 
       if (mLines.length > prevLen) {

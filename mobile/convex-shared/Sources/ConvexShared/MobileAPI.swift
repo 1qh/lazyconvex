@@ -439,8 +439,4 @@ extension TaskAPI {
     public static func toggle(orgId: String, id: String) async throws {
         try await ConvexService.shared.mutate("task:toggle", args: ["orgId": orgId, "id": id])
     }
-
-    public static func byProject(orgId: String, projectId: String) async throws -> [TaskItem] {
-        try await ConvexService.shared.query("task:byProject", args: ["orgId": orgId, "projectId": projectId])
-    }
 }
