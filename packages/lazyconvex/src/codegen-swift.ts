@@ -960,7 +960,7 @@ for (const [modName, fns] of Object.entries(modules)) {
 
   if (factoryType && fields) {
     emit('')
-    emit(`${indent(1)}#if !SKIP`)
+    emit(`${indent(1)}#if !SKIP && !canImport(ConvexMobile)`)
     if (factoryType === 'owned' || factoryType === 'orgScoped') {
       if (isStandardList) emitListWrapper(modName, tableName, structName, factoryType)
       if (fnSet.has('search')) emitSearchWrapper(modName, structName, factoryType)

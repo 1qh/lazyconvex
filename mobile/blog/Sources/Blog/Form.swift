@@ -111,8 +111,12 @@ internal final class FormViewModel {
             do {
                 switch mode {
                 case .create:
+                    guard let cat = BlogCategory(rawValue: category) else {
+                        return
+                    }
+
                     try await BlogAPI.create(
-                        category: BlogCategory(rawValue: category),
+                        category: cat,
                         content: content.trimmingCharacters(in: .whitespacesAndNewlines),
                         coverImage: coverImageID,
                         published: published,
