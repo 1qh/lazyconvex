@@ -16,18 +16,7 @@ internal final class DetailViewModel {
         isLoading = true
         errorMessage = nil
         do {
-            #if !SKIP
-            let loaded: Movie = try await ConvexService.shared.action(
-                MovieAPI.load,
-                args: ["tmdb_id": Double(tmdbID)],
-                returning: Movie.self
-            )
-            #else
-            let loaded: Movie = try await ConvexService.shared.actionMovie(
-                name: MovieAPI.load,
-                args: ["tmdb_id": Double(tmdbID)]
-            )
-            #endif
+            let loaded = try await MovieAPI.load(tmdbId: tmdbID)
             movie = loaded
         } catch {
             errorMessage = error.localizedDescription

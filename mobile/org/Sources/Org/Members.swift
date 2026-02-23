@@ -22,12 +22,9 @@ internal final class MembersViewModel {
         stopSubscription()
         isLoading = true
 
-        #if !SKIP
-        membersSubID = ConvexService.shared.subscribe(
-            to: OrgAPI.members,
-            args: ["orgId": orgID],
-            type: [OrgMemberEntry].self,
-            onUpdate: { [weak self] (result: [OrgMemberEntry]) in
+        membersSubID = OrgAPI.subscribeMembers(
+            orgId: orgID,
+            onUpdate: { [weak self] result in
                 self?.members = result
                 self?.isLoading = false
             },
@@ -36,41 +33,15 @@ internal final class MembersViewModel {
                 self?.isLoading = false
             }
         )
-        invitesSubID = ConvexService.shared.subscribe(
-            to: OrgAPI.pendingInvites,
-            args: ["orgId": orgID],
-            type: [OrgInvite].self,
-            onUpdate: { [weak self] (result: [OrgInvite]) in
+        invitesSubID = OrgAPI.subscribePendingInvites(
+            orgId: orgID,
+            onUpdate: { [weak self] result in
                 self?.invites = result
             },
             onError: { [weak self] error in
                 self?.errorMessage = error.localizedDescription
             }
         )
-        #else
-        membersSubID = ConvexService.shared.subscribeOrgMembers(
-            to: OrgAPI.members,
-            args: ["orgId": orgID],
-            onUpdate: { result in
-                self.members = Array(result)
-                self.isLoading = false
-            },
-            onError: { error in
-                self.errorMessage = error.localizedDescription
-                self.isLoading = false
-            }
-        )
-        invitesSubID = ConvexService.shared.subscribeInvites(
-            to: OrgAPI.pendingInvites,
-            args: ["orgId": orgID],
-            onUpdate: { result in
-                self.invites = Array(result)
-            },
-            onError: { error in
-                self.errorMessage = error.localizedDescription
-            }
-        )
-        #endif
     }
 
     func stopSubscription() {
@@ -88,7 +59,7 @@ internal final class MembersViewModel {
         }
     }
 
-    func revokeInvite(orgID _: String, inviteID: String) {
+    func revokeInvite(inviteID: String) {
         Task {
             do {
                 try await OrgAPI.revokeInvite(inviteId: inviteID)
@@ -167,7 +138,7 @@ internal struct MembersView: View {
                                     Spacer()
                                     if role == "owner" || role == "admin" {
                                         Button("Revoke", role: .destructive) {
-                                            viewModel.revokeInvite(orgID: orgID, inviteID: invite._id)
+                                            viewModel.revokeInvite(inviteID: invite._id)
                                         }
                                         .font(.caption)
                                     }

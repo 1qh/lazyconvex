@@ -12,6 +12,20 @@ public struct MessagePart: Codable, Sendable {
     public let image: String?
     public let file: String?
     public let name: String?
+
+    public init(
+        type: MessagePartType,
+        text: String? = nil,
+        image: String? = nil,
+        file: String? = nil,
+        name: String? = nil
+    ) {
+        self.type = type
+        self.text = text
+        self.image = image
+        self.file = file
+        self.name = name
+    }
 }
 
 public enum BlogCategory: String, Codable, Sendable {
@@ -984,9 +998,6 @@ public enum MovieAPI {
     public static let update = "movie:update"
 
     #if DESKTOP
-    #endif
-
-    #if DESKTOP
     public static func search(_ client: ConvexClientProtocol, query: String) async throws -> [SearchResult] {
         try await client.action("movie:search", args: ["query": query])
     }
@@ -1101,15 +1112,29 @@ public enum MessageAPI {
     public static let pubList = "message:pubList"
 
     #if DESKTOP
-    #endif
-
-    #if DESKTOP
     public static func list(_ client: ConvexClientProtocol, chatId: String) async throws -> [Message] {
         try await client.query("message:list", args: ["chatId": chatId])
     }
 
-    public static func create(_ client: ConvexClientProtocol, chatId: String, parts: [[String: Any]], role: String) async throws {
-        try await client.mutation("message:create", args: ["chatId": chatId, "parts": parts, "role": role])
+    public static func create(_ client: ConvexClientProtocol, chatId: String, parts: [MessagePart], role: String) async throws {
+        var partDicts = [[String: Any]]()
+        for p in parts {
+            var d: [String: Any] = ["type": p.type.rawValue]
+            if let text = p.text {
+                d["text"] = text
+            }
+            if let image = p.image {
+                d["image"] = image
+            }
+            if let file = p.file {
+                d["file"] = file
+            }
+            if let name = p.name {
+                d["name"] = name
+            }
+            partDicts.append(d)
+        }
+        try await client.mutation("message:create", args: ["chatId": chatId, "parts": partDicts, "role": role])
     }
     #endif
 }

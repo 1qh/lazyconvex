@@ -23,12 +23,9 @@ internal final class MessageViewModel {
         isLoading = true
         errorMessage = nil
 
-        #if !SKIP
-        subscriptionID = ConvexService.shared.subscribe(
-            to: MessageAPI.list,
-            args: ["chatId": chatID],
-            type: [Message].self,
-            onUpdate: { [weak self] (result: [Message]) in
+        subscriptionID = MessageAPI.subscribeList(
+            chatId: chatID,
+            onUpdate: { [weak self] result in
                 self?.messages = result
                 self?.isLoading = false
             },
@@ -37,20 +34,6 @@ internal final class MessageViewModel {
                 self?.isLoading = false
             }
         )
-        #else
-        subscriptionID = ConvexService.shared.subscribeMessages(
-            to: MessageAPI.list,
-            args: ["chatId": chatID],
-            onUpdate: { result in
-                self.messages = Array(result)
-                self.isLoading = false
-            },
-            onError: { error in
-                self.errorMessage = error.localizedDescription
-                self.isLoading = false
-            }
-        )
-        #endif
     }
 
     func stopSubscription() {
@@ -67,26 +50,14 @@ internal final class MessageViewModel {
 
         Task {
             do {
-                let parts: [[String: Any]] = [["type": "text", "text": text]]
-                try await ConvexService.shared.mutate(MessageAPI.create, args: [
-                    "chatId": chatID,
-                    "parts": parts,
-                    "role": "user",
-                ])
+                try await MessageAPI.create(
+                    chatId: chatID,
+                    parts: [MessagePart(type: .text, text: text)],
+                    role: "user"
+                )
 
                 isAiLoading = true
-                #if !SKIP
-                let _: [String: String] = try await ConvexService.shared.action(
-                    MobileAiAPI.chat,
-                    args: ["chatId": chatID],
-                    returning: [String: String].self
-                )
-                #else
-                try await ConvexService.shared.action(
-                    name: MobileAiAPI.chat,
-                    args: ["chatId": chatID]
-                )
-                #endif
+                try await MobileAiAPI.chat(chatId: chatID)
                 isAiLoading = false
             } catch {
                 errorMessage = error.localizedDescription

@@ -198,12 +198,22 @@ const parseArgs = (): { convex: string; mobileOutput: string; output: string; sc
       unionDiscriminantEnums.add(typEnumName)
     }
   },
+  // eslint-disable-next-line max-statements
   emitUnionBlock = (fieldTypes: Map<string, { isOptional: boolean; swiftType: string }>, name: string) => {
-    const block = [`public struct ${name}: Codable, Sendable {`]
+    const block = [`public struct ${name}: Codable, Sendable {`],
+      initParams: string[] = []
     for (const [fieldName, field] of fieldTypes) {
       const swiftType = field.isOptional ? `${field.swiftType}?` : field.swiftType
       block.push(`${indent(1)}public let ${fieldName}: ${swiftType}`)
+      const defaultVal = field.isOptional ? ' = nil' : ''
+      initParams.push(`${fieldName}: ${swiftType}${defaultVal}`)
     }
+    block.push('')
+    block.push(`${indent(1)}public init(`)
+    block.push(`${indent(2)}${initParams.join(`,\n${indent(2)}`)}`)
+    block.push(`${indent(1)}) {`)
+    for (const [fieldName] of fieldTypes) block.push(`${indent(2)}self.${fieldName} = ${fieldName}`)
+    block.push(`${indent(1)}}`)
     block.push('}', '')
     pendingLines.push(block)
   },
@@ -1151,6 +1161,7 @@ const SAFE_ARG_TYPES = new Set(['[Bool]', '[Double]', '[String]', 'Bool', 'Doubl
       emit(`${indent(1)}}`)
     }
   },
+  // eslint-disable-next-line max-statements
   emitMessageDesktopWrappers = (fns: Set<string>) => {
     if (fns.has('list')) {
       emit(
@@ -1161,10 +1172,19 @@ const SAFE_ARG_TYPES = new Set(['[Bool]', '[Double]', '[String]', 'Bool', 'Doubl
     }
     if (fns.has('create')) {
       emit(
-        `${indent(1)}public static func create(_ client: ConvexClientProtocol, chatId: String, parts: [[String: Any]], role: String) async throws {`
+        `${indent(1)}public static func create(_ client: ConvexClientProtocol, chatId: String, parts: [MessagePart], role: String) async throws {`
       )
+      emit(`${indent(2)}var partDicts = [[String: Any]]()`)
+      emit(`${indent(2)}for p in parts {`)
+      emit(`${indent(3)}var d: [String: Any] = ["type": p.type.rawValue]`)
+      emit(`${indent(3)}if let text = p.text { d["text"] = text }`)
+      emit(`${indent(3)}if let image = p.image { d["image"] = image }`)
+      emit(`${indent(3)}if let file = p.file { d["file"] = file }`)
+      emit(`${indent(3)}if let name = p.name { d["name"] = name }`)
+      emit(`${indent(3)}partDicts.append(d)`)
+      emit(`${indent(2)}}`)
       emit(
-        `${indent(2)}try await client.mutation("message:create", args: ["chatId": chatId, "parts": parts, "role": role])`
+        `${indent(2)}try await client.mutation("message:create", args: ["chatId": chatId, "parts": partDicts, "role": role])`
       )
       emit(`${indent(1)}}`)
     }
@@ -1203,8 +1223,7 @@ for (const [modName, fns] of Object.entries(modules)) {
   }
 
   if (factoryType && fields) {
-    emit('')
-    emit(`${indent(1)}#if DESKTOP`)
+    const prevDesktopLen = lines.length
     if (factoryType === 'owned' || factoryType === 'orgScoped') {
       if (isStandardList) emitListWrapper(modName, tableName, structName, factoryType)
       if (fnSet.has('search')) emitSearchWrapper(modName, structName, factoryType)
@@ -1220,7 +1239,13 @@ for (const [modName, fns] of Object.entries(modules)) {
       if (fnSet.has('get')) emitGetWrapper(modName, structName)
     } else if (factoryType === 'child' && fnSet.has('create') && allFieldsArgSafe(fields))
       emitChildCreateWrapper(modName, fields)
-    emit(`${indent(1)}#endif`)
+    if (lines.length > prevDesktopLen) {
+      const wrappedLines = lines.splice(prevDesktopLen)
+      emit('')
+      emit(`${indent(1)}#if DESKTOP`)
+      for (const line of wrappedLines) emit(line)
+      emit(`${indent(1)}#endif`)
+    }
   }
 
   if (modName === 'org') {
@@ -1484,8 +1509,232 @@ if (MOBILE_OUTPUT_PATH) {
       me(`${indent(1)}public static func cancelJoinRequest(requestId: String) async throws {`)
       me(`${indent(2)}try await ConvexService.shared.mutate("org:cancelJoinRequest", args: ["requestId": requestId])`)
       me(`${indent(1)}}`)
+    },
+    // eslint-disable-next-line max-statements
+    emitMobileSubscribePaginatedOwned = (_tableName: string, structName: string, skipMethod: string) => {
+      me(`${indent(1)}@preconcurrency`)
+      me(`${indent(1)}public static func subscribeList(`)
+      me(`${indent(2)}where filterWhere: ${structName}Where? = nil,`)
+      me(`${indent(2)}onUpdate: @escaping @Sendable @MainActor (PaginatedResult<${structName}>) -> Void,`)
+      me(`${indent(2)}onError: @escaping @Sendable @MainActor (Error) -> Void = { _ in _ = () }`)
+      me(`${indent(1)}) -> String {`)
+      me(`${indent(2)}let args = listArgs(where: filterWhere)`)
+      me(`${indent(2)}#if !SKIP`)
+      me(
+        `${indent(2)}return ConvexService.shared.subscribe(to: list, args: args, type: PaginatedResult<${structName}>.self, onUpdate: onUpdate, onError: onError)`
+      )
+      me(`${indent(2)}#else`)
+      me(
+        `${indent(2)}return ConvexService.shared.${skipMethod}(to: list, args: args, onUpdate: { r in onUpdate(r) }, onError: { e in onError(e) })`
+      )
+      me(`${indent(2)}#endif`)
+      me(`${indent(1)}}`)
+    },
+    // eslint-disable-next-line max-statements
+    emitMobileSubscribePaginatedOrgScoped = (structName: string, skipMethod: string) => {
+      me(`${indent(1)}@preconcurrency`)
+      me(`${indent(1)}public static func subscribeList(`)
+      me(`${indent(2)}orgId: String,`)
+      me(`${indent(2)}onUpdate: @escaping @Sendable @MainActor (PaginatedResult<${structName}>) -> Void,`)
+      me(`${indent(2)}onError: @escaping @Sendable @MainActor (Error) -> Void = { _ in _ = () }`)
+      me(`${indent(1)}) -> String {`)
+      me(`${indent(2)}let args = listArgs(orgId: orgId)`)
+      me(`${indent(2)}#if !SKIP`)
+      me(
+        `${indent(2)}return ConvexService.shared.subscribe(to: list, args: args, type: PaginatedResult<${structName}>.self, onUpdate: onUpdate, onError: onError)`
+      )
+      me(`${indent(2)}#else`)
+      me(
+        `${indent(2)}return ConvexService.shared.${skipMethod}(to: list, args: args, onUpdate: { r in onUpdate(r) }, onError: { e in onError(e) })`
+      )
+      me(`${indent(2)}#endif`)
+      me(`${indent(1)}}`)
+    },
+    // eslint-disable-next-line max-statements
+    emitMobileSubscribeBlogRead = () => {
+      me(`${indent(1)}@preconcurrency`)
+      me(`${indent(1)}public static func subscribeRead(`)
+      me(`${indent(2)}id: String,`)
+      me(`${indent(2)}onUpdate: @escaping @Sendable @MainActor (Blog) -> Void,`)
+      me(`${indent(2)}onError: @escaping @Sendable @MainActor (Error) -> Void = { _ in _ = () }`)
+      me(`${indent(1)}) -> String {`)
+      me(`${indent(2)}#if !SKIP`)
+      me(
+        `${indent(2)}return ConvexService.shared.subscribe(to: read, args: ["id": id], type: Blog.self, onUpdate: onUpdate, onError: onError)`
+      )
+      me(`${indent(2)}#else`)
+      me(
+        `${indent(2)}return ConvexService.shared.subscribeBlog(to: read, args: ["id": id], onUpdate: { r in onUpdate(r) }, onError: { e in onError(e) })`
+      )
+      me(`${indent(2)}#endif`)
+      me(`${indent(1)}}`)
+    },
+    // eslint-disable-next-line max-statements
+    emitMobileSubscribeProfileGet = () => {
+      me(`${indent(1)}@preconcurrency`)
+      me(`${indent(1)}public static func subscribeGet(`)
+      me(`${indent(2)}onUpdate: @escaping @Sendable @MainActor (ProfileData) -> Void,`)
+      me(`${indent(2)}onError: @escaping @Sendable @MainActor (Error) -> Void = { _ in _ = () },`)
+      me(`${indent(2)}onNull: @escaping @Sendable @MainActor () -> Void = { () }`)
+      me(`${indent(1)}) -> String {`)
+      me(`${indent(2)}#if !SKIP`)
+      me(
+        `${indent(2)}return ConvexService.shared.subscribe(to: get, args: [:], type: ProfileData.self, onUpdate: onUpdate, onError: onError)`
+      )
+      me(`${indent(2)}#else`)
+      me(
+        `${indent(2)}return ConvexService.shared.subscribeProfileData(to: get, args: [:], onUpdate: { r in onUpdate(r) }, onError: { e in onError(e) }, onNull: { onNull() })`
+      )
+      me(`${indent(2)}#endif`)
+      me(`${indent(1)}}`)
+    },
+    // eslint-disable-next-line max-statements
+    emitMobileSubscribeMessageList = () => {
+      me(`${indent(1)}@preconcurrency`)
+      me(`${indent(1)}public static func subscribeList(`)
+      me(`${indent(2)}chatId: String,`)
+      me(`${indent(2)}onUpdate: @escaping @Sendable @MainActor ([Message]) -> Void,`)
+      me(`${indent(2)}onError: @escaping @Sendable @MainActor (Error) -> Void = { _ in _ = () }`)
+      me(`${indent(1)}) -> String {`)
+      me(`${indent(2)}#if !SKIP`)
+      me(
+        `${indent(2)}return ConvexService.shared.subscribe(to: list, args: ["chatId": chatId], type: [Message].self, onUpdate: onUpdate, onError: onError)`
+      )
+      me(`${indent(2)}#else`)
+      me(
+        `${indent(2)}return ConvexService.shared.subscribeMessages(to: list, args: ["chatId": chatId], onUpdate: { r in onUpdate(Array(r)) }, onError: { e in onError(e) })`
+      )
+      me(`${indent(2)}#endif`)
+      me(`${indent(1)}}`)
+    },
+    // eslint-disable-next-line max-statements
+    emitMobileOrgSubscriptions = () => {
+      me(`${indent(1)}@preconcurrency`)
+      me(`${indent(1)}public static func subscribeMyOrgs(`)
+      me(`${indent(2)}onUpdate: @escaping @Sendable @MainActor ([OrgWithRole]) -> Void,`)
+      me(`${indent(2)}onError: @escaping @Sendable @MainActor (Error) -> Void = { _ in _ = () }`)
+      me(`${indent(1)}) -> String {`)
+      me(`${indent(2)}#if !SKIP`)
+      me(
+        `${indent(2)}return ConvexService.shared.subscribe(to: myOrgs, type: [OrgWithRole].self, onUpdate: onUpdate, onError: onError)`
+      )
+      me(`${indent(2)}#else`)
+      me(
+        `${indent(2)}return ConvexService.shared.subscribeOrgsWithRole(to: myOrgs, onUpdate: { r in onUpdate(Array(r)) }, onError: { e in onError(e) })`
+      )
+      me(`${indent(2)}#endif`)
+      me(`${indent(1)}}`)
+      me('')
+      me(`${indent(1)}@preconcurrency`)
+      me(`${indent(1)}public static func subscribeMembers(`)
+      me(`${indent(2)}orgId: String,`)
+      me(`${indent(2)}onUpdate: @escaping @Sendable @MainActor ([OrgMemberEntry]) -> Void,`)
+      me(`${indent(2)}onError: @escaping @Sendable @MainActor (Error) -> Void = { _ in _ = () }`)
+      me(`${indent(1)}) -> String {`)
+      me(`${indent(2)}#if !SKIP`)
+      me(
+        `${indent(2)}return ConvexService.shared.subscribe(to: members, args: ["orgId": orgId], type: [OrgMemberEntry].self, onUpdate: onUpdate, onError: onError)`
+      )
+      me(`${indent(2)}#else`)
+      me(
+        `${indent(2)}return ConvexService.shared.subscribeOrgMembers(to: members, args: ["orgId": orgId], onUpdate: { r in onUpdate(Array(r)) }, onError: { e in onError(e) })`
+      )
+      me(`${indent(2)}#endif`)
+      me(`${indent(1)}}`)
+      me('')
+      me(`${indent(1)}@preconcurrency`)
+      me(`${indent(1)}public static func subscribePendingInvites(`)
+      me(`${indent(2)}orgId: String,`)
+      me(`${indent(2)}onUpdate: @escaping @Sendable @MainActor ([OrgInvite]) -> Void,`)
+      me(`${indent(2)}onError: @escaping @Sendable @MainActor (Error) -> Void = { _ in _ = () }`)
+      me(`${indent(1)}) -> String {`)
+      me(`${indent(2)}#if !SKIP`)
+      me(
+        `${indent(2)}return ConvexService.shared.subscribe(to: pendingInvites, args: ["orgId": orgId], type: [OrgInvite].self, onUpdate: onUpdate, onError: onError)`
+      )
+      me(`${indent(2)}#else`)
+      me(
+        `${indent(2)}return ConvexService.shared.subscribeInvites(to: pendingInvites, args: ["orgId": orgId], onUpdate: { r in onUpdate(Array(r)) }, onError: { e in onError(e) })`
+      )
+      me(`${indent(2)}#endif`)
+      me(`${indent(1)}}`)
+    },
+    // eslint-disable-next-line max-statements
+    emitMobileTaskSubscription = () => {
+      me(`${indent(1)}@preconcurrency`)
+      me(`${indent(1)}public static func subscribeByProject(`)
+      me(`${indent(2)}orgId: String,`)
+      me(`${indent(2)}projectId: String,`)
+      me(`${indent(2)}onUpdate: @escaping @Sendable @MainActor ([TaskItem]) -> Void,`)
+      me(`${indent(2)}onError: @escaping @Sendable @MainActor (Error) -> Void = { _ in _ = () }`)
+      me(`${indent(1)}) -> String {`)
+      me(`${indent(2)}#if !SKIP`)
+      me(
+        `${indent(2)}return ConvexService.shared.subscribe(to: byProject, args: ["orgId": orgId, "projectId": projectId], type: [TaskItem].self, onUpdate: onUpdate, onError: onError)`
+      )
+      me(`${indent(2)}#else`)
+      me(
+        `${indent(2)}return ConvexService.shared.subscribeTasks(to: byProject, args: ["orgId": orgId, "projectId": projectId], onUpdate: { r in onUpdate(Array(r)) }, onError: { e in onError(e) })`
+      )
+      me(`${indent(2)}#endif`)
+      me(`${indent(1)}}`)
+    },
+    // eslint-disable-next-line max-statements
+    emitMovieMobileWrappers = () => {
+      me(`${indent(1)}public static func search(query: String) async throws -> [SearchResult] {`)
+      me(`${indent(2)}#if !SKIP`)
+      me(
+        `${indent(2)}return try await ConvexService.shared.action("movie:search", args: ["query": query], returning: [SearchResult].self)`
+      )
+      me(`${indent(2)}#else`)
+      me(
+        `${indent(2)}return Array(try await ConvexService.shared.actionSearchResults(name: "movie:search", args: ["query": query]))`
+      )
+      me(`${indent(2)}#endif`)
+      me(`${indent(1)}}`)
+      me('')
+      me(`${indent(1)}public static func load(tmdbId: Int) async throws -> Movie {`)
+      me(`${indent(2)}#if !SKIP`)
+      me(
+        `${indent(2)}return try await ConvexService.shared.action("movie:load", args: ["tmdb_id": Double(tmdbId)], returning: Movie.self)`
+      )
+      me(`${indent(2)}#else`)
+      me(
+        `${indent(2)}return try await ConvexService.shared.actionMovie(name: "movie:load", args: ["tmdb_id": Double(tmdbId)])`
+      )
+      me(`${indent(2)}#endif`)
+      me(`${indent(1)}}`)
+    },
+    // eslint-disable-next-line max-statements
+    emitMessageMobileCreateWrapper = () => {
+      me(`${indent(1)}public static func create(chatId: String, parts: [MessagePart], role: String) async throws {`)
+      me(`${indent(2)}var partDicts = [[String: Any]]()`)
+      me(`${indent(2)}for p in parts {`)
+      me(`${indent(3)}var d: [String: Any] = ["type": p.type.rawValue]`)
+      me(`${indent(3)}if let text = p.text { d["text"] = text }`)
+      me(`${indent(3)}if let image = p.image { d["image"] = image }`)
+      me(`${indent(3)}if let file = p.file { d["file"] = file }`)
+      me(`${indent(3)}if let name = p.name { d["name"] = name }`)
+      me(`${indent(3)}partDicts.append(d)`)
+      me(`${indent(2)}}`)
+      me(
+        `${indent(2)}try await ConvexService.shared.mutate("message:create", args: ["chatId": chatId, "parts": partDicts, "role": role])`
+      )
+      me(`${indent(1)}}`)
+    },
+    emitMobileAiMobileWrapper = () => {
+      me(`${indent(1)}public static func chat(chatId: String) async throws {`)
+      me(`${indent(2)}#if !SKIP`)
+      me(
+        `${indent(2)}let _: [String: String] = try await ConvexService.shared.action("mobileAi:chat", args: ["chatId": chatId], returning: [String: String].self)`
+      )
+      me(`${indent(2)}#else`)
+      me(`${indent(2)}try await ConvexService.shared.action(name: "mobileAi:chat", args: ["chatId": chatId])`)
+      me(`${indent(2)}#endif`)
+      me(`${indent(1)}}`)
     }
 
+  me('// swiftlint:disable file_length')
   me('import Foundation')
   me('')
 
@@ -1528,6 +1777,60 @@ if (MOBILE_OUTPUT_PATH) {
       me('}')
     }
   }
+
+  me('')
+  me('extension BlogAPI {')
+  emitMobileSubscribePaginatedOwned('blog', 'Blog', 'subscribePaginatedBlogs')
+  me('')
+  emitMobileSubscribeBlogRead()
+  me('}')
+
+  me('')
+  me('extension ChatAPI {')
+  emitMobileSubscribePaginatedOwned('chat', 'Chat', 'subscribePaginatedChats')
+  me('}')
+
+  me('')
+  me('extension BlogProfileAPI {')
+  emitMobileSubscribeProfileGet()
+  me('}')
+
+  me('')
+  me('extension MessageAPI {')
+  emitMessageMobileCreateWrapper()
+  me('')
+  emitMobileSubscribeMessageList()
+  me('}')
+
+  me('')
+  me('extension ProjectAPI {')
+  emitMobileSubscribePaginatedOrgScoped('Project', 'subscribePaginatedProjects')
+  me('}')
+
+  me('')
+  me('extension WikiAPI {')
+  emitMobileSubscribePaginatedOrgScoped('Wiki', 'subscribePaginatedWikis')
+  me('}')
+
+  me('')
+  me('extension OrgAPI {')
+  emitMobileOrgSubscriptions()
+  me('}')
+
+  me('')
+  me('extension TaskAPI {')
+  emitMobileTaskSubscription()
+  me('}')
+
+  me('')
+  me('extension MovieAPI {')
+  emitMovieMobileWrappers()
+  me('}')
+
+  me('')
+  me('extension MobileAiAPI {')
+  emitMobileAiMobileWrapper()
+  me('}')
 
   const mobileOutput = `${mLines.join('\n')}\n`
   writeFileSync(MOBILE_OUTPUT_PATH, mobileOutput)

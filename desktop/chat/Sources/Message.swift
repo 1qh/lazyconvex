@@ -34,7 +34,7 @@ internal final class MessageViewModel: SwiftCrossUI.ObservableObject {
         errorMessage = nil
 
         do {
-            let parts: [[String: Any]] = [["type": "text", "text": text]]
+            let parts = [MessagePart(type: .text, text: text, image: nil, file: nil, name: nil)]
             try await MessageAPI.create(client, chatId: chatID, parts: parts, role: "user")
 
             isAiLoading = true

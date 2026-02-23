@@ -18,11 +18,8 @@ internal final class SwitcherViewModel {
         stopSubscription()
         isLoading = true
 
-        #if !SKIP
-        subscriptionID = ConvexService.shared.subscribe(
-            to: OrgAPI.myOrgs,
-            type: [OrgWithRole].self,
-            onUpdate: { [weak self] (result: [OrgWithRole]) in
+        subscriptionID = OrgAPI.subscribeMyOrgs(
+            onUpdate: { [weak self] result in
                 self?.orgs = result
                 self?.isLoading = false
             },
@@ -31,19 +28,6 @@ internal final class SwitcherViewModel {
                 self?.isLoading = false
             }
         )
-        #else
-        subscriptionID = ConvexService.shared.subscribeOrgsWithRole(
-            to: OrgAPI.myOrgs,
-            onUpdate: { result in
-                self.orgs = Array(result)
-                self.isLoading = false
-            },
-            onError: { error in
-                self.errorMessage = error.localizedDescription
-                self.isLoading = false
-            }
-        )
-        #endif
     }
 
     func stopSubscription() {

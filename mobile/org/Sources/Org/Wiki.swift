@@ -18,14 +18,9 @@ internal final class WikiListViewModel {
         stopSubscription()
         isLoading = true
 
-        let args = WikiAPI.listArgs(orgId: orgID)
-
-        #if !SKIP
-        subscriptionID = ConvexService.shared.subscribe(
-            to: WikiAPI.list,
-            args: args,
-            type: PaginatedResult<Wiki>.self,
-            onUpdate: { [weak self] (result: PaginatedResult<Wiki>) in
+        subscriptionID = WikiAPI.subscribeList(
+            orgId: orgID,
+            onUpdate: { [weak self] result in
                 self?.wikis = result.page
                 self?.isLoading = false
             },
@@ -34,20 +29,6 @@ internal final class WikiListViewModel {
                 self?.isLoading = false
             }
         )
-        #else
-        subscriptionID = ConvexService.shared.subscribePaginatedWikis(
-            to: WikiAPI.list,
-            args: args,
-            onUpdate: { result in
-                self.wikis = Array(result.page)
-                self.isLoading = false
-            },
-            onError: { error in
-                self.errorMessage = error.localizedDescription
-                self.isLoading = false
-            }
-        )
-        #endif
     }
 
     func stopSubscription() {

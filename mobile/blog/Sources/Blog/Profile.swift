@@ -37,12 +37,8 @@ internal final class ProfileViewModel {
         stopSubscription()
         isLoading = true
 
-        #if !SKIP
-        subscriptionID = ConvexService.shared.subscribe(
-            to: BlogProfileAPI.get,
-            args: [:],
-            type: ProfileData.self,
-            onUpdate: { [weak self] (result: ProfileData) in
+        subscriptionID = BlogProfileAPI.subscribeGet(
+            onUpdate: { [weak self] result in
                 guard let self else {
                     return
                 }
@@ -58,30 +54,11 @@ internal final class ProfileViewModel {
             onError: { [weak self] error in
                 self?.errorMessage = error.localizedDescription
                 self?.isLoading = false
+            },
+            onNull: { [weak self] in
+                self?.isLoading = false
             }
         )
-        #else
-        subscriptionID = ConvexService.shared.subscribeProfileData(
-            to: BlogProfileAPI.get,
-            args: [:],
-            onUpdate: { result in
-                self.profile = result
-                self.displayName = result.displayName
-                self.bio = result.bio ?? ""
-                self.theme = result.theme.rawValue
-                self.notifications = result.notifications
-                self.avatarID = result.avatar
-                self.isLoading = false
-            },
-            onError: { error in
-                self.errorMessage = error.localizedDescription
-                self.isLoading = false
-            },
-            onNull: {
-                self.isLoading = false
-            }
-        )
-        #endif
     }
 
     func stopSubscription() {

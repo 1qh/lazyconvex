@@ -18,14 +18,9 @@ internal final class ProjectsViewModel {
         stopSubscription()
         isLoading = true
 
-        let args = ProjectAPI.listArgs(orgId: orgID)
-
-        #if !SKIP
-        subscriptionID = ConvexService.shared.subscribe(
-            to: ProjectAPI.list,
-            args: args,
-            type: PaginatedResult<Project>.self,
-            onUpdate: { [weak self] (result: PaginatedResult<Project>) in
+        subscriptionID = ProjectAPI.subscribeList(
+            orgId: orgID,
+            onUpdate: { [weak self] result in
                 self?.projects = result.page
                 self?.isLoading = false
             },
@@ -34,20 +29,6 @@ internal final class ProjectsViewModel {
                 self?.isLoading = false
             }
         )
-        #else
-        subscriptionID = ConvexService.shared.subscribePaginatedProjects(
-            to: ProjectAPI.list,
-            args: args,
-            onUpdate: { result in
-                self.projects = Array(result.page)
-                self.isLoading = false
-            },
-            onError: { error in
-                self.errorMessage = error.localizedDescription
-                self.isLoading = false
-            }
-        )
-        #endif
     }
 
     func stopSubscription() {

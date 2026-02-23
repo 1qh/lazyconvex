@@ -19,16 +19,9 @@ internal final class ListViewModel {
         isLoading = true
         errorMessage = nil
 
-        let args = ChatAPI.listArgs(
-            where: ChatWhere(own: true)
-        )
-
-        #if !SKIP
-        subscriptionID = ConvexService.shared.subscribe(
-            to: ChatAPI.list,
-            args: args,
-            type: PaginatedResult<Chat>.self,
-            onUpdate: { [weak self] (result: PaginatedResult<Chat>) in
+        subscriptionID = ChatAPI.subscribeList(
+            where: ChatWhere(own: true),
+            onUpdate: { [weak self] result in
                 guard let self else {
                     return
                 }
@@ -41,20 +34,6 @@ internal final class ListViewModel {
                 self?.isLoading = false
             }
         )
-        #else
-        subscriptionID = ConvexService.shared.subscribePaginatedChats(
-            to: ChatAPI.list,
-            args: args,
-            onUpdate: { result in
-                self.chats = Array(result.page)
-                self.isLoading = false
-            },
-            onError: { error in
-                self.errorMessage = error.localizedDescription
-                self.isLoading = false
-            }
-        )
-        #endif
     }
 
     func stopSubscription() {

@@ -44,16 +44,9 @@ internal final class ListViewModel {
         isLoading = true
         errorMessage = nil
 
-        let args = BlogAPI.listArgs(
-            where: BlogWhere(or: [.init(published: true), .init(own: true)])
-        )
-
-        #if !SKIP
-        subscriptionID = ConvexService.shared.subscribe(
-            to: BlogAPI.list,
-            args: args,
-            type: PaginatedResult<Blog>.self,
-            onUpdate: { [weak self] (result: PaginatedResult<Blog>) in
+        subscriptionID = BlogAPI.subscribeList(
+            where: BlogWhere(or: [.init(published: true), .init(own: true)]),
+            onUpdate: { [weak self] result in
                 guard let self else {
                     return
                 }
@@ -66,20 +59,6 @@ internal final class ListViewModel {
                 self?.isLoading = false
             }
         )
-        #else
-        subscriptionID = ConvexService.shared.subscribePaginatedBlogs(
-            to: BlogAPI.list,
-            args: args,
-            onUpdate: { result in
-                self.blogs = Array(result.page)
-                self.isLoading = false
-            },
-            onError: { error in
-                self.errorMessage = error.localizedDescription
-                self.isLoading = false
-            }
-        )
-        #endif
     }
 
     func stopSubscription() {

@@ -18,12 +18,10 @@ internal final class TasksViewModel {
         stopSubscription()
         isLoading = true
 
-        #if !SKIP
-        subscriptionID = ConvexService.shared.subscribe(
-            to: TaskAPI.byProject,
-            args: ["orgId": orgID, "projectId": projectID],
-            type: [TaskItem].self,
-            onUpdate: { [weak self] (result: [TaskItem]) in
+        subscriptionID = TaskAPI.subscribeByProject(
+            orgId: orgID,
+            projectId: projectID,
+            onUpdate: { [weak self] result in
                 self?.tasks = result
                 self?.isLoading = false
             },
@@ -32,20 +30,6 @@ internal final class TasksViewModel {
                 self?.isLoading = false
             }
         )
-        #else
-        subscriptionID = ConvexService.shared.subscribeTasks(
-            to: TaskAPI.byProject,
-            args: ["orgId": orgID, "projectId": projectID],
-            onUpdate: { result in
-                self.tasks = Array(result)
-                self.isLoading = false
-            },
-            onError: { error in
-                self.errorMessage = error.localizedDescription
-                self.isLoading = false
-            }
-        )
-        #endif
     }
 
     func stopSubscription() {

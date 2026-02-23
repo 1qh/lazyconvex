@@ -19,12 +19,9 @@ internal final class DetailViewModel {
         isLoading = true
         errorMessage = nil
 
-        #if !SKIP
-        subscriptionID = ConvexService.shared.subscribe(
-            to: BlogAPI.read,
-            args: ["id": blogID],
-            type: Blog.self,
-            onUpdate: { [weak self] (result: Blog) in
+        subscriptionID = BlogAPI.subscribeRead(
+            id: blogID,
+            onUpdate: { [weak self] result in
                 self?.blog = result
                 self?.isLoading = false
             },
@@ -33,20 +30,6 @@ internal final class DetailViewModel {
                 self?.isLoading = false
             }
         )
-        #else
-        subscriptionID = ConvexService.shared.subscribeBlog(
-            to: BlogAPI.read,
-            args: ["id": blogID],
-            onUpdate: { result in
-                self.blog = result
-                self.isLoading = false
-            },
-            onError: { error in
-                self.errorMessage = error.localizedDescription
-                self.isLoading = false
-            }
-        )
-        #endif
     }
 
     func stopSubscription() {

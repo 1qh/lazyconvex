@@ -24,18 +24,7 @@ internal final class SearchViewModel {
             isLoading = true
             errorMessage = nil
             do {
-                #if !SKIP
-                let found: [SearchResult] = try await ConvexService.shared.action(
-                    MovieAPI.search,
-                    args: ["query": trimmed],
-                    returning: [SearchResult].self
-                )
-                #else
-                let found: [SearchResult] = try await ConvexService.shared.actionSearchResults(
-                    name: MovieAPI.search,
-                    args: ["query": trimmed]
-                )
-                #endif
+                let found = try await MovieAPI.search(query: trimmed)
                 if !Task.isCancelled {
                     results = found
                 }
