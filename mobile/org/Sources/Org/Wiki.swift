@@ -243,9 +243,7 @@ internal struct WikiEditView: View {
             loadWiki()
         }
         .onDisappear {
-            if let id = subscriptionID {
-                ConvexService.shared.unsubscribe(id)
-            }
+            cancelSubscription(&subscriptionID)
         }
     }
 

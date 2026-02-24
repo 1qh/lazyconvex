@@ -12,6 +12,28 @@
 - `bun ts-unused-exports apps/<app-name>/tsconfig.json` to detect and remove unused exports
 - `bun why <package>` to check if a package is already installed, no need to install packages that are already dependencies of other packages
 
+
+## Pre-Push Verification (MANDATORY)
+
+NEVER push before ALL of these pass locally:
+
+```bash
+bun fix
+swift test --package-path swift-core
+bun build:desktop
+bun test:desktop
+swift build --package-path mobile/blog
+swift build --package-path mobile/chat
+swift build --package-path mobile/movie
+swift build --package-path mobile/org
+```
+
+## Swift Mobile API
+
+- Subscription cleanup uses `cancelSubscription(&subscriptionID)` — NOT `ConvexService.shared.unsubscribe()`
+- `cancelSubscription` is a free function from `ConvexShared/SharedUI.swift`
+- Mobile subscriptions use `Sub<T>` pattern or manual `subscriptionID` + `cancelSubscription`
+
 ---
 
 ## Code Style
