@@ -14,7 +14,7 @@
     "clean:desktop": "rm -rf desktop/*/.build swift-core/.build",
     "clean:mobile": "rm -rf mobile/*/.build mobile/*/Android/.gradle mobile/*/Android/build mobile/*/Android/app/build ~/Library/Developer/Xcode/DerivedData/Project-*",
     "clean:workspaces": "turbo run clean",
-    "codegen:swift": "lazyconvex-codegen-swift --schema packages/be/t.ts --convex packages/be/convex --output swift-core/Sources/ConvexCore/Generated.swift --mobile-output mobile/convex-shared/Sources/ConvexShared/MobileAPI.swift",
+    "codegen:swift": "lazyconvex-codegen-swift --schema packages/be/t.ts --convex packages/be/convex --output swift-core/Sources/ConvexCore/Generated.swift --mobile-output mobile/convex-shared/Sources/ConvexShared/MobileAPI.swift --custom swift-codegen.json",
     "dev:desktop": "f() { swift run --package-path desktop/$1; }; f",
     "dev:mobile": "f() { open mobile/$1/Project.xcworkspace; }; f",
     "dev:web": "f() { turbo watch dev -F @a/$1 -F @a/be; }; f",

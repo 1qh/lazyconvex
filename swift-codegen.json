@@ -1,0 +1,463 @@
+{
+  "version": 1,
+  "desktop": {
+    "chat": {
+      "pubRead": {
+        "args": [{ "argName": "id", "value": "id" }],
+        "callKind": "query",
+        "params": [{ "name": "id", "type": "String" }],
+        "returnType": "Chat"
+      }
+    },
+    "file": {
+      "upload": {
+        "args": [],
+        "callKind": "mutation",
+        "params": [],
+        "returnType": "String"
+      }
+    },
+    "message": {
+      "create": {
+        "args": [],
+        "callKind": "mutation",
+        "params": [
+          { "name": "chatId", "type": "String" },
+          { "name": "parts", "type": "[MessagePart]" },
+          { "name": "role", "type": "MessageRole" }
+        ],
+        "structArraySerialization": {
+          "extraArgs": [{ "argName": "chatId", "value": "chatId" }, { "argName": "role", "value": "role.rawValue" }],
+          "optionalFields": [
+            { "localBinding": "text", "name": "text", "value": "text" },
+            { "localBinding": "image", "name": "image", "value": "image" },
+            { "localBinding": "file", "name": "file", "value": "file" },
+            { "localBinding": "name", "name": "name", "value": "name" }
+          ],
+          "paramName": "parts",
+          "requiredFields": [{ "name": "type", "value": "p.type.rawValue" }]
+        }
+      },
+      "list": {
+        "args": [{ "argName": "chatId", "value": "chatId" }],
+        "callKind": "query",
+        "params": [{ "name": "chatId", "type": "String" }],
+        "returnType": "[Message]"
+      },
+      "pubList": {
+        "args": [{ "argName": "chatId", "value": "chatId" }],
+        "callKind": "query",
+        "params": [{ "name": "chatId", "type": "String" }],
+        "returnType": "[Message]"
+      }
+    },
+    "mobileAi": {
+      "chat": {
+        "args": [{ "argName": "chatId", "value": "chatId" }],
+        "callKind": "action",
+        "params": [{ "name": "chatId", "type": "String" }],
+        "voidDummy": true
+      }
+    },
+    "movie": {
+      "load": {
+        "args": [{ "argName": "tmdb_id", "value": "Double(tmdbId)" }],
+        "callKind": "action",
+        "params": [{ "name": "tmdbId", "type": "Int" }],
+        "returnType": "Movie"
+      },
+      "search": {
+        "args": [{ "argName": "query", "value": "query" }],
+        "callKind": "action",
+        "params": [{ "name": "query", "type": "String" }],
+        "returnType": "[SearchResult]"
+      }
+    },
+    "org": {
+      "cancelJoinRequest": {
+        "args": [{ "argName": "requestId", "value": "requestId" }],
+        "callKind": "mutation",
+        "params": [{ "name": "requestId", "type": "String" }]
+      },
+      "create": {
+        "args": [],
+        "callKind": "mutation",
+        "nestedData": {
+          "optional": ["avatarId"],
+          "required": []
+        },
+        "params": [{ "default": "nil", "name": "avatarId", "type": "String?" }]
+      },
+      "getOrCreate": {
+        "args": [],
+        "callKind": "mutation",
+        "params": [],
+        "returnType": "OrgGetOrCreateResult"
+      },
+      "getPublic": {
+        "args": [{ "argName": "slug", "value": "slug" }],
+        "callKind": "query",
+        "params": [{ "name": "slug", "type": "String" }],
+        "returnType": "Org?"
+      },
+      "isSlugAvailable": {
+        "args": [{ "argName": "slug", "value": "slug" }],
+        "callKind": "query",
+        "params": [{ "name": "slug", "type": "String" }],
+        "returnType": "SlugAvailability"
+      },
+      "myJoinRequest": {
+        "args": [{ "argName": "orgId", "value": "orgId" }],
+        "callKind": "query",
+        "params": [{ "name": "orgId", "type": "String" }],
+        "returnType": "OrgJoinRequest?"
+      },
+      "update": {
+        "args": [],
+        "callKind": "mutation",
+        "nestedData": {
+          "optional": ["avatarId"],
+          "required": []
+        },
+        "params": [{ "default": "nil", "name": "avatarId", "type": "String?" }]
+      }
+    },
+    "task": {
+      "assign": {
+        "args": [
+          { "argName": "id", "value": "id" },
+          { "argName": "orgId", "value": "orgId" },
+          { "argName": "assigneeId", "value": "assigneeId" }
+        ],
+        "callKind": "mutation",
+        "nullableArgs": ["assigneeId"],
+        "optionalArgs": ["assigneeId"],
+        "params": [
+          { "name": "orgId", "type": "String" },
+          { "name": "id", "type": "String" },
+          { "default": "nil", "name": "assigneeId", "type": "String?" }
+        ]
+      },
+      "byProject": {
+        "args": [{ "argName": "orgId", "value": "orgId" }, { "argName": "projectId", "value": "projectId" }],
+        "callKind": "query",
+        "params": [{ "name": "orgId", "type": "String" }, { "name": "projectId", "type": "String" }],
+        "returnType": "[TaskItem]"
+      },
+      "toggle": {
+        "args": [{ "argName": "orgId", "value": "orgId" }, { "argName": "id", "value": "id" }],
+        "callKind": "mutation",
+        "params": [{ "name": "orgId", "type": "String" }, { "name": "id", "type": "String" }]
+      }
+    }
+  },
+  "mobile": {
+    "message": {
+      "create": {
+        "args": [],
+        "callKind": "mutate",
+        "params": [
+          { "name": "chatId", "type": "String" },
+          { "name": "parts", "type": "[MessagePart]" },
+          { "name": "role", "type": "MessageRole" }
+        ],
+        "structArraySerialization": {
+          "extraArgs": [{ "argName": "chatId", "value": "chatId" }, { "argName": "role", "value": "role.rawValue" }],
+          "optionalFields": [
+            { "localBinding": "text", "name": "text", "value": "text" },
+            { "localBinding": "image", "name": "image", "value": "image" },
+            { "localBinding": "file", "name": "file", "value": "file" },
+            { "localBinding": "name", "name": "name", "value": "name" }
+          ],
+          "paramName": "parts",
+          "requiredFields": [{ "name": "type", "value": "p.type.rawValue" }]
+        }
+      }
+    },
+    "mobileAi": {
+      "chat": {
+        "args": [{ "argName": "chatId", "value": "chatId" }],
+        "mobileAction": {
+          "notSkipReturnType": "[String: String]",
+          "skipMethod": "action",
+          "voidAction": true
+        },
+        "params": [{ "name": "chatId", "type": "String" }]
+      }
+    },
+    "movie": {
+      "load": {
+        "args": [{ "argName": "tmdb_id", "value": "Double(tmdbId)" }],
+        "mobileAction": {
+          "notSkipReturnType": "Movie",
+          "skipMethod": "actionMovie"
+        },
+        "params": [{ "name": "tmdbId", "type": "Int" }],
+        "returnType": "Movie"
+      },
+      "search": {
+        "args": [{ "argName": "query", "value": "query" }],
+        "mobileAction": {
+          "notSkipReturnType": "[SearchResult]",
+          "skipArrayCast": true,
+          "skipMethod": "actionSearchResults"
+        },
+        "params": [{ "name": "query", "type": "String" }],
+        "returnType": "[SearchResult]"
+      }
+    },
+    "org": {
+      "cancelJoinRequest": {
+        "args": [{ "argName": "requestId", "value": "requestId" }],
+        "params": [{ "name": "requestId", "type": "String" }]
+      },
+      "create": {
+        "args": [],
+        "nestedData": {
+          "optional": ["avatarId"],
+          "required": []
+        },
+        "params": [{ "default": "nil", "name": "avatarId", "type": "String?" }]
+      },
+      "getOrCreate": {
+        "args": [],
+        "params": []
+      },
+      "update": {
+        "args": [],
+        "nestedData": {
+          "optional": ["avatarId"],
+          "required": []
+        },
+        "params": [{ "default": "nil", "name": "avatarId", "type": "String?" }]
+      }
+    },
+    "task": {
+      "assign": {
+        "args": [
+          { "argName": "id", "value": "id" },
+          { "argName": "orgId", "value": "orgId" },
+          { "argName": "assigneeId", "value": "assigneeId" }
+        ],
+        "nullableArgs": ["assigneeId"],
+        "optionalArgs": ["assigneeId"],
+        "params": [
+          { "name": "orgId", "type": "String" },
+          { "name": "id", "type": "String" },
+          { "default": "nil", "name": "assigneeId", "type": "String?" }
+        ]
+      },
+      "toggle": {
+        "args": [{ "argName": "orgId", "value": "orgId" }, { "argName": "id", "value": "id" }],
+        "params": [{ "name": "orgId", "type": "String" }, { "name": "id", "type": "String" }]
+      }
+    }
+  },
+  "subscriptions": {
+    "blog": [
+      {
+        "apiRef": "list",
+        "args": [],
+        "methodName": "subscribeList",
+        "notSkipType": "PaginatedResult<Blog>",
+        "params": [{ "default": "nil", "name": "where filterWhere", "type": "BlogWhere?" }],
+        "resultType": "PaginatedResult<Blog>",
+        "skipMethod": "subscribePaginatedBlogs",
+        "usesListArgs": true
+      },
+      {
+        "apiRef": "read",
+        "args": [{ "argName": "id", "value": "id" }],
+        "methodName": "subscribeRead",
+        "notSkipType": "Blog",
+        "params": [{ "name": "id", "type": "String" }],
+        "resultType": "Blog",
+        "skipMethod": "subscribeBlog"
+      }
+    ],
+    "blogProfile": [
+      {
+        "apiRef": "get",
+        "args": [],
+        "methodName": "subscribeGet",
+        "notSkipType": "ProfileData",
+        "onNull": true,
+        "params": [],
+        "resultType": "ProfileData",
+        "skipMethod": "subscribeProfileData"
+      }
+    ],
+    "chat": [
+      {
+        "apiRef": "list",
+        "args": [],
+        "methodName": "subscribeList",
+        "notSkipType": "PaginatedResult<Chat>",
+        "params": [{ "default": "nil", "name": "where filterWhere", "type": "ChatWhere?" }],
+        "resultType": "PaginatedResult<Chat>",
+        "skipMethod": "subscribePaginatedChats",
+        "usesListArgs": true
+      },
+      {
+        "apiRef": "read",
+        "args": [{ "argName": "id", "value": "id" }],
+        "methodName": "subscribeRead",
+        "notSkipType": "Chat",
+        "params": [{ "name": "id", "type": "String" }],
+        "resultType": "Chat",
+        "skipMethod": "subscribeChat"
+      },
+      {
+        "apiRef": "list",
+        "args": [],
+        "listArgsParam": "where: ChatWhere(isPublic: true)",
+        "methodName": "subscribePublicList",
+        "notSkipType": "PaginatedResult<Chat>",
+        "params": [],
+        "resultType": "PaginatedResult<Chat>",
+        "skipMethod": "subscribePaginatedChats",
+        "usesListArgs": true
+      }
+    ],
+    "message": [
+      {
+        "apiRef": "list",
+        "args": [{ "argName": "chatId", "value": "chatId" }],
+        "methodName": "subscribeList",
+        "notSkipType": "[Message]",
+        "params": [{ "name": "chatId", "type": "String" }],
+        "resultType": "[Message]",
+        "skipArrayCast": true,
+        "skipMethod": "subscribeMessages"
+      },
+      {
+        "apiRef": "pubList",
+        "args": [{ "argName": "chatId", "value": "chatId" }],
+        "methodName": "subscribePubList",
+        "notSkipType": "[Message]",
+        "params": [{ "name": "chatId", "type": "String" }],
+        "resultType": "[Message]",
+        "skipArrayCast": true,
+        "skipMethod": "subscribeMessages"
+      }
+    ],
+    "org": [
+      {
+        "apiRef": "myOrgs",
+        "args": [],
+        "methodName": "subscribeMyOrgs",
+        "notSkipType": "[OrgWithRole]",
+        "params": [],
+        "resultType": "[OrgWithRole]",
+        "skipArrayCast": true,
+        "skipMethod": "subscribeOrgsWithRole"
+      },
+      {
+        "apiRef": "members",
+        "args": [{ "argName": "orgId", "value": "orgId" }],
+        "methodName": "subscribeMembers",
+        "notSkipType": "[OrgMemberEntry]",
+        "params": [{ "name": "orgId", "type": "String" }],
+        "resultType": "[OrgMemberEntry]",
+        "skipArrayCast": true,
+        "skipMethod": "subscribeOrgMembers"
+      },
+      {
+        "apiRef": "pendingInvites",
+        "args": [{ "argName": "orgId", "value": "orgId" }],
+        "methodName": "subscribePendingInvites",
+        "notSkipType": "[OrgInvite]",
+        "params": [{ "name": "orgId", "type": "String" }],
+        "resultType": "[OrgInvite]",
+        "skipArrayCast": true,
+        "skipMethod": "subscribeInvites"
+      },
+      {
+        "apiRef": "pendingJoinRequests",
+        "args": [{ "argName": "orgId", "value": "orgId" }],
+        "methodName": "subscribePendingJoinRequests",
+        "notSkipType": "[JoinRequestEntry]",
+        "params": [{ "name": "orgId", "type": "String" }],
+        "resultType": "[JoinRequestEntry]",
+        "skipArrayCast": true,
+        "skipMethod": "subscribeJoinRequests"
+      }
+    ],
+    "project": [
+      {
+        "apiRef": "list",
+        "args": [],
+        "listArgsParam": "orgId: orgId",
+        "methodName": "subscribeList",
+        "notSkipType": "PaginatedResult<Project>",
+        "params": [{ "name": "orgId", "type": "String" }],
+        "resultType": "PaginatedResult<Project>",
+        "skipMethod": "subscribePaginatedProjects",
+        "usesListArgs": true
+      },
+      {
+        "apiRef": "read",
+        "args": [{ "argName": "id", "value": "id" }, { "argName": "orgId", "value": "orgId" }],
+        "methodName": "subscribeRead",
+        "notSkipType": "Project",
+        "params": [{ "name": "orgId", "type": "String" }, { "name": "id", "type": "String" }],
+        "resultType": "Project",
+        "skipMethod": "subscribeProject"
+      },
+      {
+        "apiRef": "editors",
+        "args": [{ "argName": "orgId", "value": "orgId" }, { "argName": "projectId", "value": "projectId" }],
+        "methodName": "subscribeEditors",
+        "notSkipType": "[EditorEntry]",
+        "params": [{ "name": "orgId", "type": "String" }, { "name": "projectId", "type": "String" }],
+        "resultType": "[EditorEntry]",
+        "skipArrayCast": true,
+        "skipMethod": "subscribeEditors"
+      }
+    ],
+    "task": [
+      {
+        "apiRef": "byProject",
+        "args": [{ "argName": "orgId", "value": "orgId" }, { "argName": "projectId", "value": "projectId" }],
+        "methodName": "subscribeByProject",
+        "notSkipType": "[TaskItem]",
+        "params": [{ "name": "orgId", "type": "String" }, { "name": "projectId", "type": "String" }],
+        "resultType": "[TaskItem]",
+        "skipArrayCast": true,
+        "skipMethod": "subscribeTasks"
+      }
+    ],
+    "wiki": [
+      {
+        "apiRef": "list",
+        "args": [],
+        "listArgsParam": "orgId: orgId",
+        "methodName": "subscribeList",
+        "notSkipType": "PaginatedResult<Wiki>",
+        "params": [{ "name": "orgId", "type": "String" }],
+        "resultType": "PaginatedResult<Wiki>",
+        "skipMethod": "subscribePaginatedWikis",
+        "usesListArgs": true
+      },
+      {
+        "apiRef": "read",
+        "args": [{ "argName": "id", "value": "id" }, { "argName": "orgId", "value": "orgId" }],
+        "methodName": "subscribeRead",
+        "notSkipType": "Wiki",
+        "params": [{ "name": "orgId", "type": "String" }, { "name": "id", "type": "String" }],
+        "resultType": "Wiki",
+        "skipMethod": "subscribeWiki"
+      },
+      {
+        "apiRef": "editors",
+        "args": [{ "argName": "orgId", "value": "orgId" }, { "argName": "wikiId", "value": "wikiId" }],
+        "methodName": "subscribeEditors",
+        "notSkipType": "[EditorEntry]",
+        "params": [{ "name": "orgId", "type": "String" }, { "name": "wikiId", "type": "String" }],
+        "resultType": "[EditorEntry]",
+        "skipArrayCast": true,
+        "skipMethod": "subscribeEditors"
+      }
+    ]
+  }
+}

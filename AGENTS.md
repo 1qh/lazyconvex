@@ -1,3 +1,4 @@
+I'm the author of lazyconvex, see README to learn more. This repo contains the library itself and 4 real-world app examples, each app have 3 web/mobile/desktop versions to showcase the ultimate capabilities of lazyconvex. I've spent significant amount of effort is to raise DX to maximum so anyone who adapt lazyconvex will have maximum typesafety for both typescript and swift, every typo will raise type error as expected.
 
 # RULES
 
@@ -11,7 +12,6 @@
 - if a `.tsx` file only exports a single component, use `export default`
 - `bun ts-unused-exports apps/<app-name>/tsconfig.json` to detect and remove unused exports
 - `bun why <package>` to check if a package is already installed, no need to install packages that are already dependencies of other packages
-
 
 ## Pre-Push Verification (MANDATORY)
 
@@ -435,11 +435,13 @@ Convex's generated `api` object is typed as `FilterApi<typeof fullApi, ...>` (st
 **Impact**: `api.blogprofile.get` (wrong casing) won't raise a TypeScript error even though only `api.blogProfile.get` exists. The typo silently constructs an invalid function reference that crashes at runtime with "Could not find public function".
 
 **Where it bites**:
+
 - Module paths (e.g. `api.blogprofile` vs `api.blogProfile`)
 - `convex-test` masks the issue because it routes modules differently from production Convex
 - macOS case-insensitive filesystem masks import typos (e.g. `import('./blogprofile')` resolves to `blogProfile.ts`)
 
 **Defense**:
+
 - Always match `api.<module>` references to the EXACT filename in `convex/` (use `api.d.ts` as reference)
 - Rely on E2E tests and `convex dev --once` deployments to catch casing errors
 - In `f.test.ts` module maps, use exact casing: `'./blogProfile.ts'` not `'./blogprofile.ts'`
@@ -460,3 +462,52 @@ After any significant refactoring, verify `api.blog.update({ typoField: ... })` 
 - NEVER use `forEach()`, use `for` loops instead
 - NEVER use non-null assertion operator (`!`)
 - NEVER use `any` type
+- NEVER hardcode project-specific data in `packages/lazyconvex/` — it is a general-purpose library for any developer
+
+---
+
+## Repository Architecture
+
+`packages/lazyconvex/` is the **published library** (`bun add lazyconvex`). Everything else is **consumer code** — demo apps that happen to live in the same monorepo:
+
+| Path | Role | Can reference lazyconvex internals? |
+|------|------|------------------------------------|
+| `packages/lazyconvex/` | Library (npm published) | N/A — IS the library |
+| `packages/be/` | Demo backend (consumer) | NO — uses public API only |
+| `apps/` | Demo web apps (consumer) | NO — uses public API only |
+| `desktop/` | Demo desktop apps (consumer) | NO — uses generated output only |
+| `mobile/` | Demo mobile apps (consumer) | NO — uses generated output only |
+| `swift-core/` | Shared Swift protocol (consumer) | NO — uses generated output only |
+| `packages/ui/` | Shared UI components (read-only) | NO |
+
+**The library must work for ANY project, not just these demos.** A developer who runs `bun add lazyconvex` and defines their own Zod schemas must get correct codegen output without editing library source.
+
+---
+
+## codegen-swift: No Project-Specific Data
+
+`codegen-swift.ts` must derive ALL output from inputs it receives (schema file, convex directory, CLI flags). It must NEVER contain:
+
+- Hardcoded function names, parameter lists, or return types for specific tables/modules
+- Data structures that describe THIS project's endpoints (e.g. `desktopCustomFns`, `mobileCustomFns`, `mobileSubscriptions`)
+- Anything that would require editing library source when a consumer adds a table, changes ACL, or writes custom functions
+
+### What codegen CAN know (from its own library code)
+
+- Factory patterns: `crud()` always produces `list`, `read`, `create`, `update`, `rm`, `bulkRm`, `bulkUpdate`
+- `orgCrud()` with `acl: true` always produces `addEditor`, `removeEditor`, `setEditors`, `editors`
+- `pub` option always produces `pub.list`, `pub.read` (or `pub.list`, `pub.get` for child)
+- `softDelete` always produces `restore`
+- `orgFns` always produces `create`, `update`, `get`, `getBySlug`, `myOrgs`, `remove`, `membership`, `members`, `setAdmin`, `removeMember`, `leave`, `transferOwnership`, `invite`, `acceptInvite`, `revokeInvite`, `pendingInvites`, `requestJoin`, `approveJoinRequest`, `rejectJoinRequest`, `pendingJoinRequests`
+- `singletonCrud()` always produces `get`, `upsert`
+- `cacheCrud()` always produces `get`, `all`, `list`, `create`, `update`, `rm`, `invalidate`, `purge`, `load`, `refresh`
+
+### What codegen CANNOT know (must come from project-level config)
+
+- Custom function signatures (`assign`, `toggle`, `byProject`, `mobileAi.chat`)
+- Custom return types for non-standard endpoints
+- Custom subscription descriptors beyond standard patterns
+
+### Test: is this generic?
+
+If a developer runs `bunx lazyconvex-codegen-swift --schema their-schema.ts --convex their-convex/` on a project lazyconvex has never seen, does it produce correct output? If not, something is hardcoded that shouldn't be.

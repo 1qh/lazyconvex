@@ -1,7 +1,3 @@
-included:
-  - mobile
-  - desktop
-
 excluded:
   - "**/.build"
   - "**/Android"
@@ -172,6 +168,9 @@ analyzer_rules:
 
 file_header:
   forbidden_pattern: ".*"
+  excluded:
+    - "**/Generated.swift"
+    - "**/MobileAPI.swift"
 
 line_length:
   warning: 140
