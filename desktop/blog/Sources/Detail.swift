@@ -56,7 +56,7 @@ internal struct DetailView: View {
                     ScrollView {
                         VStack {
                             Text(blog.title)
-                            Text(blog.category.rawValue)
+                            Text(blog.category.displayName)
                             Text(blog.published ? "Published" : "Draft")
                             if let authorName = blog.author?.name {
                                 Text(authorName)

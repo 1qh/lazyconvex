@@ -64,7 +64,7 @@ internal struct DetailView: View {
                                     .foregroundStyle(.secondary)
                             }
                             Spacer()
-                            Text(blog.category.rawValue)
+                            Text(blog.category.displayName)
                                 .font(.caption)
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 3)

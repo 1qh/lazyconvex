@@ -43,23 +43,22 @@ internal final class TasksViewModel: Performing {
 }
 
 internal struct PriorityBadge: View {
-    let priority: String
-
+    let priority: TaskPriority
     private var priorityColor: Color {
         switch priority {
-        case "high":
+        case .high:
             .red
 
-        case "medium":
+        case .medium:
             .orange
 
-        default:
+        case .low:
             .blue
         }
     }
 
     var body: some View {
-        Text(priority.capitalized)
+        Text(priority.displayName)
             .font(.caption2)
             .padding(.horizontal, 6)
             .padding(.vertical, 1)
@@ -101,7 +100,7 @@ internal struct TasksView: View {
                                 .strikethrough(task.completed == true)
                                 .foregroundStyle(task.completed == true ? .secondary : .primary)
                             if let priority = task.priority {
-                                PriorityBadge(priority: priority.rawValue)
+                                PriorityBadge(priority: priority)
                             }
                         }
                         Spacer()

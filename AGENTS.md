@@ -19,13 +19,7 @@ NEVER push before ALL of these pass locally:
 
 ```bash
 bun fix
-swift test --package-path swift-core
-bun build:desktop
-bun test:desktop
-swift build --package-path mobile/blog
-swift build --package-path mobile/chat
-swift build --package-path mobile/movie
-swift build --package-path mobile/org
+bun test:all
 ```
 
 ## Swift Mobile API

@@ -80,7 +80,7 @@ internal struct CardView: View {
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
-                Text(blog.category.rawValue)
+                Text(blog.category.displayName)
                     .font(.caption2)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)

@@ -51,7 +51,7 @@ internal struct RoleBadge: View {
     }
 
     var body: some View {
-        Text(role.rawValue.capitalized)
+        Text(role.displayName)
             .font(.caption2)
             .fontWeight(.medium)
             .padding(.horizontal, 8)
