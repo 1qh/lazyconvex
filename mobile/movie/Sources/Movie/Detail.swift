@@ -122,6 +122,15 @@ internal struct DetailContent: View {
                                 .font(.title2)
                                 .bold()
 
+                            if let cacheHit = movie.cacheHit {
+                                Text(cacheHit ? "Cache Hit" : "Cache Miss → Fetched")
+                                    .font(.caption2)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(cacheHit ? Color.green.opacity(0.15) : Color.orange.opacity(0.15))
+                                    .foregroundStyle(cacheHit ? .green : .orange)
+                                    .clipShape(Capsule())
+                            }
                             if movie.original_title != movie.title {
                                 Text(movie.original_title)
                                     .font(.caption)

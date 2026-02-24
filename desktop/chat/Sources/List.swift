@@ -6,7 +6,11 @@ import SwiftCrossUI
 internal final class ListViewModel: SwiftCrossUI.ObservableObject, Performing {
     @SwiftCrossUI.Published var chats = [Chat]()
     @SwiftCrossUI.Published var isLoading = false
+    @SwiftCrossUI.Published var isLoadingMore = false
+    @SwiftCrossUI.Published var isPublic = false
     @SwiftCrossUI.Published var errorMessage: String?
+    @SwiftCrossUI.Published var continueCursor: String?
+    @SwiftCrossUI.Published var isDone = false
 
     @MainActor
     func load() async {
@@ -16,13 +20,35 @@ internal final class ListViewModel: SwiftCrossUI.ObservableObject, Performing {
                 where: ChatWhere(own: true)
             )
             chats = result.page
+            continueCursor = result.continueCursor
+            isDone = result.isDone
         }
     }
 
     @MainActor
-    func createChat() async {
+    func loadMore() async {
+        guard !isDone, let cursor = continueCursor else {
+            return
+        }
+
+        await performLoading({ isLoadingMore = $0 }) {
+            let result = try await ChatAPI.list(
+                client,
+                cursor: cursor,
+                where: ChatWhere(own: true)
+            )
+            for c in result.page {
+                chats.append(c)
+            }
+            continueCursor = result.continueCursor
+            isDone = result.isDone
+        }
+    }
+
+    @MainActor
+    func createChat(isPublic: Bool) async {
         await perform {
-            try await ChatAPI.create(client, isPublic: false, title: "New Chat")
+            try await ChatAPI.create(client, isPublic: isPublic, title: "New Chat")
             await self.load()
         }
     }
@@ -44,8 +70,12 @@ internal struct ListView: View {
         VStack {
             HStack {
                 Text("Chats")
+                Toggle("Public", isOn: $viewModel.isPublic)
                 Button("New Chat") {
-                    Task { await viewModel.createChat() }
+                    Task { await viewModel.createChat(isPublic: viewModel.isPublic) }
+                }
+                Button("Public Chats") {
+                    path.wrappedValue.append("publicChats")
                 }
             }
             .padding(.bottom, 4)
@@ -74,6 +104,17 @@ internal struct ListView: View {
                             NavigationLink("Open", value: chat._id, path: path)
                         }
                         .padding(.bottom, 4)
+                    }
+
+                    if !viewModel.isDone {
+                        Button("Load More") {
+                            Task { await viewModel.loadMore() }
+                        }
+                        .padding(.top, 4)
+                    }
+
+                    if viewModel.isLoadingMore {
+                        Text("Loading more...")
                     }
                 }
             }

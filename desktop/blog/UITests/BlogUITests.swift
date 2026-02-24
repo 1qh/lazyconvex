@@ -709,4 +709,67 @@ internal final class BlogUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["ReactTut\(ts)"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.staticTexts["VueTut\(ts)"].waitForExistence(timeout: 5))
     }
+
+    func testNewPostFormHasCoverImageButton() {
+        ensureAuthenticated()
+        app.buttons["New Post"].click()
+        XCTAssertTrue(app.staticTexts["New Post"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Add Cover Image"].waitForExistence(timeout: 5))
+    }
+
+    func testNewPostFormHasTagInput() {
+        ensureAuthenticated()
+        app.buttons["New Post"].click()
+        XCTAssertTrue(app.staticTexts["New Post"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.textFields["Add tag"].waitForExistence(timeout: 5))
+    }
+
+    func testNewPostFormHasAttachmentsButton() {
+        ensureAuthenticated()
+        app.buttons["New Post"].click()
+        XCTAssertTrue(app.staticTexts["New Post"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Add Attachments"].waitForExistence(timeout: 5))
+    }
+
+    func testListShowsLoadMoreButton() {
+        ensureAuthenticated()
+        sleep(3)
+        let loadMore = app.buttons["Load More"]
+        let noPostsYet = app.staticTexts["No posts yet"]
+        XCTAssertTrue(
+            loadMore.waitForExistence(timeout: 10)
+                || noPostsYet.waitForExistence(timeout: 3)
+                || app.buttons["View"].firstMatch.waitForExistence(timeout: 3)
+        )
+    }
+
+    func testEditFormShowsAutoSaveIndicator() {
+        ensureAuthenticated()
+        let viewButton = app.buttons["View"].firstMatch
+        if viewButton.waitForExistence(timeout: 8) {
+            viewButton.click()
+            XCTAssertTrue(app.buttons["Edit"].waitForExistence(timeout: 10))
+            app.buttons["Edit"].click()
+            XCTAssertTrue(app.staticTexts["Edit Post"].waitForExistence(timeout: 5))
+            let titleField = app.textFields["Title"]
+            if titleField.waitForExistence(timeout: 5) {
+                titleField.click()
+                titleField.typeText(" test")
+                sleep(1)
+                let hasIndicator = app.staticTexts["Editing..."].waitForExistence(timeout: 5)
+                    || app.staticTexts["Saving..."].waitForExistence(timeout: 5)
+                    || app.staticTexts["Saved"].waitForExistence(timeout: 5)
+                XCTAssertTrue(hasIndicator)
+            }
+        }
+    }
+
+    func testProfileHasAvatarButton() {
+        ensureAuthenticated()
+        app.buttons["Profile"].click()
+        XCTAssertTrue(app.textFields["Display Name"].waitForExistence(timeout: 10))
+        let hasAvatarButton = app.buttons["Add Avatar"].waitForExistence(timeout: 5)
+            || app.buttons["Change Avatar"].waitForExistence(timeout: 3)
+        XCTAssertTrue(hasAvatarButton)
+    }
 }

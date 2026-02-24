@@ -381,10 +381,12 @@ public struct OrgMembership: Codable, Sendable {
 
 public struct OrgInvite: Codable, Identifiable, Sendable {
     public let _id: String
+    public let _creationTime: Double?
     public let orgId: String
     public let email: String
     public let expiresAt: Double
-
+    public let token: String?
+    public let isAdmin: Bool?
     public var id: String {
         _id
     }
@@ -1219,6 +1221,10 @@ public enum ChatAPI {
     public static func read(_ client: ConvexClientProtocol, id: String) async throws -> Chat {
         try await client.query("chat:read", args: ["id": id])
     }
+
+    public static func pubRead(_ client: ConvexClientProtocol, id: String) async throws -> Chat {
+        try await client.query("chat:pubRead", args: ["id": id])
+    }
     #endif
 }
 
@@ -1253,6 +1259,10 @@ public enum MessageAPI {
 
     public static func list(_ client: ConvexClientProtocol, chatId: String) async throws -> [Message] {
         try await client.query("message:list", args: ["chatId": chatId])
+    }
+
+    public static func pubList(_ client: ConvexClientProtocol, chatId: String) async throws -> [Message] {
+        try await client.query("message:pubList", args: ["chatId": chatId])
     }
     #endif
 }
@@ -1572,6 +1582,16 @@ public enum TaskAPI {
 
     public static func toggle(_ client: ConvexClientProtocol, orgId: String, id: String) async throws {
         try await client.mutation("task:toggle", args: ["orgId": orgId, "id": id])
+    }
+
+    public static func assign(_ client: ConvexClientProtocol, orgId: String, id: String, assigneeId: String?) async throws {
+        var args: [String: Any] = ["id": id, "orgId": orgId]
+        if let assigneeId {
+            args["assigneeId"] = assigneeId
+        } else {
+            args["assigneeId"] = NSNull()
+        }
+        try await client.mutation("task:assign", args: args)
     }
     #endif
 }

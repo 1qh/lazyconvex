@@ -11,6 +11,7 @@ internal final class ListViewModel: SwiftCrossUI.ObservableObject, Performing {
     @SwiftCrossUI.Published var errorMessage: String?
     @SwiftCrossUI.Published var continueCursor: String?
     @SwiftCrossUI.Published var isDone = false
+    @SwiftCrossUI.Published var coverImageURLs = [String: URL]()
 
     var displayedBlogs: [Blog] {
         if searchQuery.isEmpty {
@@ -21,6 +22,17 @@ internal final class ListViewModel: SwiftCrossUI.ObservableObject, Performing {
         for b in blogs {
             if b.title.lowercased().contains(q) || b.content.lowercased().contains(q) {
                 filtered.append(b)
+                continue
+            }
+            if let tags = b.tags {
+                var matched = false
+                for tag in tags where tag.lowercased().contains(q) {
+                    matched = true
+                    break
+                }
+                if matched {
+                    filtered.append(b)
+                }
             }
         }
         return filtered
@@ -37,6 +49,7 @@ internal final class ListViewModel: SwiftCrossUI.ObservableObject, Performing {
             continueCursor = result.continueCursor
             isDone = result.isDone
         }
+        loadCoverImages(blogs)
     }
 
     @MainActor
@@ -57,6 +70,7 @@ internal final class ListViewModel: SwiftCrossUI.ObservableObject, Performing {
             continueCursor = result.continueCursor
             isDone = result.isDone
         }
+        loadCoverImages(blogs)
     }
 
     @MainActor
@@ -64,6 +78,25 @@ internal final class ListViewModel: SwiftCrossUI.ObservableObject, Performing {
         await perform {
             try await BlogAPI.rm(client, id: id)
             await self.load()
+        }
+    }
+
+    @MainActor
+    private func loadCoverImages(_ items: [Blog]) {
+        for blog in items {
+            guard let remoteURL = blog.coverImageUrl else {
+                continue
+            }
+
+            if let cached = ImageCache.shared.localURL(for: remoteURL) {
+                coverImageURLs[blog._id] = cached
+                continue
+            }
+            Task {
+                if let url = await ImageCache.shared.download(remoteURL) {
+                    coverImageURLs[blog._id] = url
+                }
+            }
         }
     }
 }
@@ -92,8 +125,11 @@ internal struct ListView: View {
                                 Text(blog.title)
                                 Text(blog.category.displayName)
                                 Text(blog.published ? "Published" : "Draft")
-                                if blog.coverImageUrl != nil {
-                                    Text("[Cover Image]")
+                                if let coverURL = viewModel.coverImageURLs[blog._id] {
+                                    // swiftlint:disable:next accessibility_label_for_image
+                                    Image(coverURL)
+                                        .resizable()
+                                        .frame(width: 60, height: 60)
                                 }
                                 if let tags = blog.tags, !tags.isEmpty {
                                     HStack {

@@ -1,0 +1,48 @@
+appId: dev.lazyconvex.chat
+---
+- runFlow: login.yaml
+
+- assertVisible: "Chats"
+
+- tapOn:
+    id: "togglePublic"
+- waitForAnimationToEnd
+
+- tapOn:
+    text: "plus"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "New Chat"
+    timeout: 15000
+
+- tapOn:
+    text: "New Chat"
+    index: 0
+- waitForAnimationToEnd
+- assertVisible: "Chat"
+- assertVisible: "Message..."
+
+- tapOn: "Message..."
+- inputText: "Public chat test message"
+- tapOn:
+    id: "sendButton"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "Public chat test message"
+    timeout: 15000
+
+- back
+- waitForAnimationToEnd
+- assertVisible: "Chats"
+- assertVisible: "Public"
+
+- tapOn:
+    id: "publicChats"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "Public Chats"
+    timeout: 15000
+
+- back
+- waitForAnimationToEnd
+- assertVisible: "Chats"

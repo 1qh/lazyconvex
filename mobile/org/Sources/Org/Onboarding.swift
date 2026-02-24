@@ -31,6 +31,14 @@ internal struct OnboardingView: View {
 
     @State private var isUploadingAvatar = false
 
+    @State private var showOrgAvatarPicker = false
+
+    @State private var selectedOrgAvatarURL: URL?
+
+    @State private var orgAvatarID: String?
+
+    @State private var isUploadingOrgAvatar = false
+
     private let steps = ["Profile", "Organization", "Appearance", "Preferences"]
 
     private var isStepValid: Bool {
@@ -47,22 +55,51 @@ internal struct OnboardingView: View {
         }
     }
 
+    private var stepIndicator: some View {
+        HStack(spacing: 8) {
+            ForEach(0..<steps.count, id: \.self) { idx in
+                Circle()
+                    .fill(idx <= currentStep ? Color.blue : Color.secondary.opacity(0.3))
+                    .frame(width: 12, height: 12)
+            }
+        }
+        .padding(.top)
+    }
+
+    private var navigationButtons: some View {
+        HStack(spacing: 16) {
+            if currentStep > 0 {
+                Button("Back") {
+                    currentStep -= 1
+                }
+                .buttonStyle(.bordered)
+            }
+            Spacer()
+            if currentStep < steps.count - 1 {
+                Button("Next") {
+                    currentStep += 1
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(!isStepValid || isUploadingAvatar || isUploadingOrgAvatar)
+            } else {
+                Button("Complete") {
+                    submit()
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(isSubmitting || !isStepValid || isUploadingAvatar || isUploadingOrgAvatar)
+            }
+        }
+        .padding(.horizontal)
+        .padding(.bottom)
+    }
+
     var body: some View {
         NavigationStack {
             VStack(spacing: 24) {
-                HStack(spacing: 8) {
-                    ForEach(0..<steps.count, id: \.self) { idx in
-                        Circle()
-                            .fill(idx <= currentStep ? Color.blue : Color.secondary.opacity(0.3))
-                            .frame(width: 12, height: 12)
-                    }
-                }
-                .padding(.top)
-
+                stepIndicator
                 Text(steps[currentStep])
                     .font(.title2)
                     .fontWeight(.bold)
-
                 Form {
                     switch currentStep {
                     case 0:
@@ -100,6 +137,29 @@ internal struct OnboardingView: View {
                             TextField("Organization Name", text: $orgName)
                             TextField("URL Slug", text: $orgSlug)
                         }
+                        Section("Organization Avatar") {
+                            if isUploadingOrgAvatar {
+                                ProgressView("Uploading...")
+                            } else if orgAvatarID != nil {
+                                HStack {
+                                    Image(systemName: "building.2.fill")
+                                        .foregroundStyle(.green)
+                                        .accessibilityHidden(true)
+                                    Text("Avatar set")
+                                    Spacer()
+                                    Button("Remove") {
+                                        orgAvatarID = nil
+                                        selectedOrgAvatarURL = nil
+                                    }
+                                    .foregroundStyle(.red)
+                                }
+                            }
+                            Button(orgAvatarID != nil ? "Change Avatar" : "Select Avatar") {
+                                showOrgAvatarPicker = true
+                            }
+                            .withMediaPicker(type: .library, isPresented: $showOrgAvatarPicker, selectedImageURL: $selectedOrgAvatarURL)
+                            .onChange(of: selectedOrgAvatarURL) { _, _ in uploadOrgAvatar() }
+                        }
 
                     case 2:
                         Section {
@@ -120,35 +180,11 @@ internal struct OnboardingView: View {
                         EmptyView()
                     }
                 }
-
                 if errorMessage != nil {
                     ErrorBanner(message: errorMessage)
                 }
 
-                HStack(spacing: 16) {
-                    if currentStep > 0 {
-                        Button("Back") {
-                            currentStep -= 1
-                        }
-                        .buttonStyle(.bordered)
-                    }
-                    Spacer()
-                    if currentStep < steps.count - 1 {
-                        Button("Next") {
-                            currentStep += 1
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(!isStepValid || isUploadingAvatar)
-                    } else {
-                        Button("Complete") {
-                            submit()
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(isSubmitting || !isStepValid || isUploadingAvatar)
-                    }
-                }
-                .padding(.horizontal)
-                .padding(.bottom)
+                navigationButtons
             }
             .navigationTitle("Get Started")
         }
@@ -171,6 +207,23 @@ internal struct OnboardingView: View {
         }
     }
 
+    private func uploadOrgAvatar() {
+        guard let url = selectedOrgAvatarURL else {
+            return
+        }
+
+        isUploadingOrgAvatar = true
+        errorMessage = nil
+        Task {
+            do {
+                orgAvatarID = try await FileService.shared.uploadImage(url: url)
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+            isUploadingOrgAvatar = false
+        }
+    }
+
     private func submit() {
         isSubmitting = true
         errorMessage = nil
@@ -183,7 +236,7 @@ internal struct OnboardingView: View {
                     notifications: notifications,
                     theme: theme
                 )
-                try await OrgAPI.create(name: orgName, slug: orgSlug)
+                try await OrgAPI.create(name: orgName, slug: orgSlug, avatarId: orgAvatarID)
                 isSubmitting = false
                 onComplete()
             } catch {

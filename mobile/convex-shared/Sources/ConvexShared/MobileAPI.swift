@@ -145,6 +145,33 @@ extension ProjectAPI {
     }
 }
 
+extension ProjectAPI {
+    @preconcurrency
+    public static func subscribeRead(
+        orgId: String,
+        id: String,
+        onUpdate: @escaping @Sendable @MainActor (Project) -> Void,
+        onError: @escaping @Sendable @MainActor (Error) -> Void = { _ in _ = () }
+    ) -> String {
+        #if !SKIP
+        return ConvexService.shared.subscribe(
+            to: read,
+            args: ["id": id, "orgId": orgId],
+            type: Project.self,
+            onUpdate: onUpdate,
+            onError: onError
+        )
+        #else
+        return ConvexService.shared.subscribeProject(
+            to: read,
+            args: ["id": id, "orgId": orgId],
+            onUpdate: { r in onUpdate(r) },
+            onError: { e in onError(e) }
+        )
+        #endif
+    }
+}
+
 extension WikiAPI {
     public static func create(
         orgId: String,
@@ -445,6 +472,21 @@ extension ChatAPI {
 
 extension ChatAPI {
     @preconcurrency
+    public static func subscribeRead(
+        id: String,
+        onUpdate: @escaping @Sendable @MainActor (Chat) -> Void,
+        onError: @escaping @Sendable @MainActor (Error) -> Void = { _ in _ = () }
+    ) -> String {
+        #if !SKIP
+        return ConvexService.shared.subscribe(to: read, args: ["id": id], type: Chat.self, onUpdate: onUpdate, onError: onError)
+        #else
+        return ConvexService.shared.subscribeChat(to: read, args: ["id": id], onUpdate: { r in onUpdate(r) }, onError: { e in onError(e) })
+        #endif
+    }
+}
+
+extension ChatAPI {
+    @preconcurrency
     public static func subscribeList(
         where filterWhere: ChatWhere?,
         onUpdate: @escaping @Sendable @MainActor (PaginatedResult<Chat>) -> Void,
@@ -505,6 +547,52 @@ extension MessageAPI {
         #else
         return ConvexService.shared.subscribeMessages(
             to: list,
+            args: ["chatId": chatId],
+            onUpdate: { r in onUpdate(Array(r)) },
+            onError: { e in onError(e) }
+        )
+        #endif
+    }
+}
+
+extension ChatAPI {
+    @preconcurrency
+    public static func subscribePublicList(
+        onUpdate: @escaping @Sendable @MainActor (PaginatedResult<Chat>) -> Void,
+        onError: @escaping @Sendable @MainActor (Error) -> Void = { _ in _ = () }
+    ) -> String {
+        let args = listArgs(where: ChatWhere(isPublic: true))
+        #if !SKIP
+        return ConvexService.shared.subscribe(to: list, args: args, type: PaginatedResult<Chat>.self, onUpdate: onUpdate, onError: onError)
+        #else
+        return ConvexService.shared.subscribePaginatedChats(
+            to: list,
+            args: args,
+            onUpdate: { r in onUpdate(r) },
+            onError: { e in onError(e) }
+        )
+        #endif
+    }
+}
+
+extension MessageAPI {
+    @preconcurrency
+    public static func subscribePubList(
+        chatId: String,
+        onUpdate: @escaping @Sendable @MainActor ([Message]) -> Void,
+        onError: @escaping @Sendable @MainActor (Error) -> Void = { _ in _ = () }
+    ) -> String {
+        #if !SKIP
+        return ConvexService.shared.subscribe(
+            to: pubList,
+            args: ["chatId": chatId],
+            type: [Message].self,
+            onUpdate: onUpdate,
+            onError: onError
+        )
+        #else
+        return ConvexService.shared.subscribeMessages(
+            to: pubList,
             args: ["chatId": chatId],
             onUpdate: { r in onUpdate(Array(r)) },
             onError: { e in onError(e) }
@@ -836,6 +924,18 @@ extension TaskAPI {
 
     public static func toggle(orgId: String, id: String) async throws {
         try await ConvexService.shared.mutate("task:toggle", args: ["orgId": orgId, "id": id])
+    }
+}
+
+extension TaskAPI {
+    public static func assign(orgId: String, id: String, assigneeId: String?) async throws {
+        var args: [String: Any] = ["id": id, "orgId": orgId]
+        if let assigneeId {
+            args["assigneeId"] = assigneeId
+        } else {
+            args["assigneeId"] = NSNull()
+        }
+        try await ConvexService.shared.mutate("task:assign", args: args)
     }
 }
 

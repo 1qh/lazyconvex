@@ -83,6 +83,9 @@ internal struct ProjectsView: View {
 
     @State private var newProjectDescription = ""
 
+    @State private var editingProjectID = ""
+    @State private var showEditSheet = false
+
     var body: some View {
         Group {
             if viewModel.isLoading, viewModel.projects.isEmpty {
@@ -128,6 +131,16 @@ internal struct ProjectsView: View {
                                 }
                                 .padding(.vertical, 2)
                             }
+                            Button(action: {
+                                editingProjectID = project._id
+                                showEditSheet = true
+                            }) {
+                                Image(systemName: "pencil.circle")
+                                    .foregroundStyle(.blue)
+                                    .accessibilityHidden(true)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityIdentifier("editProjectButton")
                         }
                     }
                 }
@@ -181,11 +194,136 @@ internal struct ProjectsView: View {
                 }
             }
         }
+        .sheet(isPresented: $showEditSheet) {
+            NavigationStack {
+                ProjectEditView(orgID: orgID, projectID: editingProjectID, role: role)
+            }
+        }
         .task {
             viewModel.start(orgID: orgID)
         }
         .onDisappear {
             viewModel.stop()
+        }
+    }
+}
+
+internal struct ProjectEditView: View {
+    let orgID: String
+    let projectID: String
+    let role: OrgRole
+
+    @State private var name = ""
+    @State private var descriptionText = ""
+    @State private var status = ProjectStatus.active
+    @State private var isLoading = true
+    @State private var isSaving = false
+    @State private var errorMessage: String?
+    @State private var subscriptionID: String?
+    @State private var expectedUpdatedAt: Double?
+    @State private var showDeleteConfirm = false
+
+    var body: some View {
+        Group {
+            if isLoading {
+                ProgressView()
+            } else {
+                Form {
+                    Section("Details") {
+                        TextField("Name", text: $name)
+                            .accessibilityIdentifier("projectNameField")
+                        TextEditor(text: $descriptionText)
+                            .frame(minHeight: 80)
+                            .accessibilityIdentifier("projectDescriptionField")
+                        Picker("Status", selection: $status) {
+                            ForEach(ProjectStatus.allCases, id: \.self) { s in
+                                Text(s.displayName).tag(s)
+                            }
+                        }
+                        .accessibilityIdentifier("projectStatusPicker")
+                    }
+
+                    ErrorBanner(message: errorMessage)
+
+                    if role.isAdmin {
+                        Section("Danger Zone") {
+                            Button("Delete Project", role: .destructive) {
+                                showDeleteConfirm = true
+                            }
+                            .accessibilityIdentifier("deleteProjectButton")
+                        }
+                    }
+                }
+            }
+        }
+        .navigationTitle("Edit Project")
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("Cancel") { dismiss() }
+            }
+            ToolbarItem(placement: .confirmationAction) {
+                Button("Save") { saveProject() }
+                    .disabled(name.trimmed.isEmpty || isSaving)
+                    .accessibilityIdentifier("saveProjectButton")
+            }
+        }
+        .alert("Delete Project?", isPresented: $showDeleteConfirm) {
+            Button("Delete", role: .destructive) { deleteProject() }
+            Button("Cancel", role: .cancel) { showDeleteConfirm = false }
+        }
+        .onAppear { loadProject() }
+        .onDisappear { cancelSubscription(&subscriptionID) }
+    }
+
+    private func loadProject() {
+        subscriptionID = ProjectAPI.subscribeRead(
+            orgId: orgID,
+            id: projectID,
+            onUpdate: { project in
+                if isLoading {
+                    name = project.name
+                    descriptionText = project.description ?? ""
+                    status = project.status ?? .active
+                }
+                expectedUpdatedAt = project.updatedAt
+                isLoading = false
+            },
+            onError: { err in
+                errorMessage = err.localizedDescription
+                isLoading = false
+            }
+        )
+    }
+
+    private func saveProject() {
+        isSaving = true
+        errorMessage = nil
+        Task {
+            do {
+                try await ProjectAPI.update(
+                    orgId: orgID,
+                    id: projectID,
+                    description: descriptionText.isEmpty ? nil : descriptionText,
+                    name: name,
+                    status: status,
+                    expectedUpdatedAt: expectedUpdatedAt
+                )
+                dismiss()
+            } catch {
+                errorMessage = error.localizedDescription
+                isSaving = false
+            }
+        }
+    }
+
+    private func deleteProject() {
+        Task {
+            do {
+                try await ProjectAPI.rm(orgId: orgID, id: projectID)
+                dismiss()
+            } catch {
+                errorMessage = error.localizedDescription
+            }
         }
     }
 }

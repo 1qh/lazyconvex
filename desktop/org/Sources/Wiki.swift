@@ -210,6 +210,7 @@ internal final class WikiEditViewModel: SwiftCrossUI.ObservableObject, Performin
     @SwiftCrossUI.Published var errorMessage: String?
     @SwiftCrossUI.Published var editors = [EditorEntry]()
     @SwiftCrossUI.Published var members = [OrgMemberEntry]()
+    var autoSaveTask: Task<Void, Never>?
 
     var availableMembers: [OrgMemberEntry] {
         var editorIDs = Set<String>()
@@ -233,6 +234,18 @@ internal final class WikiEditViewModel: SwiftCrossUI.ObservableObject, Performin
             status = wiki.status
             editors = try await WikiAPI.editors(client, orgId: orgID, wikiId: wikiID)
             members = try await OrgAPI.members(client, orgId: orgID)
+        }
+    }
+
+    @MainActor
+    func scheduleSave(orgID: String, wikiID: String) {
+        autoSaveTask?.cancel()
+        saveStatus = "Editing..."
+        autoSaveTask = Task {
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            if !Task.isCancelled {
+                await save(orgID: orgID, wikiID: wikiID)
+            }
         }
     }
 
@@ -278,6 +291,10 @@ internal final class WikiEditViewModel: SwiftCrossUI.ObservableObject, Performin
             editors = try await WikiAPI.editors(client, orgId: orgID, wikiId: wikiID)
         }
     }
+
+    func cancelAutoSave() {
+        autoSaveTask?.cancel()
+    }
 }
 
 internal struct WikiEditView: View {
@@ -319,16 +336,20 @@ internal struct WikiEditView: View {
                 }
 
                 TextField("Title", text: $viewModel.title)
+                    .onChange(of: viewModel.title) { viewModel.scheduleSave(orgID: orgID, wikiID: wikiID) }
                 TextField("Slug", text: $viewModel.slug)
+                    .onChange(of: viewModel.slug) { viewModel.scheduleSave(orgID: orgID, wikiID: wikiID) }
                 HStack {
                     ForEach(0..<WikiStatus.allCases.count, id: \.self) { idx in
                         let s = WikiStatus.allCases[idx]
                         Button(s.displayName) {
                             viewModel.status = s
+                            viewModel.scheduleSave(orgID: orgID, wikiID: wikiID)
                         }
                     }
                 }
                 TextField("Content", text: $viewModel.content)
+                    .onChange(of: viewModel.content) { viewModel.scheduleSave(orgID: orgID, wikiID: wikiID) }
 
                 if let msg = viewModel.errorMessage {
                     Text(msg)
@@ -337,10 +358,12 @@ internal struct WikiEditView: View {
 
                 HStack {
                     Button("Save") {
+                        viewModel.cancelAutoSave()
                         Task { await viewModel.save(orgID: orgID, wikiID: wikiID) }
                     }
                     if role.isAdmin {
                         Button("Delete") {
+                            viewModel.cancelAutoSave()
                             Task { await viewModel.deleteWiki(orgID: orgID, wikiID: wikiID) }
                         }
                     }
@@ -354,6 +377,9 @@ internal struct WikiEditView: View {
         }
         .task {
             await viewModel.load(orgID: orgID, wikiID: wikiID)
+        }
+        .onDisappear {
+            viewModel.cancelAutoSave()
         }
     }
 }

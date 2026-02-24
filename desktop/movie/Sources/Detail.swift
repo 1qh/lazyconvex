@@ -8,6 +8,7 @@ internal final class DetailViewModel: SwiftCrossUI.ObservableObject, Performing 
     @SwiftCrossUI.Published var isLoading = false
     @SwiftCrossUI.Published var errorMessage: String?
     @SwiftCrossUI.Published var posterURL: URL?
+    @SwiftCrossUI.Published var backdropURL: URL?
 
     @MainActor
     func loadMovie(tmdbID: Int) async {
@@ -17,6 +18,11 @@ internal final class DetailViewModel: SwiftCrossUI.ObservableObject, Performing 
             if let poster = loaded.poster_path {
                 Task {
                     posterURL = await ImageCache.shared.download(poster, size: "w500")
+                }
+            }
+            if let backdrop = loaded.backdrop_path {
+                Task {
+                    backdropURL = await ImageCache.shared.download(backdrop, size: "w780")
                 }
             }
         }
@@ -46,7 +52,7 @@ internal struct DetailView: View {
                     }
                 }
             } else if let movie = viewModel.movie {
-                MovieDetail(movie: movie, posterURL: viewModel.posterURL)
+                MovieDetail(movie: movie, posterURL: viewModel.posterURL, backdropURL: viewModel.backdropURL)
             }
         }
         .task {
@@ -58,7 +64,7 @@ internal struct DetailView: View {
 internal struct MovieDetail: View {
     let movie: Movie
     let posterURL: URL?
-
+    let backdropURL: URL?
     var body: some View {
         ScrollView {
             VStack {
@@ -69,12 +75,31 @@ internal struct MovieDetail: View {
                         .frame(width: 200, height: 300)
                 }
 
+                if let url = backdropURL {
+                    // swiftlint:disable:next accessibility_label_for_image
+                    Image(url)
+                        .resizable()
+                        .frame(width: 400, height: 225)
+                }
+
                 Text(movie.title)
+                if let cacheHit = movie.cacheHit {
+                    Text(cacheHit ? "Cache Hit" : "Cache Miss → Fetched")
+                        .foregroundColor(cacheHit ? .green : .orange)
+                }
                 if movie.original_title != movie.title {
                     Text(movie.original_title)
                 }
                 if let tagline = movie.tagline, !tagline.isEmpty {
                     Text(tagline)
+                }
+
+                if !movie.genres.isEmpty {
+                    HStack {
+                        ForEach(0..<movie.genres.count, id: \.self) { idx in
+                            Text(movie.genres[idx].name)
+                        }
+                    }
                 }
 
                 HStack {

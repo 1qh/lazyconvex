@@ -1,3 +1,7 @@
+#if canImport(AppKit)
+import AppKit
+import UniformTypeIdentifiers
+#endif
 import ConvexCore
 import DesktopShared
 import Foundation
@@ -15,6 +19,8 @@ internal struct SettingsView: View {
     @State private var errorMessage: String?
     @State private var adminMembers: [OrgMemberEntry]?
     @State private var selectedAdminID: String?
+    @State private var avatarID: String?
+    @State private var isUploadingAvatar = false
 
     var body: some View {
         VStack {
@@ -23,6 +29,28 @@ internal struct SettingsView: View {
 
             TextField("Organization Name", text: $editedName)
             TextField("Slug", text: $editedSlug)
+
+            if role.isAdmin {
+                HStack {
+                    Button(avatarID == nil ? "Choose Avatar" : "Change Avatar") {
+                        #if canImport(AppKit)
+                        let panel = NSOpenPanel()
+                        panel.allowedContentTypes = [.image]
+                        panel.allowsMultipleSelection = false
+                        if panel.runModal() == .OK, let url = panel.url {
+                            Task { await uploadAvatar(url: url) }
+                        }
+                        #endif
+                    }
+                    if avatarID != nil {
+                        Text("Avatar set")
+                        Button("Remove") { avatarID = nil }
+                    }
+                }
+                if isUploadingAvatar {
+                    Text("Uploading avatar...")
+                }
+            }
 
             if role.isAdmin {
                 Button("Save Changes") {
@@ -108,7 +136,8 @@ internal struct SettingsView: View {
                 client,
                 orgId: orgID,
                 name: editedName,
-                slug: editedSlug.isEmpty ? nil : editedSlug
+                slug: editedSlug.isEmpty ? nil : editedSlug,
+                avatarId: avatarID
             )
         } catch {
             errorMessage = error.localizedDescription
@@ -165,5 +194,16 @@ internal struct SettingsView: View {
             errorMessage = error.localizedDescription
         }
         isSaving = false
+    }
+
+    @MainActor
+    private func uploadAvatar(url: URL) async {
+        isUploadingAvatar = true
+        do {
+            avatarID = try await fileClient.uploadImage(url: url)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+        isUploadingAvatar = false
     }
 }

@@ -155,6 +155,46 @@ internal final class MovieUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Inception"].waitForExistence(timeout: 15))
     }
 
+    func testDetailShowsCacheIndicator() {
+        navigateToDetail("Inception")
+        XCTAssertTrue(app.staticTexts["Inception"].waitForExistence(timeout: 15))
+        let cacheHitPredicate = NSPredicate(
+            format: "label CONTAINS 'Cache Hit' OR label CONTAINS 'Cache Miss'"
+        )
+        let cacheText = app.staticTexts.matching(cacheHitPredicate).firstMatch
+        XCTAssertTrue(cacheText.waitForExistence(timeout: 15))
+    }
+
+    func testFetchByIDFieldVisible() {
+        XCTAssertTrue(app.textFields["TMDB ID"].waitForExistence(timeout: 5))
+    }
+
+    func testFetchByIDButton() {
+        XCTAssertTrue(app.buttons["Fetch"].waitForExistence(timeout: 5))
+    }
+
+    func testFetchByIDNavigatesToDetail() {
+        let field = app.textFields["TMDB ID"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        field.click()
+        field.typeText("550")
+        app.buttons["Fetch"].click()
+        XCTAssertTrue(app.staticTexts["Fight Club"].waitForExistence(timeout: 15))
+    }
+
+    func testDetailShowsGenres() {
+        navigateToDetail("Inception")
+        let genre = app.staticTexts["Science Fiction"]
+        XCTAssertTrue(genre.waitForExistence(timeout: 15))
+    }
+
+    func testDetailShowsBackdropImage() {
+        navigateToDetail("Inception")
+        let images = app.images
+        let imageCount = images.count
+        XCTAssertTrue(imageCount >= 1)
+    }
+
     private func searchFor(_ query: String) {
         let field = app.textFields["Search movies..."]
         XCTAssertTrue(field.waitForExistence(timeout: 5))

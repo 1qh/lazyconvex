@@ -1,0 +1,60 @@
+appId: dev.lazyconvex.org
+---
+- runFlow: onboarding-flow.yaml
+
+- tapOn:
+    text: "plus"
+- waitForAnimationToEnd
+- tapOn: "Project Name"
+- inputText: "Assignment Project"
+- tapOn: "Create"
+- waitForAnimationToEnd
+
+- extendedWaitUntil:
+    visible: "Assignment Project"
+    timeout: 10000
+- tapOn: "Assignment Project"
+- waitForAnimationToEnd
+
+- assertVisible: "Tasks"
+- assertVisible: "New task..."
+
+- tapOn: "New task..."
+- inputText: "Task to assign"
+- tapOn:
+    id: "addTaskButton"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "Task to assign"
+    timeout: 10000
+
+- assertVisible: "Unassigned"
+
+- tapOn:
+    id: "taskAssignee"
+- waitForAnimationToEnd
+
+- tapOn: "Maestro Tester"
+- waitForAnimationToEnd
+
+- extendedWaitUntil:
+    visible: "Maestro Tester"
+    timeout: 10000
+
+- tapOn:
+    id: "taskAssignee"
+- waitForAnimationToEnd
+
+- tapOn: "Unassigned"
+- waitForAnimationToEnd
+
+- extendedWaitUntil:
+    visible: "Unassigned"
+    timeout: 10000
+
+- hideKeyboard
+- back
+- extendedWaitUntil:
+    visible: "Projects"
+    timeout: 10000
+- assertVisible: "Assignment Project"

@@ -1,0 +1,32 @@
+appId: dev.lazyconvex.org
+---
+- runFlow: onboarding-flow.yaml
+
+- tapOn: "Settings"
+- waitForAnimationToEnd
+
+- assertVisible: "Settings"
+- assertVisible: "Organization"
+- assertVisible: "Slug"
+- assertVisible: "Save Changes"
+
+- scrollUntilVisible:
+    element: "Transfer Ownership"
+    direction: DOWN
+    timeout: 5000
+- assertVisible: "Transfer Ownership"
+- assertVisible: "No other admins available"
+
+- scrollUntilVisible:
+    element: "Delete Organization"
+    direction: DOWN
+    timeout: 5000
+- assertVisible: "Danger Zone"
+- assertVisible: "Delete Organization"
+
+- swipe:
+    direction: DOWN
+    duration: 500
+
+- assertVisible: "Switch Organization"
+- assertVisible: "Sign Out"

@@ -43,8 +43,8 @@ internal final class MembersViewModel: Performing {
         joinRequestsSub.cancel()
     }
 
-    func inviteMember(orgID: String, email: String) {
-        perform { try await OrgAPI.invite(email: email, isAdmin: false, orgId: orgID) }
+    func inviteMember(orgID: String, email: String, isAdmin: Bool) {
+        perform { try await OrgAPI.invite(email: email, isAdmin: isAdmin, orgId: orgID) }
     }
 
     func revokeInvite(inviteID: String) {
@@ -79,6 +79,10 @@ internal struct MembersView: View {
 
     @State private var inviteEmail = ""
 
+    @State private var inviteAsAdmin = false
+
+    @State private var confirmRemoveMember: OrgMemberEntry?
+
     var body: some View {
         Group {
             if viewModel.isLoading {
@@ -103,25 +107,32 @@ internal struct MembersView: View {
                                 }
                                 Spacer()
                                 RoleBadge(role: member.role)
+                                if role.isAdmin, !member.role.isOwner, let mid = member.memberId {
+                                    Button(action: {
+                                        viewModel.setAdmin(memberId: mid, isAdmin: member.role != .admin)
+                                    }) {
+                                        Image(systemName: member.role == .admin ? "shield.checkered" : "shield")
+                                            .foregroundStyle(member.role == .admin ? .blue : .secondary)
+                                            .accessibilityHidden(true)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .accessibilityIdentifier("toggleAdmin")
+                                    Button(action: { confirmRemoveMember = member }) {
+                                        Image(systemName: "person.fill.xmark")
+                                            .foregroundStyle(.red)
+                                            .accessibilityHidden(true)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .accessibilityIdentifier("removeMember")
+                                }
                             }
                             .padding(.vertical, 2)
                         }
                     }
 
-                    if !viewModel.invites.isEmpty {
-                        Section("Pending Invites") {
-                            ForEach(viewModel.invites) { invite in
-                                HStack {
-                                    Text(invite.email)
-                                    Spacer()
-                                    if role.isAdmin {
-                                        Button("Revoke", role: .destructive) {
-                                            viewModel.revokeInvite(inviteID: invite._id)
-                                        }
-                                        .font(.caption)
-                                    }
-                                }
-                            }
+                    if role.isAdmin, !viewModel.invites.isEmpty {
+                        PendingInvitesSection(invites: viewModel.invites) { id in
+                            viewModel.revokeInvite(inviteID: id)
                         }
                     }
 
@@ -174,16 +185,23 @@ internal struct MembersView: View {
             NavigationStack {
                 Form {
                     TextField("Email address", text: $inviteEmail)
+                        .accessibilityIdentifier("inviteEmailField")
+                    Toggle("Invite as admin", isOn: $inviteAsAdmin)
+                        .accessibilityIdentifier("inviteAsAdminToggle")
                 }
                 .navigationTitle("Invite Member")
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
-                        Button("Cancel") { showInviteSheet = false }
+                        Button("Cancel") {
+                            showInviteSheet = false
+                            inviteAsAdmin = false
+                        }
                     }
                     ToolbarItem(placement: .confirmationAction) {
                         Button("Send Invite") {
-                            viewModel.inviteMember(orgID: orgID, email: inviteEmail)
+                            viewModel.inviteMember(orgID: orgID, email: inviteEmail, isAdmin: inviteAsAdmin)
                             inviteEmail = ""
+                            inviteAsAdmin = false
                             showInviteSheet = false
                         }
                         .disabled(inviteEmail.trimmed.isEmpty)
@@ -191,11 +209,78 @@ internal struct MembersView: View {
                 }
             }
         }
+        .alert(
+            "Remove Member",
+            isPresented: Binding(
+                get: { confirmRemoveMember != nil },
+                set: { newValue in
+                    if !newValue {
+                        confirmRemoveMember = nil
+                    }
+                }
+            )
+        ) {
+            Button("Remove", role: .destructive) {
+                if let mid = confirmRemoveMember?.memberId {
+                    viewModel.removeMember(memberId: mid)
+                }
+                confirmRemoveMember = nil
+            }
+            Button("Cancel", role: .cancel) {
+                confirmRemoveMember = nil
+            }
+        } message: {
+            Text("Remove \(confirmRemoveMember?.name ?? confirmRemoveMember?.email ?? "this member") from the organization?")
+        }
         .task {
             viewModel.start(orgID: orgID)
         }
         .onDisappear {
             viewModel.stop()
+        }
+    }
+}
+
+internal struct PendingInvitesSection: View {
+    let invites: [OrgInvite]
+    let onRevoke: (String) -> Void
+
+    var body: some View {
+        Section("Pending Invites") {
+            ForEach(invites) { invite in
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Text(invite.email)
+                            .font(.headline)
+                        Spacer()
+                        RoleBadge(role: invite.isAdmin == true ? .admin : .member)
+                    }
+                    HStack {
+                        Text("Expires \(formatTimestamp(invite.expiresAt))")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        if let token = invite.token {
+                            Button(action: {
+                                #if canImport(UIKit)
+                                UIPasteboard.general.string = token
+                                #endif
+                            }) {
+                                Label("Copy Link", systemImage: "doc.on.doc")
+                                    .font(.caption)
+                            }
+                            .buttonStyle(.bordered)
+                            .accessibilityIdentifier("copyInviteLink")
+                        }
+                        Button("Revoke", role: .destructive) {
+                            onRevoke(invite._id)
+                        }
+                        .font(.caption)
+                        .accessibilityIdentifier("revokeInvite")
+                    }
+                }
+                .padding(.vertical, 2)
+            }
         }
     }
 }

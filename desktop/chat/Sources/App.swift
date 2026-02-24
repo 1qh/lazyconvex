@@ -30,8 +30,14 @@ internal struct ChatApp: App {
                     NavigationStack(path: $path) {
                         ListView(path: $path)
                     }
-                    .navigationDestination(for: String.self) { chatID in
-                        MessageView(chatID: chatID, path: $path)
+                    .navigationDestination(for: String.self) { route in
+                        if route == "publicChats" {
+                            PublicListView(path: $path)
+                        } else if route.hasPrefix("pub:") {
+                            PublicMessageView(chatID: String(route.dropFirst(4)), path: $path)
+                        } else {
+                            MessageView(chatID: route, path: $path)
+                        }
                     }
                 } else {
                     AuthView {

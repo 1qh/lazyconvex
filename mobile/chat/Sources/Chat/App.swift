@@ -5,6 +5,12 @@ import SwiftUI
 
 internal let logger = Logger(subsystem: "dev.lazyconvex.chat", category: "Chat")
 
+internal struct PublicListRoute: Hashable {}
+
+internal struct PublicChatRoute: Hashable {
+    let id: String
+}
+
 internal struct ContentView: View {
     var body: some View {
         AuthenticatedView { signOut in
@@ -20,6 +26,12 @@ internal struct ContentView: View {
                     }
                     .navigationDestination(for: String.self) { chatID in
                         MessageView(chatID: chatID)
+                    }
+                    .navigationDestination(for: PublicListRoute.self) { _ in
+                        PublicListView()
+                    }
+                    .navigationDestination(for: PublicChatRoute.self) { route in
+                        PublicView(chatID: route.id)
                     }
             }
         }

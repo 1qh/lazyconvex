@@ -62,6 +62,7 @@ internal final class SearchViewModel: SwiftCrossUI.ObservableObject, Performing 
 
 internal struct SearchView: View {
     @State private var viewModel = SearchViewModel()
+    @State private var fetchID = ""
     var path: Binding<NavigationPath>
 
     var body: some View {
@@ -70,6 +71,16 @@ internal struct SearchView: View {
                 TextField("Search movies...", text: $viewModel.query)
                 Button("Search") {
                     viewModel.search()
+                }
+            }
+            .padding(.bottom, 8)
+
+            HStack {
+                TextField("TMDB ID", text: $fetchID)
+                Button("Fetch") {
+                    if let id = Int(fetchID.trimmed) {
+                        path.wrappedValue.append(id)
+                    }
                 }
             }
             .padding(.bottom, 8)

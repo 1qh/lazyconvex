@@ -6,29 +6,31 @@ import SwiftUI
 @MainActor
 @Observable
 internal final class ListViewModel: Performing {
-    let sub = Sub<PaginatedResult<Blog>>()
     var mutationError: String?
     var searchQuery = ""
-
+    private(set) var allBlogs = [Blog]()
+    private(set) var continueCursor: String?
+    private(set) var isDone = true
+    private(set) var isLoading = true
+    private(set) var isLoadingMore = false
+    private var subID: String?
+    private var loadMoreSubID: String?
+    private let blogWhere = BlogWhere(or: [.init(published: true), .init(own: true)])
     var blogs: [Blog] {
-        sub.data?.page ?? []
-    }
-
-    var isLoading: Bool {
-        sub.isLoading
+        allBlogs
     }
 
     var errorMessage: String? {
-        sub.error ?? mutationError
+        mutationError
     }
 
     var displayedBlogs: [Blog] {
         if searchQuery.isEmpty {
-            return blogs
+            return allBlogs
         }
         let q = searchQuery.lowercased()
         var filtered = [Blog]()
-        for b in blogs {
+        for b in allBlogs {
             if b.title.lowercased().contains(q) || b.content.lowercased().contains(q) {
                 filtered.append(b)
             } else if let tags = b.tags {
@@ -46,17 +48,91 @@ internal final class ListViewModel: Performing {
     }
 
     func start() {
-        sub.bind { onUpdate, onError in
-            BlogAPI.subscribeList(
-                where: BlogWhere(or: [.init(published: true), .init(own: true)]),
-                onUpdate: onUpdate,
-                onError: onError
-            )
-        }
+        isLoading = true
+        subID = BlogAPI.subscribeList(
+            where: blogWhere,
+            onUpdate: { [weak self] result in
+                guard let self else {
+                    return
+                }
+
+                allBlogs = result.page
+                continueCursor = result.continueCursor
+                isDone = result.isDone
+                isLoading = false
+                cancelLoadMoreSub()
+            },
+            onError: { [weak self] err in
+                self?.mutationError = err.localizedDescription
+                self?.isLoading = false
+            }
+        )
     }
 
     func stop() {
-        sub.cancel()
+        cancelSubscription(&subID)
+        cancelLoadMoreSub()
+    }
+
+    private func cancelLoadMoreSub() {
+        if let id = loadMoreSubID {
+            ConvexService.shared.cancelSubscription(id)
+            loadMoreSubID = nil
+        }
+        isLoadingMore = false
+    }
+
+    func loadMore() {
+        guard !isDone, let cursor = continueCursor, !isLoadingMore else {
+            return
+        }
+
+        isLoadingMore = true
+        let args = BlogAPI.listArgs(cursor: cursor, where: blogWhere)
+        #if !SKIP
+        loadMoreSubID = ConvexService.shared.subscribe(
+            to: BlogAPI.list,
+            args: args,
+            type: PaginatedResult<Blog>.self,
+            onUpdate: { [weak self] result in
+                guard let self, loadMoreSubID != nil else {
+                    return
+                }
+
+                for b in result.page {
+                    allBlogs.append(b)
+                }
+                continueCursor = result.continueCursor
+                isDone = result.isDone
+                cancelLoadMoreSub()
+            },
+            onError: { [weak self] err in
+                self?.mutationError = err.localizedDescription
+                self?.isLoadingMore = false
+            }
+        )
+        #else
+        loadMoreSubID = ConvexService.shared.subscribePaginatedBlogs(
+            to: BlogAPI.list,
+            args: args,
+            onUpdate: { [weak self] result in
+                guard let self, loadMoreSubID != nil else {
+                    return
+                }
+
+                for b in result.page {
+                    allBlogs.append(b)
+                }
+                continueCursor = result.continueCursor
+                isDone = result.isDone
+                cancelLoadMoreSub()
+            },
+            onError: { [weak self] err in
+                self?.mutationError = err.localizedDescription
+                self?.isLoadingMore = false
+            }
+        )
+        #endif
     }
 
     func deleteBlog(id: String) {
@@ -168,9 +244,23 @@ internal struct ListView: View {
                     .foregroundStyle(.secondary)
                 Spacer()
             } else {
-                List(viewModel.displayedBlogs) { blog in
-                    NavigationLink(value: blog._id) {
-                        CardView(blog: blog)
+                List {
+                    ForEach(viewModel.displayedBlogs) { blog in
+                        NavigationLink(value: blog._id) {
+                            CardView(blog: blog)
+                        }
+                    }
+
+                    if !viewModel.isDone {
+                        if viewModel.isLoadingMore {
+                            ProgressView()
+                                .frame(maxWidth: .infinity)
+                        } else {
+                            Button("Load More") {
+                                viewModel.loadMore()
+                            }
+                            .frame(maxWidth: .infinity)
+                        }
                     }
                 }
                 .listStyle(.plain)

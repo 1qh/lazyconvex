@@ -1,0 +1,54 @@
+appId: dev.lazyconvex.org
+---
+- runFlow: onboarding-flow.yaml
+
+- assertVisible: "Projects"
+
+- tapOn:
+    text: "plus"
+- waitForAnimationToEnd
+- tapOn: "Project Name"
+- inputText: "Editable Project"
+- tapOn: "Description (optional)"
+- inputText: "Original description"
+- tapOn: "Create"
+- waitForAnimationToEnd
+
+- extendedWaitUntil:
+    visible: "Editable Project"
+    timeout: 10000
+- assertVisible: "Original description"
+
+- tapOn:
+    id: "editProjectButton"
+- waitForAnimationToEnd
+- assertVisible: "Edit Project"
+- assertVisible: "Details"
+- assertVisible: "Name"
+- assertVisible: "Status"
+
+- tapOn:
+    id: "projectNameField"
+- eraseText: 50
+- inputText: "Renamed Project"
+
+- tapOn:
+    id: "projectDescriptionField"
+- eraseText: 50
+- inputText: "Updated description"
+
+- tapOn:
+    id: "projectStatusPicker"
+- waitForAnimationToEnd
+- tapOn: "Completed"
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "saveProjectButton"
+- waitForAnimationToEnd
+
+- extendedWaitUntil:
+    visible: "Renamed Project"
+    timeout: 10000
+- assertVisible: "Updated description"
+- assertVisible: "Completed"

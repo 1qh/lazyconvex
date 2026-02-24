@@ -103,6 +103,13 @@ fun ConvexService.subscribeWiki(
     onError: (Error) -> Unit = { },
 ): String = subscribeSingleImpl(to, args, Wiki::class, onUpdate, onError)
 
+fun ConvexService.subscribeChat(
+    to: String,
+    args: Dictionary<String, Any> = dictionaryOf(),
+    onUpdate: (Chat) -> Unit,
+    onError: (Error) -> Unit = { },
+): String = subscribeSingleImpl(to, args, Chat::class, onUpdate, onError)
+
 fun ConvexService.subscribeProfileData(
     to: String,
     args: Dictionary<String, Any> = dictionaryOf(),

@@ -1,4 +1,5 @@
 import ConvexShared
+import SkipKit
 import SwiftUI
 
 internal struct SettingsView: View {
@@ -28,17 +29,50 @@ internal struct SettingsView: View {
 
     @State private var selectedAdminID: String?
 
+    @State private var showAvatarPicker = false
+
+    @State private var selectedAvatarURL: URL?
+
+    @State private var avatarID: String?
+
+    @State private var isUploadingAvatar = false
+
     var body: some View {
         Form {
             Section("Organization") {
                 TextField("Name", text: $editedName)
                 TextField("Slug", text: $editedSlug)
+            }
+            if role.isAdmin {
+                Section("Avatar") {
+                    if isUploadingAvatar {
+                        ProgressView("Uploading...")
+                    } else if avatarID != nil {
+                        HStack {
+                            Image(systemName: "building.2.fill")
+                                .foregroundStyle(.green)
+                                .accessibilityHidden(true)
+                            Text("Avatar set")
+                            Spacer()
+                            Button("Remove") {
+                                avatarID = nil
+                                selectedAvatarURL = nil
+                            }
+                            .foregroundStyle(.red)
+                        }
+                    }
+                    Button(avatarID != nil ? "Change Avatar" : "Select Avatar") {
+                        showAvatarPicker = true
+                    }
+                    .withMediaPicker(type: .library, isPresented: $showAvatarPicker, selectedImageURL: $selectedAvatarURL)
+                    .onChange(of: selectedAvatarURL) { _, _ in uploadAvatar() }
+                }
 
-                if role.isAdmin {
+                Section {
                     Button("Save Changes") {
                         saveOrg()
                     }
-                    .disabled(isSaving || editedName.trimmed.isEmpty)
+                    .disabled(isSaving || editedName.trimmed.isEmpty || isUploadingAvatar)
                 }
             }
 
@@ -127,13 +161,31 @@ internal struct SettingsView: View {
                 try await OrgAPI.update(
                     orgId: orgID,
                     name: editedName,
-                    slug: editedSlug.isEmpty ? nil : editedSlug
+                    slug: editedSlug.isEmpty ? nil : editedSlug,
+                    avatarId: avatarID
                 )
                 isSaving = false
             } catch {
                 errorMessage = error.localizedDescription
                 isSaving = false
             }
+        }
+    }
+
+    private func uploadAvatar() {
+        guard let url = selectedAvatarURL else {
+            return
+        }
+
+        isUploadingAvatar = true
+        errorMessage = nil
+        Task {
+            do {
+                avatarID = try await FileService.shared.uploadImage(url: url)
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+            isUploadingAvatar = false
         }
     }
 

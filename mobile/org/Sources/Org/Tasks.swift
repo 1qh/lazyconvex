@@ -60,6 +60,14 @@ internal final class TasksViewModel: Performing {
             self.selectedIDs = Set<String>()
         }
     }
+
+    func assignTask(orgID: String, taskID: String, assigneeID: String?) {
+        perform { try await TaskAPI.assign(orgId: orgID, id: taskID, assigneeId: assigneeID) }
+    }
+
+    func updateTask(orgID: String, taskID: String, title: String, priority: TaskPriority?, updatedAt: Double) {
+        perform { try await TaskAPI.update(orgId: orgID, id: taskID, priority: priority, title: title, expectedUpdatedAt: updatedAt) }
+    }
 }
 
 internal struct PriorityBadge: View {
@@ -98,6 +106,9 @@ internal struct TasksView: View {
     @State private var editorsSub = Sub<[EditorEntry]>()
     @State private var membersSub = Sub<[OrgMemberEntry]>()
     @State private var selectedEditorID: String?
+    @State private var editingTask: TaskItem?
+    @State private var editTitle = ""
+    @State private var editPriority: TaskPriority?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -135,6 +146,24 @@ internal struct TasksView: View {
                                 }
                             }
                             Spacer()
+                            Button(action: {
+                                editTitle = task.title
+                                editPriority = task.priority
+                                editingTask = task
+                            }) {
+                                Image(systemName: "pencil")
+                                    .foregroundStyle(.blue)
+                                    .accessibilityHidden(true)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityIdentifier("editTask")
+                            TaskAssigneePicker(
+                                task: task,
+                                members: membersSub.data ?? []
+                            ) { assigneeID in
+                                viewModel.assignTask(orgID: orgID, taskID: task._id, assigneeID: assigneeID)
+                            }
+                            .accessibilityIdentifier("taskAssignee")
                         }
                         .padding(.vertical, 2)
                     }
@@ -183,6 +212,55 @@ internal struct TasksView: View {
             viewModel.stop()
             editorsSub.cancel()
             membersSub.cancel()
+        }
+        .sheet(
+            isPresented: Binding(
+                get: { editingTask != nil },
+                set: { newValue in
+                    if !newValue {
+                        editingTask = nil
+                    }
+                }
+            )
+        ) {
+            editTaskSheet
+        }
+    }
+
+    private var editTaskSheet: some View {
+        NavigationStack {
+            Form {
+                TextField("Title", text: $editTitle)
+                    .accessibilityIdentifier("editTaskTitle")
+                Picker("Priority", selection: $editPriority) {
+                    Text("None").tag(TaskPriority?.none)
+                    ForEach(TaskPriority.allCases, id: \.rawValue) { p in
+                        Text(p.displayName).tag(Optional(p))
+                    }
+                }
+                .accessibilityIdentifier("editTaskPriority")
+            }
+            .navigationTitle("Edit Task")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { editingTask = nil }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        if let task = editingTask {
+                            viewModel.updateTask(
+                                orgID: orgID,
+                                taskID: task._id,
+                                title: editTitle,
+                                priority: editPriority,
+                                updatedAt: task.updatedAt
+                            )
+                        }
+                        editingTask = nil
+                    }
+                    .disabled(editTitle.trimmed.isEmpty)
+                }
+            }
         }
     }
 
@@ -244,5 +322,48 @@ internal struct TasksView: View {
 
         viewModel.createTask(orgID: orgID, projectID: projectID, title: title)
         newTaskTitle = ""
+    }
+}
+
+internal struct TaskAssigneePicker: View {
+    let task: TaskItem
+    let members: [OrgMemberEntry]
+    let onAssign: (String?) -> Void
+    var body: some View {
+        Menu {
+            Button(action: { onAssign(nil) }) {
+                Label("Unassigned", systemImage: task.assigneeId == nil ? "checkmark" : "")
+            }
+            ForEach(members) { m in
+                Button(action: { onAssign(m.userId) }) {
+                    Label(
+                        m.name ?? m.email ?? m.userId,
+                        systemImage: task.assigneeId == m.userId ? "checkmark" : ""
+                    )
+                }
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: "person.circle")
+                    .foregroundStyle(task.assigneeId != nil ? .blue : .secondary)
+                    .accessibilityHidden(true)
+                Text(assigneeName(for: task.assigneeId))
+                    .font(.caption)
+                    .foregroundStyle(task.assigneeId != nil ? .primary : .secondary)
+                    .lineLimit(1)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func assigneeName(for id: String?) -> String {
+        guard let id else {
+            return "Unassigned"
+        }
+
+        for m in members where m.userId == id {
+            return m.name ?? m.email ?? m.userId
+        }
+        return "Unknown"
     }
 }

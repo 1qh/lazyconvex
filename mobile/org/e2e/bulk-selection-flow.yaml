@@ -1,0 +1,93 @@
+appId: dev.lazyconvex.org
+---
+- runFlow: onboarding-flow.yaml
+
+- assertVisible: "Projects"
+
+- tapOn:
+    text: "plus"
+- waitForAnimationToEnd
+- tapOn: "Project Name"
+- inputText: "Bulk Test Project 1"
+- tapOn: "Create"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "Bulk Test Project 1"
+    timeout: 10000
+
+- tapOn:
+    text: "plus"
+- waitForAnimationToEnd
+- tapOn: "Project Name"
+- inputText: "Bulk Test Project 2"
+- tapOn: "Create"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "Bulk Test Project 2"
+    timeout: 10000
+
+- assertVisible: "Bulk Test Project 1"
+- assertVisible: "Bulk Test Project 2"
+
+- tapOn:
+    text: "circle"
+    index: 0
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "1 selected"
+    timeout: 5000
+- assertVisible: "Clear"
+- assertVisible: "Delete"
+
+- tapOn:
+    text: "circle"
+    index: 1
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "2 selected"
+    timeout: 5000
+
+- tapOn: "Clear"
+- waitForAnimationToEnd
+
+- tapOn: "Wiki"
+- waitForAnimationToEnd
+
+- tapOn:
+    text: "plus"
+- waitForAnimationToEnd
+- tapOn: "Page Title"
+- inputText: "Bulk Wiki Page 1"
+- tapOn: "Slug (URL-friendly)"
+- inputText: "bulk-wiki-1"
+- tapOn: "Create"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "Bulk Wiki Page 1"
+    timeout: 10000
+
+- tapOn:
+    text: "plus"
+- waitForAnimationToEnd
+- tapOn: "Page Title"
+- inputText: "Bulk Wiki Page 2"
+- tapOn: "Slug (URL-friendly)"
+- inputText: "bulk-wiki-2"
+- tapOn: "Create"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "Bulk Wiki Page 2"
+    timeout: 10000
+
+- tapOn:
+    text: "circle"
+    index: 0
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "1 selected"
+    timeout: 5000
+- assertVisible: "Clear"
+- assertVisible: "Delete"
+
+- tapOn: "Clear"
+- waitForAnimationToEnd

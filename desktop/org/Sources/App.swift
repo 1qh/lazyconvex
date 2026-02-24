@@ -1,3 +1,7 @@
+#if canImport(AppKit)
+import AppKit
+import UniformTypeIdentifiers
+#endif
 import ConvexCore
 import DefaultBackend
 import DesktopShared
@@ -5,6 +9,7 @@ import SwiftCrossUI
 
 internal let client = ConvexClient(deploymentURL: convexBaseURL)
 internal let auth = AuthClient(convexURL: convexBaseURL)
+internal let fileClient = FileClient(client: client)
 
 internal enum OrgSection: String {
     case members
@@ -240,6 +245,8 @@ internal struct OnboardingView: View {
     @State private var notifications = true
     @State private var isSubmitting = false
     @State private var errorMessage: String?
+    @State private var avatarID: String?
+    @State private var isUploadingAvatar = false
 
     private let steps = ["Profile", "Organization", "Appearance", "Preferences"]
 
@@ -258,6 +265,25 @@ internal struct OnboardingView: View {
             case 1:
                 TextField("Organization Name", text: $orgName)
                 TextField("URL Slug", text: $orgSlug)
+                HStack {
+                    Button(avatarID == nil ? "Choose Avatar" : "Change Avatar") {
+                        #if canImport(AppKit)
+                        let panel = NSOpenPanel()
+                        panel.allowedContentTypes = [.image]
+                        panel.allowsMultipleSelection = false
+                        if panel.runModal() == .OK, let url = panel.url {
+                            Task { await uploadOrgAvatar(url: url) }
+                        }
+                        #endif
+                    }
+                    if avatarID != nil {
+                        Text("Avatar set")
+                        Button("Remove") { avatarID = nil }
+                    }
+                }
+                if isUploadingAvatar {
+                    Text("Uploading avatar...")
+                }
 
             case 2:
                 HStack {
@@ -313,13 +339,24 @@ internal struct OnboardingView: View {
                 notifications: notifications,
                 theme: theme
             )
-            try await OrgAPI.create(client, name: orgName, slug: orgSlug)
+            try await OrgAPI.create(client, name: orgName, slug: orgSlug, avatarId: avatarID)
             isSubmitting = false
             onComplete()
         } catch {
             errorMessage = error.localizedDescription
             isSubmitting = false
         }
+    }
+
+    @MainActor
+    private func uploadOrgAvatar(url: URL) async {
+        isUploadingAvatar = true
+        do {
+            avatarID = try await fileClient.uploadImage(url: url)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+        isUploadingAvatar = false
     }
 }
 
@@ -350,8 +387,12 @@ internal struct HomeView: View {
                 NavigationStack(path: $path) {
                     ProjectsView(orgID: orgID, role: role, path: $path)
                 }
-                .navigationDestination(for: String.self) { projectID in
-                    TasksView(orgID: orgID, projectID: projectID, role: role)
+                .navigationDestination(for: String.self) { value in
+                    if value.hasPrefix("edit:") {
+                        ProjectEditView(orgID: orgID, projectID: String(value.dropFirst(5)), path: $path)
+                    } else {
+                        TasksView(orgID: orgID, projectID: value, role: role)
+                    }
                 }
 
             case .wiki:

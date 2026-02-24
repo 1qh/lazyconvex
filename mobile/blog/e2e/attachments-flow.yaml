@@ -1,0 +1,43 @@
+appId: dev.lazyconvex.blog
+---
+- runFlow: login.yaml
+
+- tapOn:
+    text: "plus"
+- waitForAnimationToEnd
+- assertVisible: "New Post"
+
+- assertVisible: "Title"
+- assertVisible: "Category"
+- assertVisible: "Content"
+
+- scrollUntilVisible:
+    element: "Cover Image"
+    direction: DOWN
+    timeout: 5000
+- assertVisible: "Cover Image"
+- assertVisible: "Select Cover Image"
+
+- scrollUntilVisible:
+    element: "Tags"
+    direction: DOWN
+    timeout: 5000
+- assertVisible: "Tags"
+- assertVisible: "Add tag..."
+
+- scrollUntilVisible:
+    element: "Attachments"
+    direction: DOWN
+    timeout: 5000
+- assertVisible: "Attachments"
+- assertVisible: "Add Attachment"
+
+- scrollUntilVisible:
+    element: "Published"
+    direction: DOWN
+    timeout: 5000
+- assertVisible: "Published"
+
+- tapOn: "Cancel"
+- waitForAnimationToEnd
+- assertVisible: "Blog"

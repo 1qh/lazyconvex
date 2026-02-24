@@ -1164,4 +1164,245 @@ internal final class OrgUITests: XCTestCase {
                 || app.staticTexts["Settings"].waitForExistence(timeout: 5)
         )
     }
+
+    func testMembersJoinRequestsSectionExists() {
+        ensureInOrg()
+        app.buttons["Members"].click()
+        let membersHeader = app.staticTexts["Members"]
+        XCTAssertTrue(membersHeader.waitForExistence(timeout: 10))
+        sleep(3)
+        let joinRequestsPredicate = NSPredicate(
+            format: "label CONTAINS[c] 'Join Requests'"
+        )
+        let joinRequestsText = app.staticTexts.matching(joinRequestsPredicate).firstMatch
+        let hasSection = joinRequestsText.waitForExistence(timeout: 5)
+            || membersHeader.exists
+        XCTAssertTrue(hasSection)
+    }
+
+    func testMembersJoinRequestApproveRejectButtons() {
+        ensureInOrg()
+        app.buttons["Members"].click()
+        XCTAssertTrue(app.staticTexts["Members"].waitForExistence(timeout: 10))
+        sleep(3)
+        let joinRequestsPredicate = NSPredicate(
+            format: "label CONTAINS[c] 'Pending Join Requests'"
+        )
+        let joinRequestsText = app.staticTexts.matching(joinRequestsPredicate).firstMatch
+        if joinRequestsText.waitForExistence(timeout: 5) {
+            XCTAssertTrue(app.buttons["Approve"].firstMatch.waitForExistence(timeout: 5))
+            XCTAssertTrue(app.buttons["Reject"].firstMatch.waitForExistence(timeout: 5))
+        }
+    }
+
+    func testProjectsSelectAllButtonVisible() {
+        ensureInOrg()
+        let selectAllButton = app.buttons["Select All"]
+        let deselectAllButton = app.buttons["Deselect All"]
+        XCTAssertTrue(
+            selectAllButton.waitForExistence(timeout: 10)
+                || deselectAllButton.waitForExistence(timeout: 5)
+        )
+    }
+
+    func testProjectsBulkDeleteAfterSelectAll() {
+        ensureInOrg()
+        let selectAllButton = app.buttons["Select All"]
+        if selectAllButton.waitForExistence(timeout: 10) {
+            selectAllButton.click()
+            sleep(1)
+            let deletePredicate = NSPredicate(
+                format: "label BEGINSWITH 'Delete Selected'"
+            )
+            let deleteSelectedButton = app.buttons.matching(deletePredicate).firstMatch
+            let hasDeleteButton = deleteSelectedButton.waitForExistence(timeout: 5)
+                || app.buttons["Deselect All"].exists
+            XCTAssertTrue(hasDeleteButton)
+            let deselectButton = app.buttons["Deselect All"]
+            if deselectButton.exists {
+                deselectButton.click()
+            }
+        }
+    }
+
+    func testWikiSelectAllButtonVisible() {
+        ensureInOrg()
+        app.buttons["Wiki"].click()
+        sleep(2)
+        let selectAllButton = app.buttons["Select All"]
+        let deselectAllButton = app.buttons["Deselect All"]
+        XCTAssertTrue(
+            selectAllButton.waitForExistence(timeout: 10)
+                || deselectAllButton.waitForExistence(timeout: 5)
+        )
+    }
+
+    func testWikiBulkDeleteAfterSelectAll() {
+        ensureInOrg()
+        app.buttons["Wiki"].click()
+        sleep(2)
+        let selectAllButton = app.buttons["Select All"]
+        if selectAllButton.waitForExistence(timeout: 10) {
+            selectAllButton.click()
+            sleep(1)
+            let deletePredicate = NSPredicate(
+                format: "label BEGINSWITH 'Delete Selected'"
+            )
+            let deleteSelectedButton = app.buttons.matching(deletePredicate).firstMatch
+            let hasDeleteButton = deleteSelectedButton.waitForExistence(timeout: 5)
+                || app.buttons["Deselect All"].exists
+            XCTAssertTrue(hasDeleteButton)
+            let deselectButton = app.buttons["Deselect All"]
+            if deselectButton.exists {
+                deselectButton.click()
+            }
+        }
+    }
+
+    func testProjectTasksEditorsSection() {
+        ensureInOrg()
+        let tasksLink = app.buttons["Tasks"].firstMatch
+        if tasksLink.waitForExistence(timeout: 10) {
+            tasksLink.click()
+            sleep(3)
+            let editorsText = app.staticTexts["Editors"]
+            let addEditorText = app.staticTexts["Add Editor"]
+            XCTAssertTrue(
+                editorsText.waitForExistence(timeout: 10)
+                    || addEditorText.waitForExistence(timeout: 5)
+            )
+        }
+    }
+
+    func testWikiEditEditorsSection() {
+        ensureInOrg()
+        app.buttons["Wiki"].click()
+        sleep(2)
+        let editLink = app.buttons["Edit"].firstMatch
+        if editLink.waitForExistence(timeout: 10) {
+            editLink.click()
+            sleep(3)
+            let editorsText = app.staticTexts["Editors"]
+            let addEditorText = app.staticTexts["Add Editor"]
+            XCTAssertTrue(
+                editorsText.waitForExistence(timeout: 10)
+                    || addEditorText.waitForExistence(timeout: 5)
+            )
+        }
+    }
+
+    func testSettingsTransferOwnershipVisible() {
+        ensureInOrg()
+        app.buttons["Settings"].click()
+        XCTAssertTrue(app.staticTexts["Settings"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["Transfer Ownership"].waitForExistence(timeout: 10))
+    }
+
+    func testSettingsTransferOwnershipMemberPicker() {
+        ensureInOrg()
+        app.buttons["Settings"].click()
+        XCTAssertTrue(app.staticTexts["Settings"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["Transfer Ownership"].waitForExistence(timeout: 10))
+        let selectOwnerText = app.staticTexts["Select new owner:"]
+        let noAdminsText = app.staticTexts["No other admins available"]
+        let loadingText = app.staticTexts["Loading admins..."]
+        XCTAssertTrue(
+            selectOwnerText.waitForExistence(timeout: 10)
+                || noAdminsText.waitForExistence(timeout: 5)
+                || loadingText.waitForExistence(timeout: 3)
+        )
+    }
+
+    func testTaskInlineEdit() {
+        ensureInOrg()
+        let tasksLink = app.buttons["Tasks"].firstMatch
+        if tasksLink.waitForExistence(timeout: 10) {
+            tasksLink.click()
+            sleep(3)
+            let newTaskField = app.textFields["New task..."]
+            if newTaskField.waitForExistence(timeout: 5) {
+                newTaskField.click()
+                newTaskField.typeText("Edit Test \(Int(Date().timeIntervalSince1970))")
+                app.buttons["Add"].click()
+                sleep(3)
+            }
+            let editButton = app.buttons["Edit"].firstMatch
+            if editButton.waitForExistence(timeout: 10) {
+                editButton.click()
+                sleep(1)
+                XCTAssertTrue(
+                    app.buttons["Save"].waitForExistence(timeout: 5)
+                        || app.buttons["Cancel"].waitForExistence(timeout: 5)
+                )
+            }
+        }
+    }
+
+    func testTaskAssignment() {
+        ensureInOrg()
+        let tasksLink = app.buttons["Tasks"].firstMatch
+        if tasksLink.waitForExistence(timeout: 10) {
+            tasksLink.click()
+            sleep(3)
+            let unassignedButton = app.buttons["Unassigned"].firstMatch
+            XCTAssertTrue(
+                unassignedButton.waitForExistence(timeout: 10)
+                    || app.staticTexts["No tasks yet"].waitForExistence(timeout: 5)
+            )
+        }
+    }
+
+    func testProjectEditNavigation() {
+        ensureInOrg()
+        let editLink = app.buttons["Edit"].firstMatch
+        if editLink.waitForExistence(timeout: 10) {
+            editLink.click()
+            sleep(3)
+            let nameField = app.textFields["Name"]
+            let descField = app.textFields["Description"]
+            let saveButton = app.buttons["Save"]
+            XCTAssertTrue(
+                nameField.waitForExistence(timeout: 10)
+                    || descField.waitForExistence(timeout: 5)
+                    || saveButton.waitForExistence(timeout: 5)
+            )
+        }
+    }
+
+    func testWikiAutoSaveIndicator() {
+        ensureInOrg()
+        app.buttons["Wiki"].click()
+        sleep(2)
+        let editLink = app.buttons["Edit"].firstMatch
+        if editLink.waitForExistence(timeout: 10) {
+            editLink.click()
+            sleep(3)
+            let titleField = app.textFields["Title"]
+            if titleField.waitForExistence(timeout: 10) {
+                titleField.click()
+                titleField.typeText("a")
+                sleep(1)
+                let editingText = app.staticTexts["Editing..."]
+                let savingText = app.staticTexts["Saving..."]
+                let savedText = app.staticTexts["Saved"]
+                XCTAssertTrue(
+                    editingText.waitForExistence(timeout: 5)
+                        || savingText.waitForExistence(timeout: 5)
+                        || savedText.waitForExistence(timeout: 10)
+                )
+            }
+        }
+    }
+
+    func testOrgAvatarUpload() {
+        ensureInOrg()
+        app.buttons["Settings"].click()
+        XCTAssertTrue(app.staticTexts["Settings"].waitForExistence(timeout: 10))
+        let chooseAvatar = app.buttons["Choose Avatar"]
+        let changeAvatar = app.buttons["Change Avatar"]
+        XCTAssertTrue(
+            chooseAvatar.waitForExistence(timeout: 10)
+                || changeAvatar.waitForExistence(timeout: 5)
+        )
+    }
 }

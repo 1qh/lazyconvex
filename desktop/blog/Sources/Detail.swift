@@ -11,11 +11,17 @@ internal final class BlogDetailViewModel: SwiftCrossUI.ObservableObject, Perform
     @SwiftCrossUI.Published var blog: Blog?
     @SwiftCrossUI.Published var isLoading = true
     @SwiftCrossUI.Published var errorMessage: String?
+    @SwiftCrossUI.Published var coverImageURL: URL?
 
     @MainActor
     func load(blogID: String) async {
         await performLoading({ isLoading = $0 }) {
             blog = try await BlogAPI.read(client, id: blogID)
+        }
+        if let remoteURL = blog?.coverImageUrl {
+            Task {
+                coverImageURL = await ImageCache.shared.download(remoteURL)
+            }
         }
     }
 
@@ -65,8 +71,11 @@ internal struct DetailView: View {
                             if let authorName = blog.author?.name {
                                 Text(authorName)
                             }
-                            if let coverImageUrl = blog.coverImageUrl {
-                                Text("[Cover Image: \(coverImageUrl)]")
+                            if let coverURL = viewModel.coverImageURL {
+                                // swiftlint:disable:next accessibility_label_for_image
+                                Image(coverURL)
+                                    .resizable()
+                                    .frame(width: 200, height: 150)
                             }
                             Text(blog.content)
                                 .padding(.top, 4)
@@ -80,8 +89,13 @@ internal struct DetailView: View {
                             if let urls = blog.attachmentsUrls, !urls.isEmpty {
                                 VStack {
                                     Text("Attachments:")
-                                    ForEach(urls, id: \.self) { url in
-                                        Text(url)
+                                    ForEach(0..<urls.count, id: \.self) { idx in
+                                        let filename = URL(string: urls[idx])?
+                                            .lastPathComponent ?? "file"
+                                        VStack {
+                                            Text("[Attachment \(idx + 1): \(filename)]")
+                                            Text(urls[idx])
+                                        }
                                     }
                                 }
                             }

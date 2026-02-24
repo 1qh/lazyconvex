@@ -5,26 +5,45 @@ import SwiftUI
 
 @MainActor
 @Observable
-internal final class MessageViewModel {
+internal final class MessageViewModel: Performing {
     let sub = Sub<[Message]>()
+    let chatSub = Sub<Chat>()
+    var mutationError: String?
     var isAiLoading = false
     var messageText = ""
-    var errorMessage: String?
+
+    var chat: Chat? {
+        chatSub.data
+    }
 
     var messages: [Message] {
         sub.data ?? []
     }
 
     var isLoading: Bool {
-        sub.isLoading
+        sub.isLoading && chatSub.isLoading
+    }
+
+    var errorMessage: String? {
+        sub.error ?? chatSub.error ?? mutationError
     }
 
     func start(chatID: String) {
         sub.bind { MessageAPI.subscribeList(chatId: chatID, onUpdate: $0, onError: $1) }
+        chatSub.bind { ChatAPI.subscribeRead(id: chatID, onUpdate: $0, onError: $1) }
     }
 
     func stop() {
         sub.cancel()
+        chatSub.cancel()
+    }
+
+    func togglePublic(chatID: String) {
+        guard let current = chat else {
+            return
+        }
+
+        perform { try await ChatAPI.update(id: chatID, isPublic: !current.isPublic) }
     }
 
     func sendMessage(chatID: String) {
@@ -45,7 +64,7 @@ internal final class MessageViewModel {
                 try await MobileAiAPI.chat(chatId: chatID)
                 isAiLoading = false
             } catch {
-                errorMessage = error.localizedDescription
+                mutationError = error.localizedDescription
                 isAiLoading = false
             }
         }
@@ -135,7 +154,16 @@ internal struct MessageView: View {
                 .padding()
             }
         }
-        .navigationTitle("Chat")
+        .navigationTitle(viewModel.chat?.title.isEmpty == false ? viewModel.chat?.title ?? "Chat" : "Chat")
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button(action: { viewModel.togglePublic(chatID: chatID) }) {
+                    Image(systemName: viewModel.chat?.isPublic == true ? "globe" : "lock.fill")
+                        .accessibilityHidden(true)
+                }
+                .accessibilityIdentifier("togglePublic")
+            }
+        }
         .task {
             viewModel.start(chatID: chatID)
         }

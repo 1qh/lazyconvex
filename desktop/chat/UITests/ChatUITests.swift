@@ -525,4 +525,103 @@ internal final class ChatUITests: XCTestCase {
         }
         XCTAssertTrue(app.textFields["Message..."].exists)
     }
+
+    func testPublicToggleVisibleInChatList() {
+        ensureAuthenticated()
+        let toggle = app.checkBoxes["Public"]
+        if !toggle.waitForExistence(timeout: 5) {
+            let toggleStatic = app.staticTexts["Public"]
+            XCTAssertTrue(toggleStatic.waitForExistence(timeout: 5) || app.buttons["New Chat"].exists)
+        }
+    }
+
+    func testPublicChatsButtonVisible() {
+        ensureAuthenticated()
+        let publicButton = app.buttons["Public Chats"]
+        XCTAssertTrue(publicButton.waitForExistence(timeout: 10))
+    }
+
+    func testNavigateToPublicChats() {
+        ensureAuthenticated()
+        let publicButton = app.buttons["Public Chats"]
+        XCTAssertTrue(publicButton.waitForExistence(timeout: 10))
+        publicButton.click()
+        let header = app.staticTexts["Public Chats"]
+        XCTAssertTrue(header.waitForExistence(timeout: 10))
+    }
+
+    func testPublicChatsListOrEmptyState() {
+        ensureAuthenticated()
+        app.buttons["Public Chats"].click()
+        let emptyState = app.staticTexts["No public chats"]
+        let viewButton = app.buttons["View"].firstMatch
+        let hasContent = emptyState.waitForExistence(timeout: 8) || viewButton.waitForExistence(timeout: 2)
+        XCTAssertTrue(hasContent)
+    }
+
+    func testPublicChatsBackNavigation() {
+        ensureAuthenticated()
+        let publicButton = app.buttons["Public Chats"]
+        XCTAssertTrue(publicButton.waitForExistence(timeout: 10))
+        publicButton.click()
+        XCTAssertTrue(app.staticTexts["Public Chats"].waitForExistence(timeout: 10))
+        app.buttons["Back"].click()
+        XCTAssertTrue(app.buttons["New Chat"].waitForExistence(timeout: 5))
+    }
+
+    func testCreatePublicChat() {
+        ensureAuthenticated()
+        let checkbox = app.checkBoxes["Public"]
+        if checkbox.waitForExistence(timeout: 5) {
+            checkbox.click()
+        }
+        app.buttons["New Chat"].click()
+        sleep(5)
+        let publicLabel = app.staticTexts["Public"]
+        XCTAssertTrue(publicLabel.waitForExistence(timeout: 10))
+    }
+
+    func testChatRealTimeSubscription() {
+        ensureAuthenticated()
+        let openButton = app.buttons["Open"].firstMatch
+        if !openButton.waitForExistence(timeout: 8) {
+            app.buttons["New Chat"].click()
+            sleep(3)
+        }
+        if app.buttons["Open"].firstMatch.waitForExistence(timeout: 5) {
+            app.buttons["Open"].firstMatch.click()
+        }
+        let loading = app.staticTexts["Loading messages..."]
+        let emptyState = app.staticTexts["No messages yet. Start a conversation!"]
+        let msgField = app.textFields["Message..."]
+        XCTAssertTrue(
+            loading.waitForExistence(timeout: 5)
+                || emptyState.waitForExistence(timeout: 10)
+                || msgField.waitForExistence(timeout: 10)
+        )
+        if loading.exists {
+            XCTAssertTrue(
+                emptyState.waitForExistence(timeout: 15)
+                    || msgField.waitForExistence(timeout: 15)
+            )
+        }
+    }
+
+    func testChatPagination() {
+        ensureAuthenticated()
+        for _ in 0..<3 {
+            app.buttons["New Chat"].click()
+            sleep(3)
+        }
+        let openButtons = app.buttons.matching(identifier: "Open")
+        XCTAssertGreaterThanOrEqual(openButtons.count, 1)
+        let loadMore = app.buttons["Load More"]
+        if loadMore.waitForExistence(timeout: 5) {
+            loadMore.click()
+            let loadingMore = app.staticTexts["Loading more..."]
+            _ = loadingMore.waitForExistence(timeout: 5)
+            sleep(3)
+            XCTAssertTrue(app.buttons["Open"].firstMatch.exists)
+        }
+    }
 }

@@ -17,6 +17,7 @@ internal final class ProfileViewModel: SwiftCrossUI.ObservableObject, Performing
     @SwiftCrossUI.Published var errorMessage: String?
     @SwiftCrossUI.Published var avatarID: String?
     @SwiftCrossUI.Published var isUploadingAvatar = false
+    @SwiftCrossUI.Published var avatarURL: URL?
 
     @MainActor
     func load() async {
@@ -30,6 +31,11 @@ internal final class ProfileViewModel: SwiftCrossUI.ObservableObject, Performing
             theme = profile.theme
             notifications = profile.notifications
             avatarID = profile.avatar
+            if let remoteURL = profile.avatarUrl {
+                Task {
+                    avatarURL = await ImageCache.shared.download(remoteURL)
+                }
+            }
         }
     }
 
@@ -94,10 +100,18 @@ internal struct ProfileView: View {
                     Button(viewModel.avatarID == nil ? "Add Avatar" : "Change Avatar") {
                         viewModel.selectAvatar()
                     }
-                    if viewModel.avatarID != nil {
+                    if let avatarURL = viewModel.avatarURL {
+                        // swiftlint:disable:next accessibility_label_for_image
+                        Image(avatarURL)
+                            .resizable()
+                            .frame(width: 60, height: 60)
+                    } else if viewModel.avatarID != nil {
                         Text("Avatar set")
+                    }
+                    if viewModel.avatarID != nil {
                         Button("Remove") {
                             viewModel.avatarID = nil
+                            viewModel.avatarURL = nil
                         }
                     }
                 }
