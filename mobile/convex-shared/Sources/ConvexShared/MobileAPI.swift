@@ -29,6 +29,27 @@ extension BlogProfileAPI {
     }
 }
 
+extension BlogProfileAPI {
+    @preconcurrency
+    public static func subscribeGet(
+        onUpdate: @escaping @Sendable @MainActor (ProfileData) -> Void,
+        onError: @escaping @Sendable @MainActor (Error) -> Void = { _ in _ = () },
+        onNull: @escaping @Sendable @MainActor () -> Void = { () }
+    ) -> String {
+        #if !SKIP
+        return ConvexService.shared.subscribe(to: get, args: [:], type: ProfileData.self, onUpdate: onUpdate, onError: onError)
+        #else
+        return ConvexService.shared.subscribeProfileData(
+            to: get,
+            args: [:],
+            onUpdate: { r in onUpdate(r) },
+            onError: { e in onError(e) },
+            onNull: { onNull() }
+        )
+        #endif
+    }
+}
+
 extension ProjectAPI {
     public static func create(
         orgId: String,
@@ -84,6 +105,33 @@ extension ProjectAPI {
 
     public static func bulkRm(orgId: String, ids: [String]) async throws {
         try await ConvexService.shared.mutate("project:bulkRm", args: ["ids": ids, "orgId": orgId])
+    }
+}
+
+extension ProjectAPI {
+    @preconcurrency
+    public static func subscribeList(
+        orgId: String,
+        onUpdate: @escaping @Sendable @MainActor (PaginatedResult<Project>) -> Void,
+        onError: @escaping @Sendable @MainActor (Error) -> Void = { _ in _ = () }
+    ) -> String {
+        let args = listArgs(orgId: orgId)
+        #if !SKIP
+        return ConvexService.shared.subscribe(
+            to: list,
+            args: args,
+            type: PaginatedResult<Project>.self,
+            onUpdate: onUpdate,
+            onError: onError
+        )
+        #else
+        return ConvexService.shared.subscribePaginatedProjects(
+            to: list,
+            args: args,
+            onUpdate: { r in onUpdate(r) },
+            onError: { e in onError(e) }
+        )
+        #endif
     }
 }
 
@@ -159,6 +207,41 @@ extension WikiAPI {
     }
 }
 
+extension WikiAPI {
+    @preconcurrency
+    public static func subscribeList(
+        orgId: String,
+        onUpdate: @escaping @Sendable @MainActor (PaginatedResult<Wiki>) -> Void,
+        onError: @escaping @Sendable @MainActor (Error) -> Void = { _ in _ = () }
+    ) -> String {
+        let args = listArgs(orgId: orgId)
+        #if !SKIP
+        return ConvexService.shared.subscribe(to: list, args: args, type: PaginatedResult<Wiki>.self, onUpdate: onUpdate, onError: onError)
+        #else
+        return ConvexService.shared.subscribePaginatedWikis(
+            to: list,
+            args: args,
+            onUpdate: { r in onUpdate(r) },
+            onError: { e in onError(e) }
+        )
+        #endif
+    }
+}
+
+extension MobileAiAPI {
+    public static func chat(chatId: String) async throws {
+        #if !SKIP
+        let _: [String: String] = try await ConvexService.shared.action(
+            "mobileAi:chat",
+            args: ["chatId": chatId],
+            returning: [String: String].self
+        )
+        #else
+        try await ConvexService.shared.action(name: "mobileAi:chat", args: ["chatId": chatId])
+        #endif
+    }
+}
+
 extension BlogAPI {
     public static func create(
         attachments: [String]? = nil,
@@ -230,6 +313,58 @@ extension BlogAPI {
     }
 }
 
+extension BlogAPI {
+    @preconcurrency
+    public static func subscribeList(
+        where filterWhere: BlogWhere?,
+        onUpdate: @escaping @Sendable @MainActor (PaginatedResult<Blog>) -> Void,
+        onError: @escaping @Sendable @MainActor (Error) -> Void = { _ in _ = () }
+    ) -> String {
+        let args = listArgs(where: filterWhere)
+        #if !SKIP
+        return ConvexService.shared.subscribe(to: list, args: args, type: PaginatedResult<Blog>.self, onUpdate: onUpdate, onError: onError)
+        #else
+        return ConvexService.shared.subscribePaginatedBlogs(
+            to: list,
+            args: args,
+            onUpdate: { r in onUpdate(r) },
+            onError: { e in onError(e) }
+        )
+        #endif
+    }
+
+    @preconcurrency
+    public static func subscribeRead(
+        id: String,
+        onUpdate: @escaping @Sendable @MainActor (Blog) -> Void,
+        onError: @escaping @Sendable @MainActor (Error) -> Void = { _ in _ = () }
+    ) -> String {
+        #if !SKIP
+        return ConvexService.shared.subscribe(to: read, args: ["id": id], type: Blog.self, onUpdate: onUpdate, onError: onError)
+        #else
+        return ConvexService.shared.subscribeBlog(to: read, args: ["id": id], onUpdate: { r in onUpdate(r) }, onError: { e in onError(e) })
+        #endif
+    }
+}
+
+extension MovieAPI {
+    public static func load(tmdbId: Int) async throws -> Movie {
+        #if !SKIP
+        return try await ConvexService.shared.action("movie:load", args: ["tmdb_id": Double(tmdbId)], returning: Movie.self)
+        #else
+        return try await ConvexService.shared.actionMovie(name: "movie:load", args: ["tmdb_id": Double(tmdbId)])
+        #endif
+    }
+
+    public static func search(query: String) async throws -> [SearchResult] {
+        #if !SKIP
+        return try await ConvexService.shared.action("movie:search", args: ["query": query], returning: [SearchResult].self)
+        #else
+        return try await Array(ConvexService.shared.actionSearchResults(name: "movie:search", args: ["query": query]))
+        #endif
+    }
+}
+
 extension ChatAPI {
     public static func create(
         isPublic: Bool,
@@ -263,6 +398,76 @@ extension ChatAPI {
     }
 }
 
+extension ChatAPI {
+    @preconcurrency
+    public static func subscribeList(
+        where filterWhere: ChatWhere?,
+        onUpdate: @escaping @Sendable @MainActor (PaginatedResult<Chat>) -> Void,
+        onError: @escaping @Sendable @MainActor (Error) -> Void = { _ in _ = () }
+    ) -> String {
+        let args = listArgs(where: filterWhere)
+        #if !SKIP
+        return ConvexService.shared.subscribe(to: list, args: args, type: PaginatedResult<Chat>.self, onUpdate: onUpdate, onError: onError)
+        #else
+        return ConvexService.shared.subscribePaginatedChats(
+            to: list,
+            args: args,
+            onUpdate: { r in onUpdate(r) },
+            onError: { e in onError(e) }
+        )
+        #endif
+    }
+}
+
+extension MessageAPI {
+    public static func create(chatId: String, parts: [MessagePart], role: MessageRole) async throws {
+        var partDicts = [[String: Any]]()
+        for p in parts {
+            var d: [String: Any] = ["type": p.type.rawValue]
+            if let text = p.text {
+                d["text"] = text
+            }
+            if let image = p.image {
+                d["image"] = image
+            }
+            if let file = p.file {
+                d["file"] = file
+            }
+            if let name = p.name {
+                d["name"] = name
+            }
+            partDicts.append(d)
+        }
+        try await ConvexService.shared.mutate("message:create", args: ["chatId": chatId, "role": role.rawValue, "parts": partDicts])
+    }
+}
+
+extension MessageAPI {
+    @preconcurrency
+    public static func subscribeList(
+        chatId: String,
+        onUpdate: @escaping @Sendable @MainActor ([Message]) -> Void,
+        onError: @escaping @Sendable @MainActor (Error) -> Void = { _ in _ = () }
+    ) -> String {
+        #if !SKIP
+        return ConvexService.shared.subscribe(
+            to: list,
+            args: ["chatId": chatId],
+            type: [Message].self,
+            onUpdate: onUpdate,
+            onError: onError
+        )
+        #else
+        return ConvexService.shared.subscribeMessages(
+            to: list,
+            args: ["chatId": chatId],
+            onUpdate: { r in onUpdate(Array(r)) },
+            onError: { e in onError(e) }
+        )
+        #endif
+    }
+}
+
 extension OrgProfileAPI {
     public static func upsert(
         avatar: String? = nil,
@@ -292,12 +497,72 @@ extension OrgProfileAPI {
 }
 
 extension OrgAPI {
+    public static func acceptInvite(token: String) async throws {
+        try await ConvexService.shared.mutate("org:acceptInvite", args: ["token": token])
+    }
+
+    public static func approveJoinRequest(requestId: String, isAdmin: Bool? = nil) async throws {
+        var args: [String: Any] = ["requestId": requestId]
+        if let isAdmin {
+            args["isAdmin"] = isAdmin
+        }
+        try await ConvexService.shared.mutate("org:approveJoinRequest", args: args)
+    }
+
+    public static func cancelJoinRequest(requestId: String) async throws {
+        try await ConvexService.shared.mutate("org:cancelJoinRequest", args: ["requestId": requestId])
+    }
+
     public static func create(name: String, slug: String, avatarId: String? = nil) async throws {
         var data: [String: Any] = ["name": name, "slug": slug]
         if let avatarId {
             data["avatarId"] = avatarId
         }
         try await ConvexService.shared.mutate("org:create", args: ["data": data])
+    }
+
+    public static func getOrCreate() async throws {
+        try await ConvexService.shared.mutate("org:getOrCreate", args: [:])
+    }
+
+    public static func invite(email: String, isAdmin: Bool, orgId: String) async throws {
+        try await ConvexService.shared.mutate("org:invite", args: ["email": email, "isAdmin": isAdmin, "orgId": orgId])
+    }
+
+    public static func leave(orgId: String) async throws {
+        try await ConvexService.shared.mutate("org:leave", args: ["orgId": orgId])
+    }
+
+    public static func rejectJoinRequest(requestId: String) async throws {
+        try await ConvexService.shared.mutate("org:rejectJoinRequest", args: ["requestId": requestId])
+    }
+
+    public static func remove(orgId: String) async throws {
+        try await ConvexService.shared.mutate("org:remove", args: ["orgId": orgId])
+    }
+
+    public static func removeMember(memberId: String) async throws {
+        try await ConvexService.shared.mutate("org:removeMember", args: ["memberId": memberId])
+    }
+
+    public static func requestJoin(orgId: String, message: String? = nil) async throws {
+        var args: [String: Any] = ["orgId": orgId]
+        if let message {
+            args["message"] = message
+        }
+        try await ConvexService.shared.mutate("org:requestJoin", args: args)
+    }
+
+    public static func revokeInvite(inviteId: String) async throws {
+        try await ConvexService.shared.mutate("org:revokeInvite", args: ["inviteId": inviteId])
+    }
+
+    public static func setAdmin(isAdmin: Bool, memberId: String) async throws {
+        try await ConvexService.shared.mutate("org:setAdmin", args: ["isAdmin": isAdmin, "memberId": memberId])
+    }
+
+    public static func transferOwnership(newOwnerId: String, orgId: String) async throws {
+        try await ConvexService.shared.mutate("org:transferOwnership", args: ["newOwnerId": newOwnerId, "orgId": orgId])
     }
 
     public static func update(orgId: String, name: String? = nil, slug: String? = nil, avatarId: String? = nil) async throws {
@@ -313,65 +578,72 @@ extension OrgAPI {
         }
         try await ConvexService.shared.mutate("org:update", args: ["orgId": orgId, "data": data])
     }
+}
 
-    public static func remove(orgId: String) async throws {
-        try await ConvexService.shared.mutate("org:remove", args: ["orgId": orgId])
+extension OrgAPI {
+    @preconcurrency
+    public static func subscribeMyOrgs(
+        onUpdate: @escaping @Sendable @MainActor ([OrgWithRole]) -> Void,
+        onError: @escaping @Sendable @MainActor (Error) -> Void = { _ in _ = () }
+    ) -> String {
+        #if !SKIP
+        return ConvexService.shared.subscribe(to: myOrgs, args: [:], type: [OrgWithRole].self, onUpdate: onUpdate, onError: onError)
+        #else
+        return ConvexService.shared.subscribeOrgsWithRole(
+            to: myOrgs,
+            args: [:],
+            onUpdate: { r in onUpdate(Array(r)) },
+            onError: { e in onError(e) }
+        )
+        #endif
     }
 
-    public static func getOrCreate() async throws {
-        try await ConvexService.shared.mutate("org:getOrCreate", args: [:])
+    @preconcurrency
+    public static func subscribeMembers(
+        orgId: String,
+        onUpdate: @escaping @Sendable @MainActor ([OrgMemberEntry]) -> Void,
+        onError: @escaping @Sendable @MainActor (Error) -> Void = { _ in _ = () }
+    ) -> String {
+        #if !SKIP
+        return ConvexService.shared.subscribe(
+            to: members,
+            args: ["orgId": orgId],
+            type: [OrgMemberEntry].self,
+            onUpdate: onUpdate,
+            onError: onError
+        )
+        #else
+        return ConvexService.shared.subscribeOrgMembers(
+            to: members,
+            args: ["orgId": orgId],
+            onUpdate: { r in onUpdate(Array(r)) },
+            onError: { e in onError(e) }
+        )
+        #endif
     }
 
-    public static func setAdmin(isAdmin: Bool, memberId: String) async throws {
-        try await ConvexService.shared.mutate("org:setAdmin", args: ["isAdmin": isAdmin, "memberId": memberId])
-    }
-
-    public static func removeMember(memberId: String) async throws {
-        try await ConvexService.shared.mutate("org:removeMember", args: ["memberId": memberId])
-    }
-
-    public static func leave(orgId: String) async throws {
-        try await ConvexService.shared.mutate("org:leave", args: ["orgId": orgId])
-    }
-
-    public static func transferOwnership(newOwnerId: String, orgId: String) async throws {
-        try await ConvexService.shared.mutate("org:transferOwnership", args: ["newOwnerId": newOwnerId, "orgId": orgId])
-    }
-
-    public static func invite(email: String, isAdmin: Bool, orgId: String) async throws {
-        try await ConvexService.shared.mutate("org:invite", args: ["email": email, "isAdmin": isAdmin, "orgId": orgId])
-    }
-
-    public static func acceptInvite(token: String) async throws {
-        try await ConvexService.shared.mutate("org:acceptInvite", args: ["token": token])
-    }
-
-    public static func revokeInvite(inviteId: String) async throws {
-        try await ConvexService.shared.mutate("org:revokeInvite", args: ["inviteId": inviteId])
-    }
-
-    public static func requestJoin(orgId: String, message: String? = nil) async throws {
-        var args: [String: Any] = ["orgId": orgId]
-        if let message {
-            args["message"] = message
-        }
-        try await ConvexService.shared.mutate("org:requestJoin", args: args)
-    }
-
-    public static func approveJoinRequest(requestId: String, isAdmin: Bool? = nil) async throws {
-        var args: [String: Any] = ["requestId": requestId]
-        if let isAdmin {
-            args["isAdmin"] = isAdmin
-        }
-        try await ConvexService.shared.mutate("org:approveJoinRequest", args: args)
-    }
-
-    public static func rejectJoinRequest(requestId: String) async throws {
-        try await ConvexService.shared.mutate("org:rejectJoinRequest", args: ["requestId": requestId])
-    }
-
-    public static func cancelJoinRequest(requestId: String) async throws {
-        try await ConvexService.shared.mutate("org:cancelJoinRequest", args: ["requestId": requestId])
+    @preconcurrency
+    public static func subscribePendingInvites(
+        orgId: String,
+        onUpdate: @escaping @Sendable @MainActor ([OrgInvite]) -> Void,
+        onError: @escaping @Sendable @MainActor (Error) -> Void = { _ in _ = () }
+    ) -> String {
+        #if !SKIP
+        return ConvexService.shared.subscribe(
+            to: pendingInvites,
+            args: ["orgId": orgId],
+            type: [OrgInvite].self,
+            onUpdate: onUpdate,
+            onError: onError
+        )
+        #else
+        return ConvexService.shared.subscribeInvites(
+            to: pendingInvites,
+            args: ["orgId": orgId],
+            onUpdate: { r in onUpdate(Array(r)) },
+            onError: { e in onError(e) }
+        )
+        #endif
     }
 }
 
@@ -442,239 +714,6 @@ extension TaskAPI {
     }
 }
 
-extension BlogAPI {
-    @preconcurrency
-    public static func subscribeList(
-        where filterWhere: BlogWhere? = nil,
-        onUpdate: @escaping @Sendable @MainActor (PaginatedResult<Blog>) -> Void,
-        onError: @escaping @Sendable @MainActor (Error) -> Void = { _ in _ = () }
-    ) -> String {
-        let args = listArgs(where: filterWhere)
-        #if !SKIP
-        return ConvexService.shared.subscribe(to: list, args: args, type: PaginatedResult<Blog>.self, onUpdate: onUpdate, onError: onError)
-        #else
-        return ConvexService.shared.subscribePaginatedBlogs(
-            to: list,
-            args: args,
-            onUpdate: { r in onUpdate(r) },
-            onError: { e in onError(e) }
-        )
-        #endif
-    }
-
-    @preconcurrency
-    public static func subscribeRead(
-        id: String,
-        onUpdate: @escaping @Sendable @MainActor (Blog) -> Void,
-        onError: @escaping @Sendable @MainActor (Error) -> Void = { _ in _ = () }
-    ) -> String {
-        #if !SKIP
-        return ConvexService.shared.subscribe(to: read, args: ["id": id], type: Blog.self, onUpdate: onUpdate, onError: onError)
-        #else
-        return ConvexService.shared.subscribeBlog(to: read, args: ["id": id], onUpdate: { r in onUpdate(r) }, onError: { e in onError(e) })
-        #endif
-    }
-}
-
-extension ChatAPI {
-    @preconcurrency
-    public static func subscribeList(
-        where filterWhere: ChatWhere? = nil,
-        onUpdate: @escaping @Sendable @MainActor (PaginatedResult<Chat>) -> Void,
-        onError: @escaping @Sendable @MainActor (Error) -> Void = { _ in _ = () }
-    ) -> String {
-        let args = listArgs(where: filterWhere)
-        #if !SKIP
-        return ConvexService.shared.subscribe(to: list, args: args, type: PaginatedResult<Chat>.self, onUpdate: onUpdate, onError: onError)
-        #else
-        return ConvexService.shared.subscribePaginatedChats(
-            to: list,
-            args: args,
-            onUpdate: { r in onUpdate(r) },
-            onError: { e in onError(e) }
-        )
-        #endif
-    }
-}
-
-extension BlogProfileAPI {
-    @preconcurrency
-    public static func subscribeGet(
-        onUpdate: @escaping @Sendable @MainActor (ProfileData) -> Void,
-        onError: @escaping @Sendable @MainActor (Error) -> Void = { _ in _ = () },
-        onNull: @escaping @Sendable @MainActor () -> Void = { () }
-    ) -> String {
-        #if !SKIP
-        return ConvexService.shared.subscribe(to: get, args: [:], type: ProfileData.self, onUpdate: onUpdate, onError: onError)
-        #else
-        return ConvexService.shared.subscribeProfileData(
-            to: get,
-            args: [:],
-            onUpdate: { r in onUpdate(r) },
-            onError: { e in onError(e) },
-            onNull: { onNull() }
-        )
-        #endif
-    }
-}
-
-extension MessageAPI {
-    public static func create(chatId: String, parts: [MessagePart], role: String) async throws {
-        var partDicts = [[String: Any]]()
-        for p in parts {
-            var d: [String: Any] = ["type": p.type.rawValue]
-            if let text = p.text {
-                d["text"] = text
-            }
-            if let image = p.image {
-                d["image"] = image
-            }
-            if let file = p.file {
-                d["file"] = file
-            }
-            if let name = p.name {
-                d["name"] = name
-            }
-            partDicts.append(d)
-        }
-        try await ConvexService.shared.mutate("message:create", args: ["chatId": chatId, "parts": partDicts, "role": role])
-    }
-
-    @preconcurrency
-    public static func subscribeList(
-        chatId: String,
-        onUpdate: @escaping @Sendable @MainActor ([Message]) -> Void,
-        onError: @escaping @Sendable @MainActor (Error) -> Void = { _ in _ = () }
-    ) -> String {
-        #if !SKIP
-        return ConvexService.shared.subscribe(
-            to: list,
-            args: ["chatId": chatId],
-            type: [Message].self,
-            onUpdate: onUpdate,
-            onError: onError
-        )
-        #else
-        return ConvexService.shared.subscribeMessages(
-            to: list,
-            args: ["chatId": chatId],
-            onUpdate: { r in onUpdate(Array(r)) },
-            onError: { e in onError(e) }
-        )
-        #endif
-    }
-}
-
-extension ProjectAPI {
-    @preconcurrency
-    public static func subscribeList(
-        orgId: String,
-        onUpdate: @escaping @Sendable @MainActor (PaginatedResult<Project>) -> Void,
-        onError: @escaping @Sendable @MainActor (Error) -> Void = { _ in _ = () }
-    ) -> String {
-        let args = listArgs(orgId: orgId)
-        #if !SKIP
-        return ConvexService.shared.subscribe(
-            to: list,
-            args: args,
-            type: PaginatedResult<Project>.self,
-            onUpdate: onUpdate,
-            onError: onError
-        )
-        #else
-        return ConvexService.shared.subscribePaginatedProjects(
-            to: list,
-            args: args,
-            onUpdate: { r in onUpdate(r) },
-            onError: { e in onError(e) }
-        )
-        #endif
-    }
-}
-
-extension WikiAPI {
-    @preconcurrency
-    public static func subscribeList(
-        orgId: String,
-        onUpdate: @escaping @Sendable @MainActor (PaginatedResult<Wiki>) -> Void,
-        onError: @escaping @Sendable @MainActor (Error) -> Void = { _ in _ = () }
-    ) -> String {
-        let args = listArgs(orgId: orgId)
-        #if !SKIP
-        return ConvexService.shared.subscribe(to: list, args: args, type: PaginatedResult<Wiki>.self, onUpdate: onUpdate, onError: onError)
-        #else
-        return ConvexService.shared.subscribePaginatedWikis(
-            to: list,
-            args: args,
-            onUpdate: { r in onUpdate(r) },
-            onError: { e in onError(e) }
-        )
-        #endif
-    }
-}
-
-extension OrgAPI {
-    @preconcurrency
-    public static func subscribeMyOrgs(
-        onUpdate: @escaping @Sendable @MainActor ([OrgWithRole]) -> Void,
-        onError: @escaping @Sendable @MainActor (Error) -> Void = { _ in _ = () }
-    ) -> String {
-        #if !SKIP
-        return ConvexService.shared.subscribe(to: myOrgs, type: [OrgWithRole].self, onUpdate: onUpdate, onError: onError)
-        #else
-        return ConvexService.shared.subscribeOrgsWithRole(to: myOrgs, onUpdate: { r in onUpdate(Array(r)) }, onError: { e in onError(e) })
-        #endif
-    }
-
-    @preconcurrency
-    public static func subscribeMembers(
-        orgId: String,
-        onUpdate: @escaping @Sendable @MainActor ([OrgMemberEntry]) -> Void,
-        onError: @escaping @Sendable @MainActor (Error) -> Void = { _ in _ = () }
-    ) -> String {
-        #if !SKIP
-        return ConvexService.shared.subscribe(
-            to: members,
-            args: ["orgId": orgId],
-            type: [OrgMemberEntry].self,
-            onUpdate: onUpdate,
-            onError: onError
-        )
-        #else
-        return ConvexService.shared.subscribeOrgMembers(
-            to: members,
-            args: ["orgId": orgId],
-            onUpdate: { r in onUpdate(Array(r)) },
-            onError: { e in onError(e) }
-        )
-        #endif
-    }
-
-    @preconcurrency
-    public static func subscribePendingInvites(
-        orgId: String,
-        onUpdate: @escaping @Sendable @MainActor ([OrgInvite]) -> Void,
-        onError: @escaping @Sendable @MainActor (Error) -> Void = { _ in _ = () }
-    ) -> String {
-        #if !SKIP
-        return ConvexService.shared.subscribe(
-            to: pendingInvites,
-            args: ["orgId": orgId],
-            type: [OrgInvite].self,
-            onUpdate: onUpdate,
-            onError: onError
-        )
-        #else
-        return ConvexService.shared.subscribeInvites(
-            to: pendingInvites,
-            args: ["orgId": orgId],
-            onUpdate: { r in onUpdate(Array(r)) },
-            onError: { e in onError(e) }
-        )
-        #endif
-    }
-}
-
 extension TaskAPI {
     @preconcurrency
     public static func subscribeByProject(
@@ -698,38 +737,6 @@ extension TaskAPI {
             onUpdate: { r in onUpdate(Array(r)) },
             onError: { e in onError(e) }
         )
-        #endif
-    }
-}
-
-extension MovieAPI {
-    public static func search(query: String) async throws -> [SearchResult] {
-        #if !SKIP
-        return try await ConvexService.shared.action("movie:search", args: ["query": query], returning: [SearchResult].self)
-        #else
-        return try await Array(ConvexService.shared.actionSearchResults(name: "movie:search", args: ["query": query]))
-        #endif
-    }
-
-    public static func load(tmdbId: Int) async throws -> Movie {
-        #if !SKIP
-        return try await ConvexService.shared.action("movie:load", args: ["tmdb_id": Double(tmdbId)], returning: Movie.self)
-        #else
-        return try await ConvexService.shared.actionMovie(name: "movie:load", args: ["tmdb_id": Double(tmdbId)])
-        #endif
-    }
-}
-
-extension MobileAiAPI {
-    public static func chat(chatId: String) async throws {
-        #if !SKIP
-        let _: [String: String] = try await ConvexService.shared.action(
-            "mobileAi:chat",
-            args: ["chatId": chatId],
-            returning: [String: String].self
-        )
-        #else
-        try await ConvexService.shared.action(name: "mobileAi:chat", args: ["chatId": chatId])
         #endif
     }
 }

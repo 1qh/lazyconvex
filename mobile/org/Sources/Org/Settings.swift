@@ -34,7 +34,7 @@ internal struct SettingsView: View {
                     Button("Save Changes") {
                         saveOrg()
                     }
-                    .disabled(isSaving || editedName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .disabled(isSaving || editedName.trimmed.isEmpty)
                 }
             }
 

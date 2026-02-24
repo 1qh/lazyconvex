@@ -28,7 +28,7 @@ internal final class MessageViewModel {
     }
 
     func sendMessage(chatID: String) {
-        let text = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let text = messageText.trimmed
         guard !text.isEmpty else {
             return
         }
@@ -39,7 +39,7 @@ internal final class MessageViewModel {
                 try await MessageAPI.create(
                     chatId: chatID,
                     parts: [MessagePart(type: .text, text: text)],
-                    role: "user"
+                    role: .user
                 )
                 isAiLoading = true
                 try await MobileAiAPI.chat(chatId: chatID)
@@ -130,7 +130,7 @@ internal struct MessageView: View {
                             .accessibilityHidden(true)
                     }
                     .accessibilityIdentifier("sendButton")
-                    .disabled(viewModel.messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || viewModel.isAiLoading)
+                    .disabled(viewModel.messageText.trimmed.isEmpty || viewModel.isAiLoading)
                 }
                 .padding()
             }

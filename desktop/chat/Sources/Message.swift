@@ -19,7 +19,7 @@ internal final class MessageViewModel: SwiftCrossUI.ObservableObject, Performing
 
     @MainActor
     func sendMessage(chatID: String) async {
-        let text = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let text = messageText.trimmed
         guard !text.isEmpty else {
             return
         }
@@ -29,7 +29,7 @@ internal final class MessageViewModel: SwiftCrossUI.ObservableObject, Performing
 
         await perform {
             let parts = [MessagePart(type: .text, text: text, image: nil, file: nil, name: nil)]
-            try await MessageAPI.create(client, chatId: chatID, parts: parts, role: "user")
+            try await MessageAPI.create(client, chatId: chatID, parts: parts, role: .user)
 
             isAiLoading = true
             try await MobileAiAPI.chat(client, chatId: chatID)

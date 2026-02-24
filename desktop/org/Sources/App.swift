@@ -183,7 +183,7 @@ internal struct SwitcherView: View {
                                 Text(entry.org.name)
                                 Text(entry.org.slug)
                             }
-                            Text(entry.role.rawValue.capitalized)
+                            Text(entry.role.displayName)
                             Button("Select") {
                                 onSelectOrg(entry.org._id, entry.org.name, entry.role)
                             }
@@ -211,8 +211,8 @@ internal struct SwitcherView: View {
 
     @MainActor
     private func createOrg() async {
-        let name = newOrgName.trimmingCharacters(in: .whitespacesAndNewlines)
-        let slug = newOrgSlug.trimmingCharacters(in: .whitespacesAndNewlines)
+        let name = newOrgName.trimmed
+        let slug = newOrgSlug.trimmed
         guard !name.isEmpty, !slug.isEmpty else {
             return
         }

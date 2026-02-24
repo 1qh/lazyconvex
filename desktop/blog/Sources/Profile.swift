@@ -28,7 +28,7 @@ internal final class ProfileViewModel: SwiftCrossUI.ObservableObject, Performing
 
     @MainActor
     func save() async {
-        guard !displayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+        guard !displayName.trimmed.isEmpty else {
             errorMessage = "Display name is required"
             return
         }
@@ -36,9 +36,8 @@ internal final class ProfileViewModel: SwiftCrossUI.ObservableObject, Performing
         await performLoading({ isSaving = $0 }) {
             try await BlogProfileAPI.upsert(
                 client,
-                bio: bio.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : bio
-                    .trimmingCharacters(in: .whitespacesAndNewlines),
-                displayName: displayName.trimmingCharacters(in: .whitespacesAndNewlines),
+                bio: bio.trimmed.isEmpty ? nil : bio.trimmed,
+                displayName: displayName.trimmed,
                 notifications: notifications,
                 theme: BlogProfileTheme(rawValue: theme)
             )

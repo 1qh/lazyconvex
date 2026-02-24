@@ -74,7 +74,7 @@ internal final class ProfileViewModel: Performing {
     }
 
     func save() {
-        guard !displayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+        guard !displayName.trimmed.isEmpty else {
             errorMessage = "Display name is required"
             return
         }
@@ -82,9 +82,8 @@ internal final class ProfileViewModel: Performing {
         performLoading({ self.isSaving = $0 }) {
             try await BlogProfileAPI.upsert(
                 avatar: self.avatarID,
-                bio: self.bio.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : self.bio
-                    .trimmingCharacters(in: .whitespacesAndNewlines),
-                displayName: self.displayName.trimmingCharacters(in: .whitespacesAndNewlines),
+                bio: self.bio.trimmed.isEmpty ? nil : self.bio.trimmed,
+                displayName: self.displayName.trimmed,
                 notifications: self.notifications,
                 theme: BlogProfileTheme(rawValue: self.theme)
             )
@@ -161,8 +160,7 @@ internal struct ProfileView: View {
                                     .frame(maxWidth: .infinity)
                             }
                         }
-                        .disabled(viewModel.isSaving || viewModel.isUploadingAvatar || viewModel.displayName
-                            .trimmingCharacters(in: .whitespacesAndNewlines)
+                        .disabled(viewModel.isSaving || viewModel.isUploadingAvatar || viewModel.displayName.trimmed
                             .isEmpty)
                     }
                 }

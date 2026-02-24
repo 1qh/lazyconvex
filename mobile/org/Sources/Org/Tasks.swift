@@ -121,7 +121,7 @@ internal struct TasksView: View {
                         .accessibilityHidden(true)
                 }
                 .accessibilityIdentifier("addTaskButton")
-                .disabled(newTaskTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .disabled(newTaskTitle.trimmed.isEmpty)
             }
             .padding()
         }
@@ -135,7 +135,7 @@ internal struct TasksView: View {
     }
 
     private func addTask() {
-        let title = newTaskTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        let title = newTaskTitle.trimmed
         guard !title.isEmpty else {
             return
         }

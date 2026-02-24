@@ -97,7 +97,7 @@ internal struct MembersView: View {
                                     Text(email)
                                 }
                             }
-                            Text(member.role.rawValue.capitalized)
+                            Text(member.role.displayName)
                             if role.isAdmin {
                                 Button("Remove") {
                                     if let mid = member.memberId {

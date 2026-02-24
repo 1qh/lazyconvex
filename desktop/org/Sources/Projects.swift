@@ -94,7 +94,7 @@ internal struct ProjectsView: View {
                                     Text(desc)
                                 }
                                 if let status = project.status {
-                                    Text(status.rawValue.capitalized)
+                                    Text(status.displayName)
                                 }
                             }
                             Button("Delete") {
@@ -183,7 +183,7 @@ internal struct TasksView: View {
                             }
                             Text(task.title)
                             if let priority = task.priority {
-                                Text(priority.rawValue.capitalized)
+                                Text(priority.displayName)
                             }
                             Button("Delete") {
                                 Task { await viewModel.deleteTask(orgID: orgID, projectID: projectID, id: task._id) }
@@ -197,7 +197,7 @@ internal struct TasksView: View {
             HStack {
                 TextField("New task...", text: $newTaskTitle)
                 Button("Add") {
-                    let title = newTaskTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let title = newTaskTitle.trimmed
                     guard !title.isEmpty else {
                         return
                     }

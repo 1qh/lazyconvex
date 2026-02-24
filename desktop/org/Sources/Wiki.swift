@@ -118,7 +118,7 @@ internal struct WikiListView: View {
                                 Text(wiki.title)
                                 HStack {
                                     Text(wiki.slug)
-                                    Text(wiki.status.rawValue.capitalized)
+                                    Text(wiki.status.displayName)
                                 }
                             }
                             Button("Delete") {

@@ -119,7 +119,7 @@ internal struct ProjectsView: View {
                             newProjectDescription = ""
                             showCreateSheet = false
                         }
-                        .disabled(newProjectName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        .disabled(newProjectName.trimmed.isEmpty)
                     }
                 }
             }

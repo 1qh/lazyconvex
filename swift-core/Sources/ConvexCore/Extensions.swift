@@ -1,5 +1,11 @@
 import Foundation
 
+extension String {
+    public var trimmed: String {
+        trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+}
+
 public struct SearchResult: Codable, Identifiable, Sendable {
     public let tmdb_id: Double
     public let title: String

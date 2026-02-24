@@ -35,8 +35,8 @@ internal final class FormViewModel: Performing {
     var autoSaveMessage: String?
 
     var isValid: Bool {
-        !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-            content.trimmingCharacters(in: .whitespacesAndNewlines).count >= 3
+        !title.trimmed.isEmpty &&
+            content.trimmed.count >= 3
     }
 
     private var autoSaveTask: Task<Void, Never>?
@@ -71,7 +71,7 @@ internal final class FormViewModel: Performing {
     }
 
     func addTag() {
-        let trimmed = newTag.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let trimmed = newTag.trimmed.lowercased()
         if !trimmed.isEmpty, !tags.contains(trimmed), tags.count < 5 {
             tags.append(trimmed)
         }
@@ -96,22 +96,22 @@ internal final class FormViewModel: Performing {
 
                 try await BlogAPI.create(
                     category: cat,
-                    content: self.content.trimmingCharacters(in: .whitespacesAndNewlines),
+                    content: self.content.trimmed,
                     coverImage: self.coverImageID,
                     published: self.published,
                     tags: self.tags.isEmpty ? nil : self.tags,
-                    title: self.title.trimmingCharacters(in: .whitespacesAndNewlines)
+                    title: self.title.trimmed
                 )
 
             case let .edit(blog):
                 try await BlogAPI.update(
                     id: blog._id,
                     category: BlogCategory(rawValue: self.category),
-                    content: self.content.trimmingCharacters(in: .whitespacesAndNewlines),
+                    content: self.content.trimmed,
                     coverImage: self.coverImageID,
                     published: self.published,
                     tags: self.tags.isEmpty ? nil : self.tags,
-                    title: self.title.trimmingCharacters(in: .whitespacesAndNewlines),
+                    title: self.title.trimmed,
                     expectedUpdatedAt: blog.updatedAt
                 )
             }
@@ -136,10 +136,10 @@ internal final class FormViewModel: Performing {
                 try await BlogAPI.update(
                     id: blog._id,
                     category: BlogCategory(rawValue: category),
-                    content: content.trimmingCharacters(in: .whitespacesAndNewlines),
+                    content: content.trimmed,
                     published: published,
                     tags: tags.isEmpty ? nil : tags,
-                    title: title.trimmingCharacters(in: .whitespacesAndNewlines)
+                    title: title.trimmed
                 )
                 lastSavedTitle = title
                 lastSavedContent = content
@@ -213,7 +213,7 @@ internal struct FormView: View {
                 HStack {
                     TextField("Add tag...", text: $viewModel.newTag)
                     Button("Add") { viewModel.addTag() }
-                        .disabled(viewModel.newTag.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        .disabled(viewModel.newTag.trimmed.isEmpty)
                 }
                 if !viewModel.tags.isEmpty {
                     HStack(spacing: 6) {

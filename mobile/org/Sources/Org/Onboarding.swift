@@ -36,10 +36,10 @@ internal struct OnboardingView: View {
     private var isStepValid: Bool {
         switch currentStep {
         case 0:
-            !displayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            !displayName.trimmed.isEmpty
 
         case 1:
-            !orgName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !orgSlug.trimmingCharacters(in: .whitespacesAndNewlines)
+            !orgName.trimmed.isEmpty && !orgSlug.trimmed
                 .isEmpty
 
         default:

@@ -18,7 +18,7 @@ internal final class SearchViewModel: Performing {
     private var searchTask: Task<Void, Never>?
 
     func search() {
-        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = query.trimmed
         guard !trimmed.isEmpty else {
             results = []
             return
@@ -130,7 +130,7 @@ internal struct SearchView: View {
                             .accessibilityHidden(true)
                     }
                 }
-                .disabled(viewModel.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || viewModel.isLoading)
+                .disabled(viewModel.query.trimmed.isEmpty || viewModel.isLoading)
             }
             .padding()
 

@@ -158,8 +158,7 @@ internal struct SwitcherView: View {
                                 newOrgSlug = ""
                                 showCreateSheet = false
                             }
-                            .disabled(newOrgName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || newOrgSlug
-                                .trimmingCharacters(in: .whitespacesAndNewlines)
+                            .disabled(newOrgName.trimmed.isEmpty || newOrgSlug.trimmed
                                 .isEmpty)
                         }
                     }

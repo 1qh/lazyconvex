@@ -19,8 +19,8 @@ internal final class FormViewModel: SwiftCrossUI.ObservableObject, Performing {
     let mode: FormMode
 
     var isValid: Bool {
-        !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-            content.trimmingCharacters(in: .whitespacesAndNewlines).count >= 3
+        !title.trimmed.isEmpty &&
+            content.trimmed.count >= 3
     }
 
     init(mode: FormMode) {
@@ -45,9 +45,9 @@ internal final class FormViewModel: SwiftCrossUI.ObservableObject, Performing {
                 try await BlogAPI.create(
                     client,
                     category: BlogCategory(rawValue: category) ?? .tech,
-                    content: content.trimmingCharacters(in: .whitespacesAndNewlines),
+                    content: content.trimmed,
                     published: published,
-                    title: title.trimmingCharacters(in: .whitespacesAndNewlines)
+                    title: title.trimmed
                 )
 
             case let .edit(blog):
@@ -55,9 +55,9 @@ internal final class FormViewModel: SwiftCrossUI.ObservableObject, Performing {
                     client,
                     id: blog._id,
                     category: BlogCategory(rawValue: category),
-                    content: content.trimmingCharacters(in: .whitespacesAndNewlines),
+                    content: content.trimmed,
                     published: published,
-                    title: title.trimmingCharacters(in: .whitespacesAndNewlines),
+                    title: title.trimmed,
                     expectedUpdatedAt: blog.updatedAt
                 )
             }

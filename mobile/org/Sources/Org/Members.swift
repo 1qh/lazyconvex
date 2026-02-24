@@ -140,7 +140,7 @@ internal struct MembersView: View {
                             inviteEmail = ""
                             showInviteSheet = false
                         }
-                        .disabled(inviteEmail.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        .disabled(inviteEmail.trimmed.isEmpty)
                     }
                 }
             }

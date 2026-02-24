@@ -155,8 +155,7 @@ internal struct WikiListView: View {
                             newWikiSlug = ""
                             showCreateSheet = false
                         }
-                        .disabled(newWikiTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || newWikiSlug
-                            .trimmingCharacters(in: .whitespacesAndNewlines)
+                        .disabled(newWikiTitle.trimmed.isEmpty || newWikiSlug.trimmed
                             .isEmpty)
                     }
                 }

@@ -32,47 +32,79 @@ public enum BlogCategory: String, Codable, Sendable {
     case life
     case tech
     case tutorial
+
+    public var displayName: String {
+        rawValue.capitalized
+    }
 }
 
 public enum ProjectStatus: String, Codable, Sendable {
     case active
     case archived
     case completed
+
+    public var displayName: String {
+        rawValue.capitalized
+    }
 }
 
 public enum TaskPriority: String, Codable, Sendable {
     case high
     case low
     case medium
+
+    public var displayName: String {
+        rawValue.capitalized
+    }
 }
 
 public enum WikiStatus: String, Codable, Sendable {
     case draft
     case published
+
+    public var displayName: String {
+        rawValue.capitalized
+    }
 }
 
 public enum BlogProfileTheme: String, Codable, Sendable {
     case dark
     case light
     case system
+
+    public var displayName: String {
+        rawValue.capitalized
+    }
 }
 
 public enum OrgProfileTheme: String, Codable, Sendable {
     case dark
     case light
     case system
+
+    public var displayName: String {
+        rawValue.capitalized
+    }
 }
 
 public enum MessagePartType: String, Codable, Sendable {
     case file
     case image
     case text
+
+    public var displayName: String {
+        rawValue.capitalized
+    }
 }
 
 public enum MessageRole: String, Codable, Sendable {
     case assistant
     case system
     case user
+
+    public var displayName: String {
+        rawValue.capitalized
+    }
 }
 
 public struct Blog: Codable, Identifiable, Sendable {
@@ -294,12 +326,26 @@ public enum OrgRole: String, Codable, Sendable {
     case member
     case owner
 
+    public var displayName: String {
+        rawValue.capitalized
+    }
+
     public var isOwner: Bool {
         self == .owner
     }
 
     public var isAdmin: Bool {
         self == .owner || self == .admin
+    }
+}
+
+public enum JoinRequestStatus: String, Codable, Sendable {
+    case approved
+    case pending
+    case rejected
+
+    public var displayName: String {
+        rawValue.capitalized
     }
 }
 
@@ -348,7 +394,7 @@ public struct OrgJoinRequest: Codable, Identifiable, Sendable {
     public let _id: String
     public let orgId: String
     public let userId: String
-    public let status: String
+    public let status: JoinRequestStatus
 
     public var id: String {
         _id
@@ -1012,12 +1058,12 @@ public enum MovieAPI {
     public static let update = "movie:update"
 
     #if DESKTOP
-    public static func search(_ client: ConvexClientProtocol, query: String) async throws -> [SearchResult] {
-        try await client.action("movie:search", args: ["query": query])
-    }
-
     public static func load(_ client: ConvexClientProtocol, tmdbId: Int) async throws -> Movie {
         try await client.action("movie:load", args: ["tmdb_id": Double(tmdbId)])
+    }
+
+    public static func search(_ client: ConvexClientProtocol, query: String) async throws -> [SearchResult] {
+        try await client.action("movie:search", args: ["query": query])
     }
     #endif
 }
@@ -1126,11 +1172,7 @@ public enum MessageAPI {
     public static let pubList = "message:pubList"
 
     #if DESKTOP
-    public static func list(_ client: ConvexClientProtocol, chatId: String) async throws -> [Message] {
-        try await client.query("message:list", args: ["chatId": chatId])
-    }
-
-    public static func create(_ client: ConvexClientProtocol, chatId: String, parts: [MessagePart], role: String) async throws {
+    public static func create(_ client: ConvexClientProtocol, chatId: String, parts: [MessagePart], role: MessageRole) async throws {
         var partDicts = [[String: Any]]()
         for p in parts {
             var d: [String: Any] = ["type": p.type.rawValue]
@@ -1148,7 +1190,11 @@ public enum MessageAPI {
             }
             partDicts.append(d)
         }
-        try await client.mutation("message:create", args: ["chatId": chatId, "parts": partDicts, "role": role])
+        try await client.mutation("message:create", args: ["chatId": chatId, "role": role.rawValue, "parts": partDicts])
+    }
+
+    public static func list(_ client: ConvexClientProtocol, chatId: String) async throws -> [Message] {
+        try await client.query("message:list", args: ["chatId": chatId])
     }
     #endif
 }
@@ -1219,12 +1265,112 @@ public enum OrgAPI {
     public static let getOrCreate = "org:getOrCreate"
 
     #if DESKTOP
+    public static func acceptInvite(_ client: ConvexClientProtocol, token: String) async throws {
+        try await client.mutation("org:acceptInvite", args: ["token": token])
+    }
+
+    public static func approveJoinRequest(_ client: ConvexClientProtocol, requestId: String, isAdmin: Bool? = nil) async throws {
+        var args: [String: Any] = ["requestId": requestId]
+        if let isAdmin {
+            args["isAdmin"] = isAdmin
+        }
+        try await client.mutation("org:approveJoinRequest", args: args)
+    }
+
+    public static func cancelJoinRequest(_ client: ConvexClientProtocol, requestId: String) async throws {
+        try await client.mutation("org:cancelJoinRequest", args: ["requestId": requestId])
+    }
+
     public static func create(_ client: ConvexClientProtocol, name: String, slug: String, avatarId: String? = nil) async throws {
         var data: [String: Any] = ["name": name, "slug": slug]
         if let avatarId {
             data["avatarId"] = avatarId
         }
         try await client.mutation("org:create", args: ["data": data])
+    }
+
+    public static func get(_ client: ConvexClientProtocol, orgId: String) async throws -> Org {
+        try await client.query("org:get", args: ["orgId": orgId])
+    }
+
+    public static func getBySlug(_ client: ConvexClientProtocol, slug: String) async throws -> Org? {
+        try await client.query("org:getBySlug", args: ["slug": slug])
+    }
+
+    public static func getOrCreate(_ client: ConvexClientProtocol) async throws -> OrgGetOrCreateResult {
+        try await client.mutation("org:getOrCreate", args: [:])
+    }
+
+    public static func getPublic(_ client: ConvexClientProtocol, slug: String) async throws -> Org? {
+        try await client.query("org:getPublic", args: ["slug": slug])
+    }
+
+    public static func invite(_ client: ConvexClientProtocol, email: String, isAdmin: Bool, orgId: String) async throws {
+        try await client.mutation("org:invite", args: ["email": email, "isAdmin": isAdmin, "orgId": orgId])
+    }
+
+    public static func isSlugAvailable(_ client: ConvexClientProtocol, slug: String) async throws -> SlugAvailability {
+        try await client.query("org:isSlugAvailable", args: ["slug": slug])
+    }
+
+    public static func leave(_ client: ConvexClientProtocol, orgId: String) async throws {
+        try await client.mutation("org:leave", args: ["orgId": orgId])
+    }
+
+    public static func members(_ client: ConvexClientProtocol, orgId: String) async throws -> [OrgMemberEntry] {
+        try await client.query("org:members", args: ["orgId": orgId])
+    }
+
+    public static func membership(_ client: ConvexClientProtocol, orgId: String) async throws -> OrgMembership {
+        try await client.query("org:membership", args: ["orgId": orgId])
+    }
+
+    public static func myJoinRequest(_ client: ConvexClientProtocol, orgId: String) async throws -> OrgJoinRequest? {
+        try await client.query("org:myJoinRequest", args: ["orgId": orgId])
+    }
+
+    public static func myOrgs(_ client: ConvexClientProtocol) async throws -> [OrgWithRole] {
+        try await client.query("org:myOrgs", args: [:])
+    }
+
+    public static func pendingInvites(_ client: ConvexClientProtocol, orgId: String) async throws -> [OrgInvite] {
+        try await client.query("org:pendingInvites", args: ["orgId": orgId])
+    }
+
+    public static func pendingJoinRequests(_ client: ConvexClientProtocol, orgId: String) async throws -> [OrgJoinRequest] {
+        try await client.query("org:pendingJoinRequests", args: ["orgId": orgId])
+    }
+
+    public static func rejectJoinRequest(_ client: ConvexClientProtocol, requestId: String) async throws {
+        try await client.mutation("org:rejectJoinRequest", args: ["requestId": requestId])
+    }
+
+    public static func remove(_ client: ConvexClientProtocol, orgId: String) async throws {
+        try await client.mutation("org:remove", args: ["orgId": orgId])
+    }
+
+    public static func removeMember(_ client: ConvexClientProtocol, memberId: String) async throws {
+        try await client.mutation("org:removeMember", args: ["memberId": memberId])
+    }
+
+    public static func requestJoin(_ client: ConvexClientProtocol, orgId: String, message: String? = nil) async throws {
+        var args: [String: Any] = ["orgId": orgId]
+        if let message {
+            args["message"] = message
+        }
+        try await client.mutation("org:requestJoin", args: args)
+    }
+
+    public static func revokeInvite(_ client: ConvexClientProtocol, inviteId: String) async throws {
+        try await client.mutation("org:revokeInvite", args: ["inviteId": inviteId])
+    }
+
+    public static func setAdmin(_ client: ConvexClientProtocol, isAdmin: Bool, memberId: String) async throws {
+        try await client.mutation("org:setAdmin", args: ["isAdmin": isAdmin, "memberId": memberId])
+    }
+
+    public static func transferOwnership(_ client: ConvexClientProtocol, newOwnerId: String, orgId: String) async throws {
+        try await client.mutation("org:transferOwnership", args: ["newOwnerId": newOwnerId, "orgId": orgId])
     }
 
     public static func update(
@@ -1245,106 +1391,6 @@ public enum OrgAPI {
             data["avatarId"] = avatarId
         }
         try await client.mutation("org:update", args: ["orgId": orgId, "data": data])
-    }
-
-    public static func get(_ client: ConvexClientProtocol, orgId: String) async throws -> Org {
-        try await client.query("org:get", args: ["orgId": orgId])
-    }
-
-    public static func getBySlug(_ client: ConvexClientProtocol, slug: String) async throws -> Org? {
-        try await client.query("org:getBySlug", args: ["slug": slug])
-    }
-
-    public static func getPublic(_ client: ConvexClientProtocol, slug: String) async throws -> Org? {
-        try await client.query("org:getPublic", args: ["slug": slug])
-    }
-
-    public static func myOrgs(_ client: ConvexClientProtocol) async throws -> [OrgWithRole] {
-        try await client.query("org:myOrgs", args: [:])
-    }
-
-    public static func remove(_ client: ConvexClientProtocol, orgId: String) async throws {
-        try await client.mutation("org:remove", args: ["orgId": orgId])
-    }
-
-    public static func isSlugAvailable(_ client: ConvexClientProtocol, slug: String) async throws -> SlugAvailability {
-        try await client.query("org:isSlugAvailable", args: ["slug": slug])
-    }
-
-    public static func getOrCreate(_ client: ConvexClientProtocol) async throws -> OrgGetOrCreateResult {
-        try await client.mutation("org:getOrCreate", args: [:])
-    }
-
-    public static func membership(_ client: ConvexClientProtocol, orgId: String) async throws -> OrgMembership {
-        try await client.query("org:membership", args: ["orgId": orgId])
-    }
-
-    public static func members(_ client: ConvexClientProtocol, orgId: String) async throws -> [OrgMemberEntry] {
-        try await client.query("org:members", args: ["orgId": orgId])
-    }
-
-    public static func setAdmin(_ client: ConvexClientProtocol, isAdmin: Bool, memberId: String) async throws {
-        try await client.mutation("org:setAdmin", args: ["isAdmin": isAdmin, "memberId": memberId])
-    }
-
-    public static func removeMember(_ client: ConvexClientProtocol, memberId: String) async throws {
-        try await client.mutation("org:removeMember", args: ["memberId": memberId])
-    }
-
-    public static func leave(_ client: ConvexClientProtocol, orgId: String) async throws {
-        try await client.mutation("org:leave", args: ["orgId": orgId])
-    }
-
-    public static func transferOwnership(_ client: ConvexClientProtocol, newOwnerId: String, orgId: String) async throws {
-        try await client.mutation("org:transferOwnership", args: ["newOwnerId": newOwnerId, "orgId": orgId])
-    }
-
-    public static func invite(_ client: ConvexClientProtocol, email: String, isAdmin: Bool, orgId: String) async throws {
-        try await client.mutation("org:invite", args: ["email": email, "isAdmin": isAdmin, "orgId": orgId])
-    }
-
-    public static func acceptInvite(_ client: ConvexClientProtocol, token: String) async throws {
-        try await client.mutation("org:acceptInvite", args: ["token": token])
-    }
-
-    public static func revokeInvite(_ client: ConvexClientProtocol, inviteId: String) async throws {
-        try await client.mutation("org:revokeInvite", args: ["inviteId": inviteId])
-    }
-
-    public static func pendingInvites(_ client: ConvexClientProtocol, orgId: String) async throws -> [OrgInvite] {
-        try await client.query("org:pendingInvites", args: ["orgId": orgId])
-    }
-
-    public static func requestJoin(_ client: ConvexClientProtocol, orgId: String, message: String? = nil) async throws {
-        var args: [String: Any] = ["orgId": orgId]
-        if let message {
-            args["message"] = message
-        }
-        try await client.mutation("org:requestJoin", args: args)
-    }
-
-    public static func approveJoinRequest(_ client: ConvexClientProtocol, requestId: String, isAdmin: Bool? = nil) async throws {
-        var args: [String: Any] = ["requestId": requestId]
-        if let isAdmin {
-            args["isAdmin"] = isAdmin
-        }
-        try await client.mutation("org:approveJoinRequest", args: args)
-    }
-
-    public static func rejectJoinRequest(_ client: ConvexClientProtocol, requestId: String) async throws {
-        try await client.mutation("org:rejectJoinRequest", args: ["requestId": requestId])
-    }
-
-    public static func cancelJoinRequest(_ client: ConvexClientProtocol, requestId: String) async throws {
-        try await client.mutation("org:cancelJoinRequest", args: ["requestId": requestId])
-    }
-
-    public static func pendingJoinRequests(_ client: ConvexClientProtocol, orgId: String) async throws -> [OrgJoinRequest] {
-        try await client.query("org:pendingJoinRequests", args: ["orgId": orgId])
-    }
-
-    public static func myJoinRequest(_ client: ConvexClientProtocol, orgId: String) async throws -> OrgJoinRequest? {
-        try await client.query("org:myJoinRequest", args: ["orgId": orgId])
     }
     #endif
 }
@@ -1462,12 +1508,12 @@ public enum TaskAPI {
         try await client.mutation("task:bulkRm", args: ["ids": ids, "orgId": orgId])
     }
 
-    public static func toggle(_ client: ConvexClientProtocol, orgId: String, id: String) async throws {
-        try await client.mutation("task:toggle", args: ["orgId": orgId, "id": id])
-    }
-
     public static func byProject(_ client: ConvexClientProtocol, orgId: String, projectId: String) async throws -> [TaskItem] {
         try await client.query("task:byProject", args: ["orgId": orgId, "projectId": projectId])
+    }
+
+    public static func toggle(_ client: ConvexClientProtocol, orgId: String, id: String) async throws {
+        try await client.mutation("task:toggle", args: ["orgId": orgId, "id": id])
     }
     #endif
 }

@@ -13,7 +13,7 @@ internal final class SearchViewModel: SwiftCrossUI.ObservableObject, Performing 
 
     @MainActor
     func search() {
-        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = query.trimmed
         guard !trimmed.isEmpty else {
             results = []
             return
