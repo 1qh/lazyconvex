@@ -14,7 +14,7 @@ internal enum FormMode {
 internal final class FormViewModel: Performing {
     var title = ""
     var content = ""
-    var category = "tech"
+    var category = BlogCategory.tech
     var published = false
     var tags = [String]()
     var newTag = ""
@@ -22,7 +22,7 @@ internal final class FormViewModel: Performing {
     var isUploadingCover = false
     var coverImageID: String?
     var selectedCoverURL: URL?
-    let categories = ["tech", "life", "tutorial"]
+
     let mode: FormMode
     private var lastSavedTitle = ""
     private var lastSavedContent = ""
@@ -46,7 +46,7 @@ internal final class FormViewModel: Performing {
         if case let .edit(blog) = mode {
             title = blog.title
             content = blog.content
-            category = blog.category.rawValue
+            category = blog.category
             published = blog.published
             tags = blog.tags ?? []
             coverImageID = blog.coverImage
@@ -90,12 +90,8 @@ internal final class FormViewModel: Performing {
         performLoading({ self.isSaving = $0 }) {
             switch self.mode {
             case .create:
-                guard let cat = BlogCategory(rawValue: self.category) else {
-                    return
-                }
-
                 try await BlogAPI.create(
-                    category: cat,
+                    category: self.category,
                     content: self.content.trimmed,
                     coverImage: self.coverImageID,
                     published: self.published,
@@ -106,7 +102,7 @@ internal final class FormViewModel: Performing {
             case let .edit(blog):
                 try await BlogAPI.update(
                     id: blog._id,
-                    category: BlogCategory(rawValue: self.category),
+                    category: self.category,
                     content: self.content.trimmed,
                     coverImage: self.coverImageID,
                     published: self.published,
@@ -135,7 +131,7 @@ internal final class FormViewModel: Performing {
             do {
                 try await BlogAPI.update(
                     id: blog._id,
-                    category: BlogCategory(rawValue: category),
+                    category: category,
                     content: content.trimmed,
                     published: published,
                     tags: tags.isEmpty ? nil : tags,
@@ -175,8 +171,8 @@ internal struct FormView: View {
 
             Section("Category") {
                 Picker("Category", selection: $viewModel.category) {
-                    ForEach(viewModel.categories, id: \.self) { cat in
-                        Text(cat.capitalized).tag(cat)
+                    ForEach(BlogCategory.allCases, id: \.self) { cat in
+                        Text(cat.displayName).tag(cat)
                     }
                 }
                 .pickerStyle(.segmented)

@@ -11,7 +11,7 @@ internal enum FormMode {
 internal final class FormViewModel: SwiftCrossUI.ObservableObject, Performing {
     @SwiftCrossUI.Published var title = ""
     @SwiftCrossUI.Published var content = ""
-    @SwiftCrossUI.Published var category = "tech"
+    @SwiftCrossUI.Published var category = BlogCategory.tech
     @SwiftCrossUI.Published var published = false
     @SwiftCrossUI.Published var isSaving = false
     @SwiftCrossUI.Published var errorMessage: String?
@@ -28,7 +28,7 @@ internal final class FormViewModel: SwiftCrossUI.ObservableObject, Performing {
         if case let .edit(blog) = mode {
             title = blog.title
             content = blog.content
-            category = blog.category.rawValue
+            category = blog.category
             published = blog.published
         }
     }
@@ -44,7 +44,7 @@ internal final class FormViewModel: SwiftCrossUI.ObservableObject, Performing {
             case .create:
                 try await BlogAPI.create(
                     client,
-                    category: BlogCategory(rawValue: category) ?? .tech,
+                    category: category,
                     content: content.trimmed,
                     published: published,
                     title: title.trimmed
@@ -54,7 +54,7 @@ internal final class FormViewModel: SwiftCrossUI.ObservableObject, Performing {
                 try await BlogAPI.update(
                     client,
                     id: blog._id,
-                    category: BlogCategory(rawValue: category),
+                    category: category,
                     content: content.trimmed,
                     published: published,
                     title: title.trimmed,
@@ -77,7 +77,14 @@ internal struct FormView: View {
 
             TextField("Title", text: $viewModel.title)
             TextField("Content", text: $viewModel.content)
-            TextField("Category (tech/life/tutorial)", text: $viewModel.category)
+            HStack {
+                ForEach(0..<BlogCategory.allCases.count, id: \.self) { idx in
+                    let cat = BlogCategory.allCases[idx]
+                    Button(cat.displayName) {
+                        viewModel.category = cat
+                    }
+                }
+            }
 
             Toggle("Published", isOn: $viewModel.published)
 

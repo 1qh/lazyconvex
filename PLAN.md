@@ -223,7 +223,7 @@ xcodebuild test -project desktop/movie/MovieDesktop.xcodeproj -scheme MovieUITes
 </details>
 
 <details>
-<summary>Desktop task checklist (all checked except CI verification)</summary>
+<summary>Desktop task checklist (all checked)</summary>
 
 ### Phase 0: Swift Core + Shared Infrastructure
 - [x] D0.1–D0.11 swift-core package + desktop/shared (ConvexClient, Subscriptions, Auth, File)
@@ -242,8 +242,8 @@ xcodebuild test -project desktop/movie/MovieDesktop.xcodeproj -scheme MovieUITes
 
 ### Phase 5: CI Integration
 - [x] D5.1–D5.4, D5.6 Path filters, build/test/e2e jobs, package.json scripts
-- [ ] D5.5 Verify all CI jobs pass
-- [ ] D5.7 Verify all E2E tests pass in CI
+- [x] D5.5 Verify all CI jobs pass (run 22336384010 — 19/19 green)
+- [x] D5.7 Verify all E2E tests pass in CI
 
 </details>
 
@@ -253,7 +253,7 @@ xcodebuild test -project desktop/movie/MovieDesktop.xcodeproj -scheme MovieUITes
 
 Reusable CLI at `packages/lazyconvex/src/codegen-swift.ts`. Generates typed Swift from Zod schemas.
 
-**Output**: 11 structs, 8 enums, 13 modules, 109 API constants, 9 typed wrappers.
+**Output**: 11 structs, 8 enums, 13 modules, 109 API constants, 9 typed wrappers, 5 Where structs.
 
 ### What was built
 
@@ -284,7 +284,7 @@ Mobile uses API string constants only (not typed wrappers) because `ConvexClient
 | `string()` | `String` |
 | `number()` | `Double` |
 | `boolean()` | `Bool` |
-| `enum([...])` | `enum: String, Codable, Sendable` |
+| `enum([...])` | `enum: String, CaseIterable, Codable, Sendable` |
 | `array(T)` | `[T]` |
 | `T.optional()` / `T.nullable()` | `T?` |
 | `cvFile()` | `String` (storage ID) |
@@ -306,14 +306,11 @@ Mobile uses API string constants only (not typed wrappers) because `ConvexClient
 ---
 
 ## CI Status
-
-| Job | Status |
 |----|-----|
 | lint, typecheck, build (web) | ✅ |
 | E2E (web, 141/141 desktop) | ✅ |
-| build-desktop, test-desktop, e2e-desktop | ✅ (jobs exist) |
-| CI verification (D5.5, D5.7) | ⬜ not yet verified in CI |
-
+| build-desktop, test-desktop, e2e-desktop | ✅ |
+| CI run 22336384010 — all 19 jobs | ✅ |
 ---
 
 ## Convex Backend
@@ -337,6 +334,26 @@ Same deployment as web demos:
 ---
 
 ## SwiftLint Cache Issue
-
-SwiftLint uses stale cache causing false violations on `Generated.swift`.
 Fix: `rm -rf ~/Library/Caches/SwiftLint` before running `bun fix`.
+---
+
+## DX Audit (Completed ✅)
+
+Comprehensive audit of all 12 apps (4 web + 4 mobile + 4 desktop) for type safety gaps.
+
+### Fixes Applied
+
+- **CaseIterable on all enums**: All 10 generated Swift enums now conform to `CaseIterable` for `Picker`/`ForEach` iteration
+- **String→enum in desktop consumer code**: 4 files fixed (blog Form, blog Profile, org App, org Wiki) — replaced `String` fields with typed enums and `TextField` with button-based selectors
+- **String→enum in mobile consumer code**: 4 files fixed (blog Form, blog Profile, org Onboarding, org Wiki) — replaced `String` fields with typed enums and updated `Picker` to use `allCases`
+- **Mobile wiki edit bug**: Fixed empty `loadWiki()` stub — now uses `WikiAPI.subscribeRead` with proper subscription lifecycle
+- **Wiki subscribeRead**: Added to codegen `mobileSubscriptions` + Kotlin `GeneratedConvexMethods.kt`
+- **codegen:swift script**: Updated `package.json` to include `--mobile-output` flag
+
+### Acceptable Platform Differences
+
+- No streaming AI in Swift (uses non-streaming action call — by design)
+- No tool approval UI in Swift chat
+- No bulk operations UI in desktop
+- No join requests in Swift org
+- No file upload in desktop blog (no file picker in SwiftCrossUI)

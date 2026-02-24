@@ -82,6 +82,13 @@ fun ConvexService.subscribeMovie(
     onError: (Error) -> Unit = { },
 ): String = subscribeSingleImpl(to, args, Movie::class, onUpdate, onError)
 
+fun ConvexService.subscribeWiki(
+    to: String,
+    args: Dictionary<String, Any> = dictionaryOf(),
+    onUpdate: (Wiki) -> Unit,
+    onError: (Error) -> Unit = { },
+): String = subscribeSingleImpl(to, args, Wiki::class, onUpdate, onError)
+
 fun ConvexService.subscribeProfileData(
     to: String,
     args: Dictionary<String, Any> = dictionaryOf(),

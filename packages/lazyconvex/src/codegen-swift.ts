@@ -548,7 +548,7 @@ for (const block of pendingLines) for (const line of block) emit(line)
 
 for (const [name, values] of enumRegistry) {
   const sorted = [...values].toSorted()
-  emit(`public enum ${name}: String, Codable, Sendable {`)
+  emit(`public enum ${name}: String, CaseIterable, Codable, Sendable {`)
   for (const v of sorted)
     if (/^[a-z_][a-z0-9_]*$/iu.test(v) && v !== 'default') emit(`${indent(1)}case ${v}`)
     else {
@@ -650,7 +650,7 @@ emit('}')
 emit('')
 emit('')
 
-emit('public enum OrgRole: String, Codable, Sendable {')
+emit('public enum OrgRole: String, CaseIterable, Codable, Sendable {')
 emit(`${indent(1)}case admin`)
 emit(`${indent(1)}case member`)
 emit(`${indent(1)}case owner`)
@@ -661,7 +661,7 @@ emit(`${indent(1)}public var isAdmin: Bool { self == .owner || self == .admin }`
 emit('}')
 emit('')
 
-emit('public enum JoinRequestStatus: String, Codable, Sendable {')
+emit('public enum JoinRequestStatus: String, CaseIterable, Codable, Sendable {')
 emit(`${indent(1)}case approved`)
 emit(`${indent(1)}case pending`)
 emit(`${indent(1)}case rejected`)
@@ -1832,6 +1832,21 @@ const desktopCustomFns: Record<string, Record<string, CustomFnDescriptor>> = {
         resultType: 'PaginatedResult<Wiki>',
         skipMethod: 'subscribePaginatedWikis',
         usesListArgs: true
+      },
+      {
+        apiRef: 'read',
+        args: [
+          { argName: 'id', value: 'id' },
+          { argName: 'orgId', value: 'orgId' }
+        ],
+        methodName: 'subscribeRead',
+        notSkipType: 'Wiki',
+        params: [
+          { name: 'orgId', type: 'String' },
+          { name: 'id', type: 'String' }
+        ],
+        resultType: 'Wiki',
+        skipMethod: 'subscribeWiki'
       }
     ]
   }

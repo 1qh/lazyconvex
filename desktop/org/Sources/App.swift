@@ -236,7 +236,7 @@ internal struct OnboardingView: View {
     @State private var bio = ""
     @State private var orgName = ""
     @State private var orgSlug = ""
-    @State private var theme = "system"
+    @State private var theme = OrgProfileTheme.system
     @State private var notifications = true
     @State private var isSubmitting = false
     @State private var errorMessage: String?
@@ -260,7 +260,14 @@ internal struct OnboardingView: View {
                 TextField("URL Slug", text: $orgSlug)
 
             case 2:
-                TextField("Theme (light/dark/system)", text: $theme)
+                HStack {
+                    ForEach(0..<OrgProfileTheme.allCases.count, id: \.self) { idx in
+                        let t = OrgProfileTheme.allCases[idx]
+                        Button(t.displayName) {
+                            theme = t
+                        }
+                    }
+                }
 
             case 3:
                 Toggle("Enable Notifications", isOn: $notifications)
@@ -304,7 +311,7 @@ internal struct OnboardingView: View {
                 bio: bio,
                 displayName: displayName,
                 notifications: notifications,
-                theme: OrgProfileTheme(rawValue: theme)
+                theme: theme
             )
             try await OrgAPI.create(client, name: orgName, slug: orgSlug)
             isSubmitting = false

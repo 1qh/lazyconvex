@@ -151,7 +151,7 @@ internal final class WikiEditViewModel: SwiftCrossUI.ObservableObject, Performin
     @SwiftCrossUI.Published var title = ""
     @SwiftCrossUI.Published var slug = ""
     @SwiftCrossUI.Published var content = ""
-    @SwiftCrossUI.Published var status = WikiStatus.draft.rawValue
+    @SwiftCrossUI.Published var status = WikiStatus.draft
     @SwiftCrossUI.Published var isLoading = true
     @SwiftCrossUI.Published var saveStatus = ""
     @SwiftCrossUI.Published var errorMessage: String?
@@ -163,7 +163,7 @@ internal final class WikiEditViewModel: SwiftCrossUI.ObservableObject, Performin
             title = wiki.title
             slug = wiki.slug
             content = wiki.content ?? ""
-            status = wiki.status.rawValue
+            status = wiki.status
         }
     }
 
@@ -177,7 +177,7 @@ internal final class WikiEditViewModel: SwiftCrossUI.ObservableObject, Performin
                 id: wikiID,
                 content: content,
                 slug: slug,
-                status: WikiStatus(rawValue: status),
+                status: status,
                 title: title
             )
             saveStatus = "Saved"
@@ -208,7 +208,14 @@ internal struct WikiEditView: View {
             } else {
                 TextField("Title", text: $viewModel.title)
                 TextField("Slug", text: $viewModel.slug)
-                TextField("Status (draft/published)", text: $viewModel.status)
+                HStack {
+                    ForEach(0..<WikiStatus.allCases.count, id: \.self) { idx in
+                        let s = WikiStatus.allCases[idx]
+                        Button(s.displayName) {
+                            viewModel.status = s
+                        }
+                    }
+                }
                 TextField("Content", text: $viewModel.content)
 
                 if let msg = viewModel.errorMessage {

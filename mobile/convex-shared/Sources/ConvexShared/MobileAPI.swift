@@ -226,6 +226,31 @@ extension WikiAPI {
         )
         #endif
     }
+
+    @preconcurrency
+    public static func subscribeRead(
+        orgId: String,
+        id: String,
+        onUpdate: @escaping @Sendable @MainActor (Wiki) -> Void,
+        onError: @escaping @Sendable @MainActor (Error) -> Void = { _ in _ = () }
+    ) -> String {
+        #if !SKIP
+        return ConvexService.shared.subscribe(
+            to: read,
+            args: ["id": id, "orgId": orgId],
+            type: Wiki.self,
+            onUpdate: onUpdate,
+            onError: onError
+        )
+        #else
+        return ConvexService.shared.subscribeWiki(
+            to: read,
+            args: ["id": id, "orgId": orgId],
+            onUpdate: { r in onUpdate(r) },
+            onError: { e in onError(e) }
+        )
+        #endif
+    }
 }
 
 extension MobileAiAPI {

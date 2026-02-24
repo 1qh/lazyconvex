@@ -85,7 +85,7 @@ internal struct WikiListView: View {
                                             .font(.caption)
                                             .foregroundStyle(.secondary)
                                         Spacer()
-                                        Text(wiki.status.rawValue.capitalized)
+                                        Text(wiki.status.displayName)
                                             .font(.caption2)
                                             .padding(.horizontal, 6)
                                             .padding(.vertical, 2)
@@ -183,7 +183,7 @@ internal struct WikiEditView: View {
 
     @State private var content = ""
 
-    @State private var status = "draft"
+    @State private var status = WikiStatus.draft
 
     @State private var isLoading = true
 
@@ -192,6 +192,8 @@ internal struct WikiEditView: View {
     @State private var errorMessage: String?
 
     @State private var autoSaveTask: Task<Void, Never>?
+
+    @State private var subscriptionID: String?
 
     var body: some View {
         Group {
@@ -205,8 +207,9 @@ internal struct WikiEditView: View {
                         TextField("Slug", text: $slug)
                             .onChange(of: slug) { scheduleSave() }
                         Picker("Status", selection: $status) {
-                            Text("Draft").tag("draft")
-                            Text("Published").tag("published")
+                            ForEach(WikiStatus.allCases, id: \.self) { s in
+                                Text(s.displayName).tag(s)
+                            }
                         }
                         .onChange(of: status) { scheduleSave() }
                     }
@@ -236,8 +239,13 @@ internal struct WikiEditView: View {
             }
         }
         .navigationTitle("Edit Wiki")
-        .task {
-            await loadWiki()
+        .onAppear {
+            loadWiki()
+        }
+        .onDisappear {
+            if let id = subscriptionID {
+                ConvexService.shared.unsubscribe(id)
+            }
         }
     }
 
@@ -260,7 +268,7 @@ internal struct WikiEditView: View {
                 id: wikiID,
                 content: content,
                 slug: slug,
-                status: WikiStatus(rawValue: status),
+                status: status,
                 title: title
             )
             saveStatus = "Saved"
@@ -271,7 +279,21 @@ internal struct WikiEditView: View {
     }
 
     private func loadWiki() {
-        isLoading = false
+        subscriptionID = WikiAPI.subscribeRead(
+            orgId: orgID,
+            id: wikiID,
+            onUpdate: { wiki in
+                title = wiki.title
+                slug = wiki.slug
+                content = wiki.content ?? ""
+                status = wiki.status
+                isLoading = false
+            },
+            onError: { error in
+                errorMessage = error.localizedDescription
+                isLoading = false
+            }
+        )
     }
 
     private func deleteWiki() {

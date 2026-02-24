@@ -28,7 +28,7 @@ public struct MessagePart: Codable, Sendable {
     }
 }
 
-public enum BlogCategory: String, Codable, Sendable {
+public enum BlogCategory: String, CaseIterable, Codable, Sendable {
     case life
     case tech
     case tutorial
@@ -38,7 +38,7 @@ public enum BlogCategory: String, Codable, Sendable {
     }
 }
 
-public enum ProjectStatus: String, Codable, Sendable {
+public enum ProjectStatus: String, CaseIterable, Codable, Sendable {
     case active
     case archived
     case completed
@@ -48,7 +48,7 @@ public enum ProjectStatus: String, Codable, Sendable {
     }
 }
 
-public enum TaskPriority: String, Codable, Sendable {
+public enum TaskPriority: String, CaseIterable, Codable, Sendable {
     case high
     case low
     case medium
@@ -58,7 +58,7 @@ public enum TaskPriority: String, Codable, Sendable {
     }
 }
 
-public enum WikiStatus: String, Codable, Sendable {
+public enum WikiStatus: String, CaseIterable, Codable, Sendable {
     case draft
     case published
 
@@ -67,7 +67,7 @@ public enum WikiStatus: String, Codable, Sendable {
     }
 }
 
-public enum BlogProfileTheme: String, Codable, Sendable {
+public enum BlogProfileTheme: String, CaseIterable, Codable, Sendable {
     case dark
     case light
     case system
@@ -77,7 +77,7 @@ public enum BlogProfileTheme: String, Codable, Sendable {
     }
 }
 
-public enum OrgProfileTheme: String, Codable, Sendable {
+public enum OrgProfileTheme: String, CaseIterable, Codable, Sendable {
     case dark
     case light
     case system
@@ -87,7 +87,7 @@ public enum OrgProfileTheme: String, Codable, Sendable {
     }
 }
 
-public enum MessagePartType: String, Codable, Sendable {
+public enum MessagePartType: String, CaseIterable, Codable, Sendable {
     case file
     case image
     case text
@@ -97,7 +97,7 @@ public enum MessagePartType: String, Codable, Sendable {
     }
 }
 
-public enum MessageRole: String, Codable, Sendable {
+public enum MessageRole: String, CaseIterable, Codable, Sendable {
     case assistant
     case system
     case user
@@ -321,7 +321,7 @@ public struct OrgMember: Codable, Identifiable, Sendable {
     }
 }
 
-public enum OrgRole: String, Codable, Sendable {
+public enum OrgRole: String, CaseIterable, Codable, Sendable {
     case admin
     case member
     case owner
@@ -339,7 +339,7 @@ public enum OrgRole: String, Codable, Sendable {
     }
 }
 
-public enum JoinRequestStatus: String, Codable, Sendable {
+public enum JoinRequestStatus: String, CaseIterable, Codable, Sendable {
     case approved
     case pending
     case rejected

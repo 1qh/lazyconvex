@@ -15,7 +15,7 @@ internal struct OnboardingView: View {
 
     @State private var orgSlug = ""
 
-    @State private var theme = "system"
+    @State private var theme = OrgProfileTheme.system
 
     @State private var notifications = true
 
@@ -104,9 +104,9 @@ internal struct OnboardingView: View {
                     case 2:
                         Section {
                             Picker("Theme", selection: $theme) {
-                                Text("System").tag("system")
-                                Text("Light").tag("light")
-                                Text("Dark").tag("dark")
+                                ForEach(OrgProfileTheme.allCases, id: \.self) { t in
+                                    Text(t.displayName).tag(t)
+                                }
                             }
                             .pickerStyle(.segmented)
                         }
@@ -181,7 +181,7 @@ internal struct OnboardingView: View {
                     bio: bio.isEmpty ? nil : bio,
                     displayName: displayName,
                     notifications: notifications,
-                    theme: OrgProfileTheme(rawValue: theme)
+                    theme: theme
                 )
                 try await OrgAPI.create(name: orgName, slug: orgSlug)
                 isSubmitting = false

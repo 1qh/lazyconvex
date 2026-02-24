@@ -6,7 +6,7 @@ import SwiftCrossUI
 internal final class ProfileViewModel: SwiftCrossUI.ObservableObject, Performing {
     @SwiftCrossUI.Published var displayName = ""
     @SwiftCrossUI.Published var bio = ""
-    @SwiftCrossUI.Published var theme = "system"
+    @SwiftCrossUI.Published var theme = BlogProfileTheme.system
     @SwiftCrossUI.Published var notifications = true
     @SwiftCrossUI.Published var isLoading = true
     @SwiftCrossUI.Published var isSaving = false
@@ -21,7 +21,7 @@ internal final class ProfileViewModel: SwiftCrossUI.ObservableObject, Performing
 
             displayName = profile.displayName
             bio = profile.bio ?? ""
-            theme = profile.theme.rawValue
+            theme = profile.theme
             notifications = profile.notifications
         }
     }
@@ -39,7 +39,7 @@ internal final class ProfileViewModel: SwiftCrossUI.ObservableObject, Performing
                 bio: bio.trimmed.isEmpty ? nil : bio.trimmed,
                 displayName: displayName.trimmed,
                 notifications: notifications,
-                theme: BlogProfileTheme(rawValue: theme)
+                theme: theme
             )
         }
     }
@@ -55,7 +55,14 @@ internal struct ProfileView: View {
             } else {
                 TextField("Display Name", text: $viewModel.displayName)
                 TextField("Bio", text: $viewModel.bio)
-                TextField("Theme (light/dark/system)", text: $viewModel.theme)
+                HStack {
+                    ForEach(0..<BlogProfileTheme.allCases.count, id: \.self) { idx in
+                        let t = BlogProfileTheme.allCases[idx]
+                        Button(t.displayName) {
+                            viewModel.theme = t
+                        }
+                    }
+                }
                 Toggle("Notifications", isOn: $viewModel.notifications)
 
                 if let msg = viewModel.errorMessage {

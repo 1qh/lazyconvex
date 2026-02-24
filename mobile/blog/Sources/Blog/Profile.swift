@@ -9,14 +9,14 @@ import SwiftUI
 internal final class ProfileViewModel: Performing {
     var displayName = ""
     var bio = ""
-    var theme = "system"
+    var theme = BlogProfileTheme.system
     var notifications = true
     var isLoading = true
     var isSaving = false
     var isUploadingAvatar = false
     var avatarID: String?
     var selectedAvatarURL: URL?
-    let themes = ["light", "dark", "system"]
+
     var profile: ProfileData?
     var errorMessage: String?
     var mutationError: String? {
@@ -39,7 +39,7 @@ internal final class ProfileViewModel: Performing {
                 profile = result
                 displayName = result.displayName
                 bio = result.bio ?? ""
-                theme = result.theme.rawValue
+                theme = result.theme
                 notifications = result.notifications
                 avatarID = result.avatar
                 isLoading = false
@@ -85,7 +85,7 @@ internal final class ProfileViewModel: Performing {
                 bio: self.bio.trimmed.isEmpty ? nil : self.bio.trimmed,
                 displayName: self.displayName.trimmed,
                 notifications: self.notifications,
-                theme: BlogProfileTheme(rawValue: self.theme)
+                theme: self.theme
             )
         }
     }
@@ -133,8 +133,8 @@ internal struct ProfileView: View {
 
                     Section("Theme") {
                         Picker("Theme", selection: $viewModel.theme) {
-                            ForEach(viewModel.themes, id: \.self) { t in
-                                Text(t.capitalized).tag(t)
+                            ForEach(BlogProfileTheme.allCases, id: \.self) { t in
+                                Text(t.displayName).tag(t)
                             }
                         }
                         .pickerStyle(.segmented)
