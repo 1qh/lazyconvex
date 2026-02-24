@@ -4,6 +4,8 @@ import type { ZodType } from 'zod/v4'
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 
+import { swiftEnumCase } from './codegen-swift-utils'
+
 interface FieldEntry {
   isOptional: boolean
   swiftType: string
@@ -117,7 +119,7 @@ const parseArgs = (): { convex: string; mobileOutput: string; output: string; sc
       if (elDef.type === 'custom') return { isOptional: false, swiftType: '[String]' }
       const singularField = fieldName.endsWith('s') ? fieldName.slice(0, -1) : fieldName,
         inner = resolveType(elDef, modelName, singularField)
-      return { isOptional: false, swiftType: `[${inner.swiftType}]` }
+      return { isOptional: false, swiftType: `[${inner.swiftType}${inner.isOptional ? '?' : ''}]` }
     }
 
     if (type === 'union' && def.options) {
@@ -135,7 +137,7 @@ const parseArgs = (): { convex: string; mobileOutput: string; output: string; sc
       return { isOptional: false, swiftType: name }
     }
 
-    return { isOptional: false, swiftType: 'String' }
+    throw new Error(`codegen-swift: unsupported Zod type '${type}' for ${modelName}.${fieldName}`)
   },
   resolveFields = (block: string[], shape: Record<string, { _zod: { def: ZodDef } }>, ctx: string) => {
     for (const [fieldName, fieldSchema] of Object.entries(shape)) {
@@ -549,12 +551,7 @@ for (const block of pendingLines) for (const line of block) emit(line)
 for (const [name, values] of enumRegistry) {
   const sorted = [...values].toSorted()
   emit(`public enum ${name}: String, CaseIterable, Codable, Sendable {`)
-  for (const v of sorted)
-    if (/^[a-z_][a-z0-9_]*$/iu.test(v) && v !== 'default') emit(`${indent(1)}case ${v}`)
-    else {
-      const safe = v.replaceAll(/[^a-zA-Z0-9_]/gu, '_')
-      emit(`${indent(1)}case ${safe} = "${v}"`)
-    }
+  for (const v of sorted) emit(`${indent(1)}${swiftEnumCase(v)}`)
 
   emit('')
   emit(`${indent(1)}public var displayName: String { rawValue.capitalized }`)
