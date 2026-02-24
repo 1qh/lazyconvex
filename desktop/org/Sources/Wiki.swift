@@ -7,6 +7,7 @@ internal final class WikiListViewModel: SwiftCrossUI.ObservableObject, Performin
     @SwiftCrossUI.Published var wikis = [Wiki]()
     @SwiftCrossUI.Published var isLoading = true
     @SwiftCrossUI.Published var errorMessage: String?
+    @SwiftCrossUI.Published var selectedIDs = Set<String>()
 
     var activeWikis: [Wiki] {
         var result = [Wiki]()
@@ -65,6 +66,43 @@ internal final class WikiListViewModel: SwiftCrossUI.ObservableObject, Performin
             await self.load(orgID: orgID)
         }
     }
+
+    @MainActor
+    func toggleSelect(id: String) {
+        if selectedIDs.contains(id) {
+            selectedIDs.remove(id)
+        } else {
+            selectedIDs.insert(id)
+        }
+    }
+
+    @MainActor
+    func toggleSelectAll() {
+        let active = activeWikis
+        if selectedIDs.count == active.count {
+            selectedIDs.removeAll()
+        } else {
+            var ids = Set<String>()
+            for w in active {
+                ids.insert(w._id)
+            }
+            selectedIDs = ids
+        }
+    }
+
+    @MainActor
+    func clearSelection() {
+        selectedIDs.removeAll()
+    }
+
+    @MainActor
+    func bulkDeleteWikis(orgID: String) async {
+        await perform {
+            try await WikiAPI.bulkRm(client, orgId: orgID, ids: Array(selectedIDs))
+            selectedIDs.removeAll()
+            await self.load(orgID: orgID)
+        }
+    }
 }
 
 internal struct WikiListView: View {
@@ -81,6 +119,16 @@ internal struct WikiListView: View {
             HStack {
                 Text("Wiki")
                 Button("New Page") { showCreateForm = true }
+                if role.isAdmin {
+                    Button(viewModel.selectedIDs.count == viewModel.activeWikis.count ? "Deselect All" : "Select All") {
+                        viewModel.toggleSelectAll()
+                    }
+                    if !viewModel.selectedIDs.isEmpty {
+                        Button("Delete Selected (\(viewModel.selectedIDs.count))") {
+                            Task { await viewModel.bulkDeleteWikis(orgID: orgID) }
+                        }
+                    }
+                }
             }
             .padding(.bottom, 4)
 
@@ -114,6 +162,11 @@ internal struct WikiListView: View {
                 ScrollView {
                     ForEach(viewModel.activeWikis) { wiki in
                         HStack {
+                            if role.isAdmin {
+                                Button(viewModel.selectedIDs.contains(wiki._id) ? "[x]" : "[ ]") {
+                                    viewModel.toggleSelect(id: wiki._id)
+                                }
+                            }
                             VStack {
                                 Text(wiki.title)
                                 HStack {
@@ -155,6 +208,20 @@ internal final class WikiEditViewModel: SwiftCrossUI.ObservableObject, Performin
     @SwiftCrossUI.Published var isLoading = true
     @SwiftCrossUI.Published var saveStatus = ""
     @SwiftCrossUI.Published var errorMessage: String?
+    @SwiftCrossUI.Published var editors = [EditorEntry]()
+    @SwiftCrossUI.Published var members = [OrgMemberEntry]()
+
+    var availableMembers: [OrgMemberEntry] {
+        var editorIDs = Set<String>()
+        for e in editors {
+            editorIDs.insert(e.userId)
+        }
+        var result = [OrgMemberEntry]()
+        for m in members where !editorIDs.contains(m.userId) {
+            result.append(m)
+        }
+        return result
+    }
 
     @MainActor
     func load(orgID: String, wikiID: String) async {
@@ -164,6 +231,8 @@ internal final class WikiEditViewModel: SwiftCrossUI.ObservableObject, Performin
             slug = wiki.slug
             content = wiki.content ?? ""
             status = wiki.status
+            editors = try await WikiAPI.editors(client, orgId: orgID, wikiId: wikiID)
+            members = try await OrgAPI.members(client, orgId: orgID)
         }
     }
 
@@ -193,6 +262,22 @@ internal final class WikiEditViewModel: SwiftCrossUI.ObservableObject, Performin
             try await WikiAPI.rm(client, orgId: orgID, id: wikiID)
         }
     }
+
+    @MainActor
+    func addEditor(orgID: String, editorId: String, wikiID: String) async {
+        await perform {
+            try await WikiAPI.addEditor(client, orgId: orgID, editorId: editorId, wikiId: wikiID)
+            editors = try await WikiAPI.editors(client, orgId: orgID, wikiId: wikiID)
+        }
+    }
+
+    @MainActor
+    func removeEditor(orgID: String, editorId: String, wikiID: String) async {
+        await perform {
+            try await WikiAPI.removeEditor(client, orgId: orgID, editorId: editorId, wikiId: wikiID)
+            editors = try await WikiAPI.editors(client, orgId: orgID, wikiId: wikiID)
+        }
+    }
 }
 
 internal struct WikiEditView: View {
@@ -206,6 +291,33 @@ internal struct WikiEditView: View {
             if viewModel.isLoading {
                 Text("Loading...")
             } else {
+                if role.isAdmin {
+                    Text("Editors")
+                        .padding(.bottom, 4)
+                    if viewModel.editors.isEmpty {
+                        Text("No editors")
+                    } else {
+                        ForEach(viewModel.editors) { editor in
+                            HStack {
+                                Text(editor.name ?? editor.email ?? editor.userId)
+                                Button("Remove") {
+                                    Task { await viewModel.removeEditor(orgID: orgID, editorId: editor.userId, wikiID: wikiID) }
+                                }
+                            }
+                        }
+                    }
+                    Text("Add Editor")
+                        .padding(.top, 4)
+                    ForEach(viewModel.availableMembers) { member in
+                        HStack {
+                            Text(member.name ?? member.email ?? member.userId)
+                            Button("Add") {
+                                Task { await viewModel.addEditor(orgID: orgID, editorId: member.userId, wikiID: wikiID) }
+                            }
+                        }
+                    }
+                }
+
                 TextField("Title", text: $viewModel.title)
                 TextField("Slug", text: $viewModel.slug)
                 HStack {

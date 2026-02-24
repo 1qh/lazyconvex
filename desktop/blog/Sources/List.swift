@@ -6,8 +6,11 @@ import SwiftCrossUI
 internal final class ListViewModel: SwiftCrossUI.ObservableObject, Performing {
     @SwiftCrossUI.Published var blogs = [Blog]()
     @SwiftCrossUI.Published var isLoading = false
+    @SwiftCrossUI.Published var isLoadingMore = false
     @SwiftCrossUI.Published var searchQuery = ""
     @SwiftCrossUI.Published var errorMessage: String?
+    @SwiftCrossUI.Published var continueCursor: String?
+    @SwiftCrossUI.Published var isDone = false
 
     var displayedBlogs: [Blog] {
         if searchQuery.isEmpty {
@@ -31,6 +34,28 @@ internal final class ListViewModel: SwiftCrossUI.ObservableObject, Performing {
                 where: BlogWhere(or: [.init(published: true), .init(own: true)])
             )
             blogs = result.page
+            continueCursor = result.continueCursor
+            isDone = result.isDone
+        }
+    }
+
+    @MainActor
+    func loadMore() async {
+        guard !isDone, let cursor = continueCursor else {
+            return
+        }
+
+        await performLoading({ isLoadingMore = $0 }) {
+            let result = try await BlogAPI.list(
+                client,
+                cursor: cursor,
+                where: BlogWhere(or: [.init(published: true), .init(own: true)])
+            )
+            for b in result.page {
+                blogs.append(b)
+            }
+            continueCursor = result.continueCursor
+            isDone = result.isDone
         }
     }
 
@@ -67,11 +92,32 @@ internal struct ListView: View {
                                 Text(blog.title)
                                 Text(blog.category.displayName)
                                 Text(blog.published ? "Published" : "Draft")
+                                if blog.coverImageUrl != nil {
+                                    Text("[Cover Image]")
+                                }
+                                if let tags = blog.tags, !tags.isEmpty {
+                                    HStack {
+                                        ForEach(tags, id: \.self) { tag in
+                                            Text("#\(tag)")
+                                        }
+                                    }
+                                }
                                 Text(formatTimestamp(blog.updatedAt))
                             }
                             NavigationLink("View", value: blog._id, path: path)
                         }
                         .padding(.bottom, 4)
+                    }
+
+                    if !viewModel.isDone {
+                        Button("Load More") {
+                            Task { await viewModel.loadMore() }
+                        }
+                        .padding(.top, 4)
+                    }
+
+                    if viewModel.isLoadingMore {
+                        Text("Loading more...")
                     }
                 }
             }

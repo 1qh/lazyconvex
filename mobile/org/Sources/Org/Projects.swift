@@ -8,6 +8,7 @@ import SwiftUI
 internal final class ProjectsViewModel: Performing {
     let sub = Sub<PaginatedResult<Project>>()
     var mutationError: String?
+    var selectedIDs = Set<String>()
 
     var projects: [Project] {
         sub.data?.page ?? []
@@ -35,6 +36,37 @@ internal final class ProjectsViewModel: Performing {
 
     func deleteProject(orgID: String, id: String) {
         perform { try await ProjectAPI.rm(orgId: orgID, id: id) }
+    }
+
+    func toggleSelect(id: String) {
+        if selectedIDs.contains(id) {
+            selectedIDs.remove(id)
+        } else {
+            selectedIDs.insert(id)
+        }
+    }
+
+    func toggleSelectAll() {
+        if selectedIDs.count == projects.count {
+            selectedIDs = Set<String>()
+        } else {
+            var ids = Set<String>()
+            for p in projects {
+                ids.insert(p._id)
+            }
+            selectedIDs = ids
+        }
+    }
+
+    func clearSelection() {
+        selectedIDs = Set<String>()
+    }
+
+    func bulkDeleteProjects(orgID: String) {
+        perform {
+            try await ProjectAPI.bulkRm(orgId: orgID, ids: Array(self.selectedIDs))
+            self.selectedIDs = Set<String>()
+        }
     }
 }
 
@@ -64,30 +96,55 @@ internal struct ProjectsView: View {
                     }
                 }
             } else {
-                List(viewModel.projects) { project in
-                    NavigationLink(value: project._id) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(project.name)
-                                .font(.headline)
-                            if let desc = project.description, !desc.isEmpty {
-                                Text(desc)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(2)
+                List {
+                    ForEach(viewModel.projects) { project in
+                        HStack(spacing: 8) {
+                            if role.isAdmin {
+                                Button(action: { viewModel.toggleSelect(id: project._id) }) {
+                                    Image(systemName: viewModel.selectedIDs.contains(project._id) ? "checkmark.circle.fill" : "circle")
+                                        .foregroundStyle(viewModel.selectedIDs.contains(project._id) ? .blue : .secondary)
+                                        .accessibilityHidden(true)
+                                }
+                                .buttonStyle(.plain)
                             }
-                            if let status = project.status {
-                                Text(status.displayName)
-                                    .font(.caption2)
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 2)
-                                    .background(Color.blue.opacity(0.1))
-                                    .clipShape(Capsule())
+                            NavigationLink(value: project._id) {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(project.name)
+                                        .font(.headline)
+                                    if let desc = project.description, !desc.isEmpty {
+                                        Text(desc)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                            .lineLimit(2)
+                                    }
+                                    if let status = project.status {
+                                        Text(status.displayName)
+                                            .font(.caption2)
+                                            .padding(.horizontal, 6)
+                                            .padding(.vertical, 2)
+                                            .background(Color.blue.opacity(0.1))
+                                            .clipShape(Capsule())
+                                    }
+                                }
+                                .padding(.vertical, 2)
                             }
                         }
-                        .padding(.vertical, 2)
                     }
                 }
                 .listStyle(.plain)
+                if role.isAdmin, !viewModel.selectedIDs.isEmpty {
+                    HStack {
+                        Text("\(viewModel.selectedIDs.count) selected")
+                            .font(.subheadline)
+                        Spacer()
+                        Button("Clear") { viewModel.clearSelection() }
+                            .font(.subheadline)
+                        Button("Delete", role: .destructive) { viewModel.bulkDeleteProjects(orgID: orgID) }
+                            .font(.subheadline)
+                    }
+                    .padding()
+                    .background(.ultraThinMaterial)
+                }
             }
         }
         .navigationDestination(for: String.self) { projectID in

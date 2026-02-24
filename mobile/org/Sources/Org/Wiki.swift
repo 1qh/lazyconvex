@@ -8,6 +8,7 @@ import SwiftUI
 internal final class WikiListViewModel: Performing {
     let sub = Sub<PaginatedResult<Wiki>>()
     var mutationError: String?
+    var selectedIDs = Set<String>()
 
     var wikis: [Wiki] {
         sub.data?.page ?? []
@@ -39,6 +40,25 @@ internal final class WikiListViewModel: Performing {
 
     func restoreWiki(orgID: String, id: String) {
         perform { try await WikiAPI.restore(orgId: orgID, id: id) }
+    }
+
+    func toggleSelect(id: String) {
+        if selectedIDs.contains(id) {
+            selectedIDs.remove(id)
+        } else {
+            selectedIDs.insert(id)
+        }
+    }
+
+    func clearSelection() {
+        selectedIDs = Set<String>()
+    }
+
+    func bulkDeleteWikis(orgID: String) {
+        perform {
+            try await WikiAPI.bulkRm(orgId: orgID, ids: Array(self.selectedIDs))
+            self.selectedIDs = Set<String>()
+        }
     }
 }
 
@@ -76,28 +96,38 @@ internal struct WikiListView: View {
                                 .foregroundStyle(.secondary)
                         }
                         ForEach(activeWikis) { wiki in
-                            NavigationLink(value: wiki._id) {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(wiki.title)
-                                        .font(.headline)
-                                    HStack {
-                                        Text(wiki.slug)
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                        Spacer()
-                                        Text(wiki.status.displayName)
-                                            .font(.caption2)
-                                            .padding(.horizontal, 6)
-                                            .padding(.vertical, 2)
-                                            .background(wiki.status == .published ? Color.green.opacity(0.1) : Color.orange.opacity(0.1))
-                                            .clipShape(Capsule())
+                            HStack(spacing: 8) {
+                                if role.isAdmin {
+                                    Button(action: { viewModel.toggleSelect(id: wiki._id) }) {
+                                        Image(systemName: viewModel.selectedIDs.contains(wiki._id) ? "checkmark.circle.fill" : "circle")
+                                            .foregroundStyle(viewModel.selectedIDs.contains(wiki._id) ? .blue : .secondary)
+                                            .accessibilityHidden(true)
                                     }
+                                    .buttonStyle(.plain)
                                 }
-                                .padding(.vertical, 2)
+                                NavigationLink(value: wiki._id) {
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(wiki.title)
+                                            .font(.headline)
+                                        HStack {
+                                            Text(wiki.slug)
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                            Spacer()
+                                            Text(wiki.status.displayName)
+                                                .font(.caption2)
+                                                .padding(.horizontal, 6)
+                                                .padding(.vertical, 2)
+                                                .background(wiki.status == .published ? Color.green.opacity(0.1) : Color.orange
+                                                    .opacity(0.1))
+                                                .clipShape(Capsule())
+                                        }
+                                    }
+                                    .padding(.vertical, 2)
+                                }
                             }
                         }
                     }
-
                     let deletedWikis = viewModel.wikis.filter { w in w.deletedAt != nil }
                     if !deletedWikis.isEmpty {
                         Section("Recently Deleted") {
@@ -124,6 +154,19 @@ internal struct WikiListView: View {
                     }
                 }
                 .listStyle(.plain)
+                if role.isAdmin, !viewModel.selectedIDs.isEmpty {
+                    HStack {
+                        Text("\(viewModel.selectedIDs.count) selected")
+                            .font(.subheadline)
+                        Spacer()
+                        Button("Clear") { viewModel.clearSelection() }
+                            .font(.subheadline)
+                        Button("Delete", role: .destructive) { viewModel.bulkDeleteWikis(orgID: orgID) }
+                            .font(.subheadline)
+                    }
+                    .padding()
+                    .background(.ultraThinMaterial)
+                }
             }
         }
         .navigationDestination(for: String.self) { wikiID in
@@ -194,6 +237,9 @@ internal struct WikiEditView: View {
     @State private var autoSaveTask: Task<Void, Never>?
 
     @State private var subscriptionID: String?
+    @State private var editorsSub = Sub<[EditorEntry]>()
+    @State private var membersSub = Sub<[OrgMemberEntry]>()
+    @State private var selectedEditorID: String?
 
     var body: some View {
         Group {
@@ -229,6 +275,53 @@ internal struct WikiEditView: View {
                     }
 
                     if role.isAdmin {
+                        Section("Editors") {
+                            let editors = editorsSub.data ?? []
+                            if editors.isEmpty {
+                                Text("No editors assigned")
+                                    .foregroundStyle(.secondary)
+                            }
+                            ForEach(editors) { editor in
+                                HStack {
+                                    Text(editor.name ?? editor.email ?? editor.userId)
+                                    Spacer()
+                                    Button(action: {
+                                        Task {
+                                            try? await WikiAPI.removeEditor(orgId: orgID, editorId: editor.userId, wikiId: wikiID)
+                                        }
+                                    }) {
+                                        Image(systemName: "minus.circle.fill")
+                                            .foregroundStyle(.red)
+                                            .accessibilityHidden(true)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                            let allMembers = membersSub.data ?? []
+                            let editorIDs = Set((editorsSub.data ?? []).map(\.userId))
+                            let available = allMembers.filter { m in !editorIDs.contains(m.userId) }
+                            if !available.isEmpty {
+                                HStack {
+                                    Picker("Add editor", selection: $selectedEditorID) {
+                                        Text("Select member").tag(String?.none)
+                                        ForEach(available) { m in
+                                            Text(m.name ?? m.email ?? m.userId).tag(Optional(m.userId))
+                                        }
+                                    }
+                                    Button("Add") {
+                                        guard let editorID = selectedEditorID else {
+                                            return
+                                        }
+
+                                        Task {
+                                            try? await WikiAPI.addEditor(orgId: orgID, editorId: editorID, wikiId: wikiID)
+                                            selectedEditorID = nil
+                                        }
+                                    }
+                                    .disabled(selectedEditorID == nil)
+                                }
+                            }
+                        }
                         Section("Danger Zone") {
                             Button("Delete Page", role: .destructive) {
                                 deleteWiki()
@@ -241,9 +334,13 @@ internal struct WikiEditView: View {
         .navigationTitle("Edit Wiki")
         .onAppear {
             loadWiki()
+            editorsSub.bind { WikiAPI.subscribeEditors(orgId: orgID, wikiId: wikiID, onUpdate: $0, onError: $1) }
+            membersSub.bind { OrgAPI.subscribeMembers(orgId: orgID, onUpdate: $0, onError: $1) }
         }
         .onDisappear {
             cancelSubscription(&subscriptionID)
+            editorsSub.cancel()
+            membersSub.cancel()
         }
     }
 

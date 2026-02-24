@@ -8,6 +8,7 @@ import SwiftUI
 internal final class TasksViewModel: Performing {
     let sub = Sub<[TaskItem]>()
     var mutationError: String?
+    var selectedIDs = Set<String>()
 
     var tasks: [TaskItem] {
         sub.data ?? []
@@ -39,6 +40,25 @@ internal final class TasksViewModel: Performing {
 
     func deleteTask(orgID: String, id: String) {
         perform { try await TaskAPI.rm(orgId: orgID, id: id) }
+    }
+
+    func toggleSelect(id: String) {
+        if selectedIDs.contains(id) {
+            selectedIDs.remove(id)
+        } else {
+            selectedIDs.insert(id)
+        }
+    }
+
+    func clearSelection() {
+        selectedIDs = Set<String>()
+    }
+
+    func bulkDeleteTasks(orgID: String) {
+        perform {
+            try await TaskAPI.bulkRm(orgId: orgID, ids: Array(self.selectedIDs))
+            self.selectedIDs = Set<String>()
+        }
     }
 }
 
@@ -75,6 +95,9 @@ internal struct TasksView: View {
 
     @State private var viewModel = TasksViewModel()
     @State private var newTaskTitle = ""
+    @State private var editorsSub = Sub<[EditorEntry]>()
+    @State private var membersSub = Sub<[OrgMemberEntry]>()
+    @State private var selectedEditorID: String?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -83,31 +106,57 @@ internal struct TasksView: View {
                 ProgressView()
                 Spacer()
             } else {
-                List(viewModel.tasks) { task in
-                    HStack {
-                        Button(action: {
-                            viewModel.toggleTask(orgID: orgID, taskID: task._id)
-                        }) {
-                            Image(systemName: task.completed == true ? "checkmark.circle.fill" : "circle")
-                                .foregroundStyle(task.completed == true ? .green : .secondary)
-                                .accessibilityHidden(true)
-                        }
-                        .accessibilityIdentifier("toggleTask")
-                        .buttonStyle(.plain)
-
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(task.title)
-                                .strikethrough(task.completed == true)
-                                .foregroundStyle(task.completed == true ? .secondary : .primary)
-                            if let priority = task.priority {
-                                PriorityBadge(priority: priority)
+                List {
+                    ForEach(viewModel.tasks) { task in
+                        HStack {
+                            if role.isAdmin {
+                                Button(action: { viewModel.toggleSelect(id: task._id) }) {
+                                    Image(systemName: viewModel.selectedIDs.contains(task._id) ? "checkmark.circle.fill" : "circle")
+                                        .foregroundStyle(viewModel.selectedIDs.contains(task._id) ? .blue : .secondary)
+                                        .accessibilityHidden(true)
+                                }
+                                .buttonStyle(.plain)
                             }
+                            Button(action: {
+                                viewModel.toggleTask(orgID: orgID, taskID: task._id)
+                            }) {
+                                Image(systemName: task.completed == true ? "checkmark.circle.fill" : "circle")
+                                    .foregroundStyle(task.completed == true ? .green : .secondary)
+                                    .accessibilityHidden(true)
+                            }
+                            .accessibilityIdentifier("toggleTask")
+                            .buttonStyle(.plain)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(task.title)
+                                    .strikethrough(task.completed == true)
+                                    .foregroundStyle(task.completed == true ? .secondary : .primary)
+                                if let priority = task.priority {
+                                    PriorityBadge(priority: priority)
+                                }
+                            }
+                            Spacer()
                         }
-                        Spacer()
+                        .padding(.vertical, 2)
                     }
-                    .padding(.vertical, 2)
+
+                    if role.isAdmin {
+                        editorsSection
+                    }
                 }
                 .listStyle(.plain)
+                if role.isAdmin, !viewModel.selectedIDs.isEmpty {
+                    HStack {
+                        Text("\(viewModel.selectedIDs.count) selected")
+                            .font(.subheadline)
+                        Spacer()
+                        Button("Clear") { viewModel.clearSelection() }
+                            .font(.subheadline)
+                        Button("Delete", role: .destructive) { viewModel.bulkDeleteTasks(orgID: orgID) }
+                            .font(.subheadline)
+                    }
+                    .padding()
+                    .background(.ultraThinMaterial)
+                }
             }
 
             HStack(spacing: 8) {
@@ -127,9 +176,63 @@ internal struct TasksView: View {
         .navigationTitle("Tasks")
         .task {
             viewModel.start(orgID: orgID, projectID: projectID)
+            editorsSub.bind { ProjectAPI.subscribeEditors(orgId: orgID, projectId: projectID, onUpdate: $0, onError: $1) }
+            membersSub.bind { OrgAPI.subscribeMembers(orgId: orgID, onUpdate: $0, onError: $1) }
         }
         .onDisappear {
             viewModel.stop()
+            editorsSub.cancel()
+            membersSub.cancel()
+        }
+    }
+
+    private var editorsSection: some View {
+        Section("Editors") {
+            let editors = editorsSub.data ?? []
+            if editors.isEmpty {
+                Text("No editors assigned")
+                    .foregroundStyle(.secondary)
+            }
+            ForEach(editors) { editor in
+                HStack {
+                    Text(editor.name ?? editor.email ?? editor.userId)
+                    Spacer()
+                    Button(action: {
+                        Task {
+                            try? await ProjectAPI.removeEditor(orgId: orgID, editorId: editor.userId, projectId: projectID)
+                        }
+                    }) {
+                        Image(systemName: "minus.circle.fill")
+                            .foregroundStyle(.red)
+                            .accessibilityHidden(true)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            let allMembers = membersSub.data ?? []
+            let editorIDs = Set((editorsSub.data ?? []).map(\.userId))
+            let available = allMembers.filter { m in !editorIDs.contains(m.userId) }
+            if !available.isEmpty {
+                HStack {
+                    Picker("Add editor", selection: $selectedEditorID) {
+                        Text("Select member").tag(String?.none)
+                        ForEach(available) { m in
+                            Text(m.name ?? m.email ?? m.userId).tag(Optional(m.userId))
+                        }
+                    }
+                    Button("Add") {
+                        guard let editorID = selectedEditorID else {
+                            return
+                        }
+
+                        Task {
+                            try? await ProjectAPI.addEditor(orgId: orgID, editorId: editorID, projectId: projectID)
+                            selectedEditorID = nil
+                        }
+                    }
+                    .disabled(selectedEditorID == nil)
+                }
+            }
         }
     }
 

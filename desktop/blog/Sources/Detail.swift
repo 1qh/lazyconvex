@@ -1,3 +1,7 @@
+#if canImport(AppKit)
+import AppKit
+import UniformTypeIdentifiers
+#endif
 import ConvexCore
 import DesktopShared
 import Foundation
@@ -48,7 +52,7 @@ internal struct DetailView: View {
                     .foregroundColor(.red)
             } else if let blog = viewModel.blog {
                 if showEdit {
-                    FormView(mode: .edit(blog)) {
+                    EditFormView(blog: blog) {
                         showEdit = false
                         Task { await viewModel.load(blogID: blogID) }
                     }
@@ -61,12 +65,23 @@ internal struct DetailView: View {
                             if let authorName = blog.author?.name {
                                 Text(authorName)
                             }
+                            if let coverImageUrl = blog.coverImageUrl {
+                                Text("[Cover Image: \(coverImageUrl)]")
+                            }
                             Text(blog.content)
                                 .padding(.top, 4)
                             if let tags = blog.tags, !tags.isEmpty {
                                 HStack {
                                     ForEach(tags, id: \.self) { tag in
                                         Text("#\(tag)")
+                                    }
+                                }
+                            }
+                            if let urls = blog.attachmentsUrls, !urls.isEmpty {
+                                VStack {
+                                    Text("Attachments:")
+                                    ForEach(urls, id: \.self) { url in
+                                        Text(url)
                                     }
                                 }
                             }
@@ -91,5 +106,237 @@ internal struct DetailView: View {
         .task {
             await viewModel.load(blogID: blogID)
         }
+    }
+}
+
+internal struct EditFormView: View {
+    let blog: Blog
+    let onSave: () -> Void
+    @State private var title = ""
+    @State private var content = ""
+    @State private var category = BlogCategory.tech
+    @State private var published = false
+    @State private var tags = [String]()
+    @State private var newTag = ""
+    @State private var coverImageID: String?
+    @State private var attachmentIDs = [String]()
+    @State private var autoSaveTask: Task<Void, Never>?
+    @State private var saveStatus = ""
+    @State private var errorMessage: String?
+    @State private var isUploadingCover = false
+    @State private var isUploadingAttachments = false
+
+    var body: some View {
+        VStack {
+            Text("Edit Post")
+                .padding(.bottom, 8)
+
+            TextField("Title", text: $title)
+                .onChange(of: title) { scheduleSave() }
+            TextField("Content", text: $content)
+                .onChange(of: content) { scheduleSave() }
+            HStack {
+                ForEach(0..<BlogCategory.allCases.count, id: \.self) { idx in
+                    let cat = BlogCategory.allCases[idx]
+                    Button(cat.displayName) {
+                        category = cat
+                        scheduleSave()
+                    }
+                }
+            }
+
+            Toggle("Published", isOn: $published)
+                .onChange(of: published) { scheduleSave() }
+
+            HStack {
+                Button(coverImageID == nil ? "Add Cover Image" : "Change Cover Image") {
+                    selectCoverImage()
+                }
+                if coverImageID != nil {
+                    Text("Cover set")
+                    Button("Remove") {
+                        coverImageID = nil
+                        scheduleSave()
+                    }
+                }
+            }
+            if isUploadingCover {
+                Text("Uploading cover...")
+            }
+
+            VStack {
+                HStack {
+                    TextField("Add tag", text: $newTag)
+                    Button("Add") {
+                        addTag()
+                    }
+                }
+                if !tags.isEmpty {
+                    HStack {
+                        ForEach(tags, id: \.self) { tag in
+                            HStack {
+                                Text("#\(tag)")
+                                Button("x") {
+                                    removeTag(tag)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            HStack {
+                Button("Add Attachments") {
+                    selectAttachments()
+                }
+                if !attachmentIDs.isEmpty {
+                    Text("\(attachmentIDs.count) file(s)")
+                    Button("Clear") {
+                        attachmentIDs = []
+                        scheduleSave()
+                    }
+                }
+            }
+            if isUploadingAttachments {
+                Text("Uploading attachments...")
+            }
+
+            if !saveStatus.isEmpty {
+                Text(saveStatus)
+                    .foregroundColor(saveStatus == "Error saving" ? .red : .gray)
+            }
+
+            if let msg = errorMessage {
+                Text(msg)
+                    .foregroundColor(.red)
+            }
+
+            HStack {
+                Button("Cancel") {
+                    onSave()
+                }
+                Button("Done") {
+                    autoSaveTask?.cancel()
+                    onSave()
+                }
+            }
+            .padding(.top, 4)
+        }
+        .onAppear {
+            title = blog.title
+            content = blog.content
+            category = blog.category
+            published = blog.published
+            tags = blog.tags ?? []
+            coverImageID = blog.coverImage
+            attachmentIDs = blog.attachments ?? []
+        }
+        .onDisappear {
+            autoSaveTask?.cancel()
+        }
+    }
+
+    private func scheduleSave() {
+        autoSaveTask?.cancel()
+        saveStatus = "Editing..."
+        autoSaveTask = Task {
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            if !Task.isCancelled {
+                await save()
+            }
+        }
+    }
+
+    @MainActor
+    private func save() async {
+        saveStatus = "Saving..."
+        do {
+            try await BlogAPI.update(
+                client,
+                id: blog._id,
+                attachments: attachmentIDs.isEmpty ? nil : attachmentIDs,
+                category: category,
+                content: content.trimmed,
+                coverImage: coverImageID,
+                published: published,
+                tags: tags.isEmpty ? nil : tags,
+                title: title.trimmed,
+                expectedUpdatedAt: blog.updatedAt
+            )
+            saveStatus = "Saved"
+        } catch {
+            saveStatus = "Error saving"
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func selectCoverImage() {
+        #if canImport(AppKit)
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.image]
+        panel.allowsMultipleSelection = false
+        panel.begin { response in
+            if response == .OK, let url = panel.url {
+                Task { @MainActor in // swiftlint:disable:this unhandled_throwing_task
+                    await performLoading({ isUploadingCover = $0 }) {
+                        coverImageID = try await fileClient.uploadImage(url: url)
+                        scheduleSave()
+                    }
+                }
+            }
+        }
+        #endif
+    }
+
+    private func selectAttachments() {
+        #if canImport(AppKit)
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.item]
+        panel.allowsMultipleSelection = true
+        panel.begin { response in
+            if response == .OK {
+                let urls = panel.urls
+                Task { @MainActor in // swiftlint:disable:this unhandled_throwing_task
+                    await performLoading({ isUploadingAttachments = $0 }) {
+                        let ids = try await fileClient.uploadFiles(urls: urls)
+                        for id in ids {
+                            attachmentIDs.append(id)
+                        }
+                        scheduleSave()
+                    }
+                }
+            }
+        }
+        #endif
+    }
+
+    private func addTag() {
+        let tag = newTag.trimmed.lowercased()
+        guard !tag.isEmpty, tags.count < 5, !tags.contains(tag) else {
+            return
+        }
+
+        tags.append(tag)
+        newTag = ""
+        scheduleSave()
+    }
+
+    private func removeTag(_ tag: String) {
+        var updated = [String]()
+        for t in tags where t != tag {
+            updated.append(t)
+        }
+        tags = updated
+        scheduleSave()
+    }
+
+    private func performLoading(_ setter: (Bool) -> Void, _ block: () async throws -> Void) async {
+        setter(true)
+        do {
+            try await block()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+        setter(false)
     }
 }

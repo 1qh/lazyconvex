@@ -8,6 +8,7 @@ import SwiftUI
 internal final class MembersViewModel: Performing {
     let membersSub = Sub<[OrgMemberEntry]>()
     let invitesSub = Sub<[OrgInvite]>()
+    let joinRequestsSub = Sub<[JoinRequestEntry]>()
     var mutationError: String?
 
     var members: [OrgMemberEntry] {
@@ -18,22 +19,28 @@ internal final class MembersViewModel: Performing {
         invitesSub.data ?? []
     }
 
+    var joinRequests: [JoinRequestEntry] {
+        joinRequestsSub.data ?? []
+    }
+
     var isLoading: Bool {
         membersSub.isLoading
     }
 
     var errorMessage: String? {
-        membersSub.error ?? invitesSub.error ?? mutationError
+        membersSub.error ?? invitesSub.error ?? joinRequestsSub.error ?? mutationError
     }
 
     func start(orgID: String) {
         membersSub.bind { OrgAPI.subscribeMembers(orgId: orgID, onUpdate: $0, onError: $1) }
         invitesSub.bind { OrgAPI.subscribePendingInvites(orgId: orgID, onUpdate: $0, onError: $1) }
+        joinRequestsSub.bind { OrgAPI.subscribePendingJoinRequests(orgId: orgID, onUpdate: $0, onError: $1) }
     }
 
     func stop() {
         membersSub.cancel()
         invitesSub.cancel()
+        joinRequestsSub.cancel()
     }
 
     func inviteMember(orgID: String, email: String) {
@@ -50,6 +57,14 @@ internal final class MembersViewModel: Performing {
 
     func removeMember(memberId: String) {
         perform { try await OrgAPI.removeMember(memberId: memberId) }
+    }
+
+    func approveRequest(requestId: String, isAdmin: Bool) {
+        perform { try await OrgAPI.approveJoinRequest(requestId: requestId, isAdmin: isAdmin) }
+    }
+
+    func rejectRequest(requestId: String) {
+        perform { try await OrgAPI.rejectJoinRequest(requestId: requestId) }
     }
 }
 
@@ -105,6 +120,37 @@ internal struct MembersView: View {
                                         }
                                         .font(.caption)
                                     }
+                                }
+                            }
+                        }
+                    }
+
+                    if role.isAdmin, !viewModel.joinRequests.isEmpty {
+                        Section("Pending Join Requests") {
+                            ForEach(viewModel.joinRequests) { entry in
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(entry.user?.name ?? "Unknown")
+                                            .font(.headline)
+                                        if let message = entry.request.message, !message.isEmpty {
+                                            Text(message)
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                        }
+                                    }
+                                    Spacer()
+                                    Button(action: { viewModel.approveRequest(requestId: entry.request._id, isAdmin: false) }) {
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .foregroundStyle(.green)
+                                            .accessibilityHidden(true)
+                                    }
+                                    .buttonStyle(.plain)
+                                    Button(action: { viewModel.rejectRequest(requestId: entry.request._id) }) {
+                                        Image(systemName: "xmark.circle.fill")
+                                            .foregroundStyle(.red)
+                                            .accessibilityHidden(true)
+                                    }
+                                    .buttonStyle(.plain)
                                 }
                             }
                         }

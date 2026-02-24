@@ -109,6 +109,16 @@ extension ProjectAPI {
 }
 
 extension ProjectAPI {
+    public static func addEditor(orgId: String, editorId: String, projectId: String) async throws {
+        try await ConvexService.shared.mutate("project:addEditor", args: ["editorId": editorId, "orgId": orgId, "projectId": projectId])
+    }
+
+    public static func removeEditor(orgId: String, editorId: String, projectId: String) async throws {
+        try await ConvexService.shared.mutate("project:removeEditor", args: ["editorId": editorId, "orgId": orgId, "projectId": projectId])
+    }
+}
+
+extension ProjectAPI {
     @preconcurrency
     public static func subscribeList(
         orgId: String,
@@ -204,6 +214,16 @@ extension WikiAPI {
 
     public static func bulkRm(orgId: String, ids: [String]) async throws {
         try await ConvexService.shared.mutate("wiki:bulkRm", args: ["ids": ids, "orgId": orgId])
+    }
+}
+
+extension WikiAPI {
+    public static func addEditor(orgId: String, editorId: String, wikiId: String) async throws {
+        try await ConvexService.shared.mutate("wiki:addEditor", args: ["editorId": editorId, "orgId": orgId, "wikiId": wikiId])
+    }
+
+    public static func removeEditor(orgId: String, editorId: String, wikiId: String) async throws {
+        try await ConvexService.shared.mutate("wiki:removeEditor", args: ["editorId": editorId, "orgId": orgId, "wikiId": wikiId])
     }
 }
 
@@ -665,6 +685,86 @@ extension OrgAPI {
         return ConvexService.shared.subscribeInvites(
             to: pendingInvites,
             args: ["orgId": orgId],
+            onUpdate: { r in onUpdate(Array(r)) },
+            onError: { e in onError(e) }
+        )
+        #endif
+    }
+}
+
+extension OrgAPI {
+    @preconcurrency
+    public static func subscribePendingJoinRequests(
+        orgId: String,
+        onUpdate: @escaping @Sendable @MainActor ([JoinRequestEntry]) -> Void,
+        onError: @escaping @Sendable @MainActor (Error) -> Void = { _ in _ = () }
+    ) -> String {
+        #if !SKIP
+        return ConvexService.shared.subscribe(
+            to: pendingJoinRequests,
+            args: ["orgId": orgId],
+            type: [JoinRequestEntry].self,
+            onUpdate: onUpdate,
+            onError: onError
+        )
+        #else
+        return ConvexService.shared.subscribeJoinRequests(
+            to: pendingJoinRequests,
+            args: ["orgId": orgId],
+            onUpdate: { r in onUpdate(Array(r)) },
+            onError: { e in onError(e) }
+        )
+        #endif
+    }
+}
+
+extension ProjectAPI {
+    @preconcurrency
+    public static func subscribeEditors(
+        orgId: String,
+        projectId: String,
+        onUpdate: @escaping @Sendable @MainActor ([EditorEntry]) -> Void,
+        onError: @escaping @Sendable @MainActor (Error) -> Void = { _ in _ = () }
+    ) -> String {
+        #if !SKIP
+        return ConvexService.shared.subscribe(
+            to: editors,
+            args: ["orgId": orgId, "projectId": projectId],
+            type: [EditorEntry].self,
+            onUpdate: onUpdate,
+            onError: onError
+        )
+        #else
+        return ConvexService.shared.subscribeEditors(
+            to: editors,
+            args: ["orgId": orgId, "projectId": projectId],
+            onUpdate: { r in onUpdate(Array(r)) },
+            onError: { e in onError(e) }
+        )
+        #endif
+    }
+}
+
+extension WikiAPI {
+    @preconcurrency
+    public static func subscribeEditors(
+        orgId: String,
+        wikiId: String,
+        onUpdate: @escaping @Sendable @MainActor ([EditorEntry]) -> Void,
+        onError: @escaping @Sendable @MainActor (Error) -> Void = { _ in _ = () }
+    ) -> String {
+        #if !SKIP
+        return ConvexService.shared.subscribe(
+            to: editors,
+            args: ["orgId": orgId, "wikiId": wikiId],
+            type: [EditorEntry].self,
+            onUpdate: onUpdate,
+            onError: onError
+        )
+        #else
+        return ConvexService.shared.subscribeEditors(
+            to: editors,
+            args: ["orgId": orgId, "wikiId": wikiId],
             onUpdate: { r in onUpdate(Array(r)) },
             onError: { e in onError(e) }
         )

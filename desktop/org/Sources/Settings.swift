@@ -13,6 +13,8 @@ internal struct SettingsView: View {
     @State private var editedSlug = ""
     @State private var isSaving = false
     @State private var errorMessage: String?
+    @State private var adminMembers: [OrgMemberEntry]?
+    @State private var selectedAdminID: String?
 
     var body: some View {
         VStack {
@@ -52,6 +54,39 @@ internal struct SettingsView: View {
             }
 
             if role.isOwner {
+                VStack {
+                    Text("Transfer Ownership")
+                        .padding(.bottom, 4)
+                    if let members = adminMembers, !members.isEmpty {
+                        VStack {
+                            Text("Select new owner:")
+                            ForEach(members) { m in
+                                Button(m.name ?? m.email ?? m.userId) {
+                                    selectedAdminID = m.userId
+                                }
+                                .padding(.vertical, 2)
+                            }
+                        }
+                        if let selected = selectedAdminID, let member = members.first(where: { $0.userId == selected }) {
+                            HStack {
+                                Text("Transfer to: \(member.name ?? member.email ?? member.userId)")
+                                Button("Confirm") {
+                                    Task { await transferOwnership() }
+                                }
+                            }
+                            .padding(.top, 4)
+                        }
+                    } else if adminMembers != nil {
+                        Text("No other admins available")
+                            .foregroundColor(.gray)
+                    } else {
+                        Text("Loading admins...")
+                    }
+                }
+                .padding(.top, 4)
+            }
+
+            if role.isOwner {
                 Button("Delete Organization") {
                     Task { await deleteOrg() }
                 }
@@ -60,6 +95,7 @@ internal struct SettingsView: View {
         }
         .onAppear {
             editedName = orgName
+            Task { await loadAdminMembers() }
         }
     }
 
@@ -98,5 +134,36 @@ internal struct SettingsView: View {
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    @MainActor
+    private func loadAdminMembers() async {
+        do {
+            let members: [OrgMemberEntry] = try await OrgAPI.members(client, orgId: orgID)
+            var filtered = [OrgMemberEntry]()
+            for m in members where m.role.isAdmin {
+                filtered.append(m)
+            }
+            adminMembers = filtered
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    @MainActor
+    private func transferOwnership() async {
+        guard let newOwnerID = selectedAdminID else {
+            return
+        }
+
+        isSaving = true
+        errorMessage = nil
+        do {
+            try await OrgAPI.transferOwnership(client, newOwnerId: newOwnerID, orgId: orgID)
+            onSwitchOrg()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+        isSaving = false
     }
 }

@@ -61,6 +61,20 @@ fun ConvexService.subscribeInvites(
     onError: (Error) -> Unit = { },
 ): String = subscribeArrayImpl(to, args, OrgInvite::class, onUpdate, onError)
 
+fun ConvexService.subscribeJoinRequests(
+    to: String,
+    args: Dictionary<String, Any> = dictionaryOf(),
+    onUpdate: (skip.lib.Array<JoinRequestEntry>) -> Unit,
+    onError: (Error) -> Unit = { },
+): String = subscribeArrayImpl(to, args, JoinRequestEntry::class, onUpdate, onError)
+
+fun ConvexService.subscribeEditors(
+    to: String,
+    args: Dictionary<String, Any> = dictionaryOf(),
+    onUpdate: (skip.lib.Array<EditorEntry>) -> Unit,
+    onError: (Error) -> Unit = { },
+): String = subscribeArrayImpl(to, args, EditorEntry::class, onUpdate, onError)
+
 fun ConvexService.subscribeMessages(
     to: String,
     args: Dictionary<String, Any> = dictionaryOf(),

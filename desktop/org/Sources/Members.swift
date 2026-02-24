@@ -6,6 +6,7 @@ import SwiftCrossUI
 internal final class MembersViewModel: SwiftCrossUI.ObservableObject, Performing {
     @SwiftCrossUI.Published var members = [OrgMemberEntry]()
     @SwiftCrossUI.Published var invites = [OrgInvite]()
+    @SwiftCrossUI.Published var joinRequests = [JoinRequestEntry]()
     @SwiftCrossUI.Published var isLoading = true
     @SwiftCrossUI.Published var errorMessage: String?
 
@@ -14,6 +15,7 @@ internal final class MembersViewModel: SwiftCrossUI.ObservableObject, Performing
         await performLoading({ isLoading = $0 }) {
             members = try await OrgAPI.members(client, orgId: orgID)
             invites = try await OrgAPI.pendingInvites(client, orgId: orgID)
+            joinRequests = try await OrgAPI.pendingJoinRequests(client, orgId: orgID)
         }
     }
 
@@ -45,6 +47,22 @@ internal final class MembersViewModel: SwiftCrossUI.ObservableObject, Performing
     func removeMember(orgID: String, memberId: String) async {
         await perform {
             try await OrgAPI.removeMember(client, memberId: memberId)
+            await self.load(orgID: orgID)
+        }
+    }
+
+    @MainActor
+    func approveRequest(orgID: String, requestId: String, isAdmin: Bool) async {
+        await perform {
+            try await OrgAPI.approveJoinRequest(client, requestId: requestId, isAdmin: isAdmin)
+            await self.load(orgID: orgID)
+        }
+    }
+
+    @MainActor
+    func rejectRequest(orgID: String, requestId: String) async {
+        await perform {
+            try await OrgAPI.rejectJoinRequest(client, requestId: requestId)
             await self.load(orgID: orgID)
         }
     }
@@ -119,6 +137,28 @@ internal struct MembersView: View {
                                     Button("Revoke") {
                                         Task { await viewModel.revokeInvite(orgID: orgID, inviteID: invite._id) }
                                     }
+                                }
+                            }
+                            .padding(.bottom, 4)
+                        }
+                    }
+
+                    if role.isAdmin, !viewModel.joinRequests.isEmpty {
+                        Text("Pending Join Requests")
+                            .padding(.top, 8)
+                        ForEach(viewModel.joinRequests) { entry in
+                            HStack {
+                                VStack {
+                                    Text(entry.user?.name ?? "Unknown")
+                                    if let msg = entry.request.message, !msg.isEmpty {
+                                        Text(msg)
+                                    }
+                                }
+                                Button("Approve") {
+                                    Task { await viewModel.approveRequest(orgID: orgID, requestId: entry.request._id, isAdmin: false) }
+                                }
+                                Button("Reject") {
+                                    Task { await viewModel.rejectRequest(orgID: orgID, requestId: entry.request._id) }
                                 }
                             }
                             .padding(.bottom, 4)

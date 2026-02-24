@@ -24,6 +24,10 @@ internal struct SettingsView: View {
 
     @State private var errorMessage: String?
 
+    @State private var membersSub = Sub<[OrgMemberEntry]>()
+
+    @State private var selectedAdminID: String?
+
     var body: some View {
         Form {
             Section("Organization") {
@@ -51,6 +55,31 @@ internal struct SettingsView: View {
                 Section("Danger Zone") {
                     Button("Leave Organization", role: .destructive) {
                         leaveOrg()
+                    }
+                }
+            }
+
+            if role.isOwner {
+                Section("Transfer Ownership") {
+                    let admins = (membersSub.data ?? []).filter(\.role.isAdmin)
+                    if !admins.isEmpty {
+                        Picker("New Owner", selection: $selectedAdminID) {
+                            Text("Select admin").tag(String?.none)
+                            ForEach(admins) { m in
+                                Text(m.name ?? m.email ?? m.userId).tag(Optional(m.userId))
+                            }
+                        }
+                        Button("Transfer Ownership") {
+                            guard let newOwnerID = selectedAdminID else {
+                                return
+                            }
+
+                            transferOwnership(newOwnerID: newOwnerID)
+                        }
+                        .disabled(selectedAdminID == nil)
+                    } else {
+                        Text("No other admins available")
+                            .foregroundStyle(.secondary)
                     }
                 }
             }
@@ -84,6 +113,10 @@ internal struct SettingsView: View {
         }
         .onAppear {
             editedName = orgName
+            membersSub.bind { OrgAPI.subscribeMembers(orgId: orgID, onUpdate: $0, onError: $1) }
+        }
+        .onDisappear {
+            membersSub.cancel()
         }
     }
 
@@ -108,6 +141,17 @@ internal struct SettingsView: View {
         Task {
             do {
                 try await OrgAPI.leave(orgId: orgID)
+                onSwitchOrg()
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+        }
+    }
+
+    private func transferOwnership(newOwnerID: String) {
+        Task {
+            do {
+                try await OrgAPI.transferOwnership(newOwnerId: newOwnerID, orgId: orgID)
                 onSwitchOrg()
             } catch {
                 errorMessage = error.localizedDescription

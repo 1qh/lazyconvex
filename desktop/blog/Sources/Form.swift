@@ -1,3 +1,7 @@
+#if canImport(AppKit)
+import AppKit
+import UniformTypeIdentifiers
+#endif
 import ConvexCore
 import DesktopShared
 import Foundation
@@ -15,6 +19,12 @@ internal final class FormViewModel: SwiftCrossUI.ObservableObject, Performing {
     @SwiftCrossUI.Published var published = false
     @SwiftCrossUI.Published var isSaving = false
     @SwiftCrossUI.Published var errorMessage: String?
+    @SwiftCrossUI.Published var tags = [String]()
+    @SwiftCrossUI.Published var newTag = ""
+    @SwiftCrossUI.Published var coverImageID: String?
+    @SwiftCrossUI.Published var attachmentIDs = [String]()
+    @SwiftCrossUI.Published var isUploadingCover = false
+    @SwiftCrossUI.Published var isUploadingAttachments = false
 
     let mode: FormMode
 
@@ -30,7 +40,66 @@ internal final class FormViewModel: SwiftCrossUI.ObservableObject, Performing {
             content = blog.content
             category = blog.category
             published = blog.published
+            tags = blog.tags ?? []
+            coverImageID = blog.coverImage
+            attachmentIDs = blog.attachments ?? []
         }
+    }
+
+    func selectCoverImage() {
+        #if canImport(AppKit)
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.image]
+        panel.allowsMultipleSelection = false
+        panel.begin { response in
+            if response == .OK, let url = panel.url {
+                Task { @MainActor in // swiftlint:disable:this unhandled_throwing_task
+                    await self.performLoading({ self.isUploadingCover = $0 }) {
+                        self.coverImageID = try await fileClient.uploadImage(url: url)
+                    }
+                }
+            }
+        }
+        #endif
+    }
+
+    func selectAttachments() {
+        #if canImport(AppKit)
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.item]
+        panel.allowsMultipleSelection = true
+        panel.begin { response in
+            if response == .OK {
+                let urls = panel.urls
+                Task { @MainActor in // swiftlint:disable:this unhandled_throwing_task
+                    await self.performLoading({ self.isUploadingAttachments = $0 }) {
+                        let ids = try await fileClient.uploadFiles(urls: urls)
+                        for id in ids {
+                            self.attachmentIDs.append(id)
+                        }
+                    }
+                }
+            }
+        }
+        #endif
+    }
+
+    func addTag() {
+        let tag = newTag.trimmed.lowercased()
+        guard !tag.isEmpty, tags.count < 5, !tags.contains(tag) else {
+            return
+        }
+
+        tags.append(tag)
+        newTag = ""
+    }
+
+    func removeTag(_ tag: String) {
+        var updated = [String]()
+        for t in tags where t != tag {
+            updated.append(t)
+        }
+        tags = updated
     }
 
     @MainActor
@@ -44,9 +113,12 @@ internal final class FormViewModel: SwiftCrossUI.ObservableObject, Performing {
             case .create:
                 try await BlogAPI.create(
                     client,
+                    attachments: attachmentIDs.isEmpty ? nil : attachmentIDs,
                     category: category,
                     content: content.trimmed,
+                    coverImage: coverImageID,
                     published: published,
+                    tags: tags.isEmpty ? nil : tags,
                     title: title.trimmed
                 )
 
@@ -54,9 +126,12 @@ internal final class FormViewModel: SwiftCrossUI.ObservableObject, Performing {
                 try await BlogAPI.update(
                     client,
                     id: blog._id,
+                    attachments: attachmentIDs.isEmpty ? nil : attachmentIDs,
                     category: category,
                     content: content.trimmed,
+                    coverImage: coverImageID,
                     published: published,
+                    tags: tags.isEmpty ? nil : tags,
                     title: title.trimmed,
                     expectedUpdatedAt: blog.updatedAt
                 )
@@ -87,6 +162,57 @@ internal struct FormView: View {
             }
 
             Toggle("Published", isOn: $viewModel.published)
+
+            HStack {
+                Button(viewModel.coverImageID == nil ? "Add Cover Image" : "Change Cover Image") {
+                    viewModel.selectCoverImage()
+                }
+                if viewModel.coverImageID != nil {
+                    Text("Cover set")
+                    Button("Remove") {
+                        viewModel.coverImageID = nil
+                    }
+                }
+            }
+            if viewModel.isUploadingCover {
+                Text("Uploading cover...")
+            }
+
+            VStack {
+                HStack {
+                    TextField("Add tag", text: $viewModel.newTag)
+                    Button("Add") {
+                        viewModel.addTag()
+                    }
+                }
+                if !viewModel.tags.isEmpty {
+                    HStack {
+                        ForEach(viewModel.tags, id: \.self) { tag in
+                            HStack {
+                                Text("#\(tag)")
+                                Button("x") {
+                                    viewModel.removeTag(tag)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            HStack {
+                Button("Add Attachments") {
+                    viewModel.selectAttachments()
+                }
+                if !viewModel.attachmentIDs.isEmpty {
+                    Text("\(viewModel.attachmentIDs.count) file(s)")
+                    Button("Clear") {
+                        viewModel.attachmentIDs = []
+                    }
+                }
+            }
+            if viewModel.isUploadingAttachments {
+                Text("Uploading attachments...")
+            }
 
             if let msg = viewModel.errorMessage {
                 Text(msg)

@@ -20,8 +20,11 @@ internal final class FormViewModel: Performing {
     var newTag = ""
     var isSaving = false
     var isUploadingCover = false
+    var isUploadingAttachment = false
     var coverImageID: String?
     var selectedCoverURL: URL?
+    var attachmentIDs = [String]()
+    var selectedAttachmentURL: URL?
 
     let mode: FormMode
     private var lastSavedTitle = ""
@@ -49,6 +52,7 @@ internal final class FormViewModel: Performing {
             category = blog.category
             published = blog.published
             tags = blog.tags ?? []
+            attachmentIDs = blog.attachments ?? []
             coverImageID = blog.coverImage
             lastSavedTitle = blog.title
             lastSavedContent = blog.content
@@ -68,6 +72,26 @@ internal final class FormViewModel: Performing {
     func removeCoverImage() {
         coverImageID = nil
         selectedCoverURL = nil
+    }
+
+    func uploadAttachment() {
+        guard let url = selectedAttachmentURL else {
+            return
+        }
+
+        performLoading({ self.isUploadingAttachment = $0 }) {
+            let storageID = try await FileService.shared.uploadImage(url: url)
+            self.attachmentIDs.append(storageID)
+            self.selectedAttachmentURL = nil
+        }
+    }
+
+    func removeAttachment(at index: Int) {
+        guard index >= 0, index < attachmentIDs.count else {
+            return
+        }
+
+        attachmentIDs.remove(at: index)
     }
 
     func addTag() {
@@ -91,6 +115,7 @@ internal final class FormViewModel: Performing {
             switch self.mode {
             case .create:
                 try await BlogAPI.create(
+                    attachments: self.attachmentIDs.isEmpty ? nil : self.attachmentIDs,
                     category: self.category,
                     content: self.content.trimmed,
                     coverImage: self.coverImageID,
@@ -102,6 +127,7 @@ internal final class FormViewModel: Performing {
             case let .edit(blog):
                 try await BlogAPI.update(
                     id: blog._id,
+                    attachments: self.attachmentIDs.isEmpty ? nil : self.attachmentIDs,
                     category: self.category,
                     content: self.content.trimmed,
                     coverImage: self.coverImageID,
@@ -151,6 +177,7 @@ internal struct FormView: View {
     let onDone: () -> Void
     @State private var viewModel: FormViewModel
     @State private var showCoverPicker = false
+    @State private var showAttachmentPicker = false
 
     @Environment(\.dismiss)
     private var dismiss
@@ -232,6 +259,35 @@ internal struct FormView: View {
                 }
             }
 
+            Section("Attachments") {
+                if viewModel.isUploadingAttachment {
+                    ProgressView("Uploading attachment...")
+                }
+                if !viewModel.attachmentIDs.isEmpty {
+                    ForEach(Array(viewModel.attachmentIDs.enumerated()), id: \.offset) { index, _ in
+                        HStack {
+                            Image(systemName: "paperclip")
+                                .foregroundStyle(.blue)
+                                .accessibilityHidden(true)
+                            Text("Attachment \(index + 1)")
+                            Spacer()
+                            Button(action: { viewModel.removeAttachment(at: index) }) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundStyle(.red)
+                                    .accessibilityHidden(true)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+                if viewModel.attachmentIDs.count < 5 {
+                    Button("Add Attachment") {
+                        showAttachmentPicker = true
+                    }
+                    .withMediaPicker(type: .library, isPresented: $showAttachmentPicker, selectedImageURL: $viewModel.selectedAttachmentURL)
+                    .onChange(of: viewModel.selectedAttachmentURL) { _, _ in viewModel.uploadAttachment() }
+                }
+            }
             Section {
                 Toggle("Published", isOn: $viewModel.published)
                     .accessibilityIdentifier("publishToggle")
@@ -263,7 +319,7 @@ internal struct FormView: View {
                 Button(isEditMode ? "Save" : "Create") {
                     viewModel.save(onDone: onDone)
                 }
-                .disabled(!viewModel.isValid || viewModel.isSaving || viewModel.isUploadingCover)
+                .disabled(!viewModel.isValid || viewModel.isSaving || viewModel.isUploadingCover || viewModel.isUploadingAttachment)
             }
         }
     }

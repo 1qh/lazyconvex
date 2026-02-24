@@ -392,12 +392,38 @@ public struct OrgInvite: Codable, Identifiable, Sendable {
 
 public struct OrgJoinRequest: Codable, Identifiable, Sendable {
     public let _id: String
+    public let _creationTime: Double?
     public let orgId: String
     public let userId: String
     public let status: JoinRequestStatus
+    public let message: String?
 
     public var id: String {
         _id
+    }
+}
+
+public struct JoinRequestUser: Codable, Sendable {
+    public let name: String?
+    public let image: String?
+}
+
+public struct JoinRequestEntry: Codable, Identifiable, Sendable {
+    public let request: OrgJoinRequest
+    public let user: JoinRequestUser?
+
+    public var id: String {
+        request._id
+    }
+}
+
+public struct EditorEntry: Codable, Identifiable, Sendable {
+    public let userId: String
+    public let name: String?
+    public let email: String?
+
+    public var id: String {
+        userId
     }
 }
 
@@ -775,6 +801,22 @@ public enum ProjectAPI {
     public static func bulkRm(_ client: ConvexClientProtocol, orgId: String, ids: [String]) async throws {
         try await client.mutation("project:bulkRm", args: ["ids": ids, "orgId": orgId])
     }
+
+    public static func addEditor(_ client: ConvexClientProtocol, orgId: String, editorId: String, projectId: String) async throws {
+        try await client.mutation("project:addEditor", args: ["editorId": editorId, "orgId": orgId, "projectId": projectId])
+    }
+
+    public static func removeEditor(_ client: ConvexClientProtocol, orgId: String, editorId: String, projectId: String) async throws {
+        try await client.mutation("project:removeEditor", args: ["editorId": editorId, "orgId": orgId, "projectId": projectId])
+    }
+
+    public static func editors(_ client: ConvexClientProtocol, orgId: String, projectId: String) async throws -> [EditorEntry] {
+        try await client.query("project:editors", args: ["orgId": orgId, "projectId": projectId])
+    }
+
+    public static func setEditors(_ client: ConvexClientProtocol, orgId: String, editorIds: [String], projectId: String) async throws {
+        try await client.mutation("project:setEditors", args: ["editorIds": editorIds, "orgId": orgId, "projectId": projectId])
+    }
     #endif
 }
 
@@ -896,6 +938,22 @@ public enum WikiAPI {
 
     public static func bulkRm(_ client: ConvexClientProtocol, orgId: String, ids: [String]) async throws {
         try await client.mutation("wiki:bulkRm", args: ["ids": ids, "orgId": orgId])
+    }
+
+    public static func addEditor(_ client: ConvexClientProtocol, orgId: String, editorId: String, wikiId: String) async throws {
+        try await client.mutation("wiki:addEditor", args: ["editorId": editorId, "orgId": orgId, "wikiId": wikiId])
+    }
+
+    public static func removeEditor(_ client: ConvexClientProtocol, orgId: String, editorId: String, wikiId: String) async throws {
+        try await client.mutation("wiki:removeEditor", args: ["editorId": editorId, "orgId": orgId, "wikiId": wikiId])
+    }
+
+    public static func editors(_ client: ConvexClientProtocol, orgId: String, wikiId: String) async throws -> [EditorEntry] {
+        try await client.query("wiki:editors", args: ["orgId": orgId, "wikiId": wikiId])
+    }
+
+    public static func setEditors(_ client: ConvexClientProtocol, orgId: String, editorIds: [String], wikiId: String) async throws {
+        try await client.mutation("wiki:setEditors", args: ["editorIds": editorIds, "orgId": orgId, "wikiId": wikiId])
     }
     #endif
 }
@@ -1337,7 +1395,7 @@ public enum OrgAPI {
         try await client.query("org:pendingInvites", args: ["orgId": orgId])
     }
 
-    public static func pendingJoinRequests(_ client: ConvexClientProtocol, orgId: String) async throws -> [OrgJoinRequest] {
+    public static func pendingJoinRequests(_ client: ConvexClientProtocol, orgId: String) async throws -> [JoinRequestEntry] {
         try await client.query("org:pendingJoinRequests", args: ["orgId": orgId])
     }
 
