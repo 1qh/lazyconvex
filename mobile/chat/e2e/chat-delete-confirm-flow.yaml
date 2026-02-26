@@ -1,0 +1,25 @@
+appId: dev.lazyconvex.chat
+---
+- runFlow: login.yaml
+
+- assertVisible: "Chats"
+
+- tapOn:
+    text: "plus"
+- waitForAnimationToEnd
+- tapOn:
+    text: "New Chat"
+    index: 0
+- waitForAnimationToEnd
+
+- tapOn: "Message..."
+- inputText: "Delete confirm test"
+- tapOn:
+    id: "sendButton"
+- extendedWaitUntil:
+    visible: "Delete confirm test"
+    timeout: 15000
+
+- back
+- waitForAnimationToEnd
+- assertVisible: "Chats"

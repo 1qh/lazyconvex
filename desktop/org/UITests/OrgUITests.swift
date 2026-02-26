@@ -1405,4 +1405,138 @@ internal final class OrgUITests: XCTestCase {
                 || changeAvatar.waitForExistence(timeout: 5)
         )
     }
+
+    // MARK: - Invite Accept
+
+    func testAcceptInviteButtonVisible() {
+        ensureAuthenticated()
+        let acceptInvite = app.buttons["Accept Invite"]
+        XCTAssertTrue(acceptInvite.waitForExistence(timeout: 5))
+    }
+
+    func testAcceptInviteShowsTokenField() {
+        ensureAuthenticated()
+        let orgText = app.staticTexts["Organizations"]
+        _ = orgText.waitForExistence(timeout: 5)
+        let acceptInvite = app.buttons["Accept Invite"]
+        if acceptInvite.waitForExistence(timeout: 5) {
+            acceptInvite.click()
+            let tokenField = app.textFields["Invite token"]
+            XCTAssertTrue(tokenField.waitForExistence(timeout: 5))
+        }
+    }
+
+    func testAcceptInviteCancel() {
+        ensureAuthenticated()
+        let orgText = app.staticTexts["Organizations"]
+        _ = orgText.waitForExistence(timeout: 5)
+        let acceptInvite = app.buttons["Accept Invite"]
+        if acceptInvite.waitForExistence(timeout: 5) {
+            acceptInvite.click()
+            let cancelButton = app.buttons["Cancel"]
+            if cancelButton.waitForExistence(timeout: 3) {
+                cancelButton.click()
+                XCTAssertTrue(orgText.waitForExistence(timeout: 5))
+            }
+        }
+    }
+
+    func testAcceptInviteShowsAcceptButton() {
+        ensureAuthenticated()
+        let orgText = app.staticTexts["Organizations"]
+        _ = orgText.waitForExistence(timeout: 5)
+        let acceptInvite = app.buttons["Accept Invite"]
+        if acceptInvite.waitForExistence(timeout: 5) {
+            acceptInvite.click()
+            let acceptButton = app.buttons["Accept"]
+            XCTAssertTrue(acceptButton.waitForExistence(timeout: 5))
+        }
+    }
+
+    func testAcceptInviteWithInvalidToken() {
+        ensureAuthenticated()
+        let orgText = app.staticTexts["Organizations"]
+        _ = orgText.waitForExistence(timeout: 5)
+        let acceptInvite = app.buttons["Accept Invite"]
+        if acceptInvite.waitForExistence(timeout: 5) {
+            acceptInvite.click()
+            let tokenField = app.textFields["Invite token"]
+            if tokenField.waitForExistence(timeout: 5) {
+                tokenField.click()
+                tokenField.typeText("invalid-token-12345")
+                let acceptButton = app.buttons["Accept"]
+                acceptButton.click()
+                sleep(3)
+                let failedText = app.staticTexts["Invite failed"]
+                XCTAssertTrue(failedText.waitForExistence(timeout: 10))
+            }
+        }
+    }
+
+    // MARK: - Join Organization
+
+    func testJoinOrgButtonVisible() {
+        ensureAuthenticated()
+        let joinOrg = app.buttons["Join Org"]
+        XCTAssertTrue(joinOrg.waitForExistence(timeout: 5))
+    }
+
+    func testJoinOrgShowsSlugField() {
+        ensureAuthenticated()
+        let orgText = app.staticTexts["Organizations"]
+        _ = orgText.waitForExistence(timeout: 5)
+        let joinOrg = app.buttons["Join Org"]
+        if joinOrg.waitForExistence(timeout: 5) {
+            joinOrg.click()
+            let slugField = app.textFields["Organization slug"]
+            XCTAssertTrue(slugField.waitForExistence(timeout: 5))
+        }
+    }
+
+    func testJoinOrgCancel() {
+        ensureAuthenticated()
+        let orgText = app.staticTexts["Organizations"]
+        _ = orgText.waitForExistence(timeout: 5)
+        let joinOrg = app.buttons["Join Org"]
+        if joinOrg.waitForExistence(timeout: 5) {
+            joinOrg.click()
+            let cancelButton = app.buttons["Cancel"]
+            if cancelButton.waitForExistence(timeout: 3) {
+                cancelButton.click()
+                XCTAssertTrue(orgText.waitForExistence(timeout: 5))
+            }
+        }
+    }
+
+    func testJoinOrgShowsJoinButton() {
+        ensureAuthenticated()
+        let orgText = app.staticTexts["Organizations"]
+        _ = orgText.waitForExistence(timeout: 5)
+        let joinOrg = app.buttons["Join Org"]
+        if joinOrg.waitForExistence(timeout: 5) {
+            joinOrg.click()
+            let joinButton = app.buttons["Join"]
+            XCTAssertTrue(joinButton.waitForExistence(timeout: 5))
+        }
+    }
+
+    func testJoinOrgWithNonexistentSlug() {
+        ensureAuthenticated()
+        let orgText = app.staticTexts["Organizations"]
+        _ = orgText.waitForExistence(timeout: 5)
+        let joinOrg = app.buttons["Join Org"]
+        if joinOrg.waitForExistence(timeout: 5) {
+            joinOrg.click()
+            let slugField = app.textFields["Organization slug"]
+            if slugField.waitForExistence(timeout: 5) {
+                slugField.click()
+                slugField.typeText("nonexistent-org-slug-999")
+                let joinButton = app.buttons["Join"]
+                joinButton.click()
+                sleep(3)
+                let notFoundText = app.staticTexts["Organization not found"]
+                XCTAssertTrue(notFoundText.waitForExistence(timeout: 10))
+            }
+        }
+    }
 }

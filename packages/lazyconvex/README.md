@@ -977,14 +977,14 @@ Conform your Convex client to this protocol and the typed wrappers work automati
 
 ### Desktop Apps (SwiftCrossUI)
 
-4 native macOS apps using [SwiftCrossUI](https://github.com/nicktmro/swift-cross-ui) with 141 E2E tests:
+4 native macOS apps using [SwiftCrossUI](https://github.com/nicktmro/swift-cross-ui) with 223 E2E tests:
 
 | App | E2E Tests |
 |-----|-----------|
-| Movie | 20 |
-| Blog | 46 |
-| Chat | 34 |
-| Org | 41 |
+| Movie | 26 |
+| Blog | 65 |
+| Chat | 48 |
+| Org | 84 |
 
 ### Architecture
 

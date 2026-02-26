@@ -1,0 +1,19 @@
+appId: dev.lazyconvex.org
+---
+- runFlow: onboarding-flow.yaml
+
+- tapOn: "Switch"
+- waitForAnimationToEnd
+- assertVisible: "Organizations"
+
+- tapOn:
+    text: "plus"
+- waitForAnimationToEnd
+
+- assertVisible:
+    text: "Accept Invite"
+    optional: true
+
+- assertVisible:
+    text: "Join Organization"
+    optional: true

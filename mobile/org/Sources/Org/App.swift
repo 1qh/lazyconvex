@@ -7,18 +7,25 @@ internal let logger = Logger(subsystem: "dev.lazyconvex.org", category: "Org")
 
 internal struct ContentView: View {
     @State private var showOnboarding = false
-
     @State private var activeOrgID: String?
-
     @State private var activeOrgName = ""
-
     @State private var activeRole = OrgRole.member
+    @State private var inviteToken: String?
+    @State private var joinSlug: String?
 
     var body: some View {
         AuthenticatedView { signOut in
             if showOnboarding {
                 OnboardingView {
                     showOnboarding = false
+                }
+            } else if let token = inviteToken {
+                AcceptInviteView(token: token) {
+                    inviteToken = nil
+                }
+            } else if let slug = joinSlug {
+                JoinRequestView(slug: slug) {
+                    joinSlug = nil
                 }
             } else if let orgID = activeOrgID {
                 HomeView(
@@ -34,18 +41,18 @@ internal struct ContentView: View {
                     }
                 )
             } else {
-                // swiftformat:disable trailingClosures
                 SwitcherView(
                     onSelectOrg: { orgID, name, role in
                         activeOrgID = orgID
                         activeOrgName = name
                         activeRole = role
                     },
-                    onSignOut: signOut
+                    onSignOut: signOut,
+                    onAcceptInvite: { inviteToken = $0 },
+                    onJoinOrg: { joinSlug = $0 }
                 ) {
                     showOnboarding = true
                 }
-                // swiftformat:enable trailingClosures
             }
         }
     }

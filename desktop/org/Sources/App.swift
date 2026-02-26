@@ -25,6 +25,8 @@ internal struct OrgApp: App {
     @State private var activeOrgName = ""
     @State private var activeRole = OrgRole.member
     @State private var showOnboarding = false
+    @State private var inviteToken: String?
+    @State private var joinSlug: String?
 
     var body: some Scene {
         WindowGroup("Org") {
@@ -33,6 +35,14 @@ internal struct OrgApp: App {
                     if showOnboarding {
                         OnboardingView {
                             showOnboarding = false
+                        }
+                    } else if let token = inviteToken {
+                        AcceptInviteView(token: token) {
+                            inviteToken = nil
+                        }
+                    } else if let slug = joinSlug {
+                        JoinRequestView(slug: slug) {
+                            joinSlug = nil
                         }
                     } else if let orgID = activeOrgID {
                         HomeView(
@@ -59,7 +69,9 @@ internal struct OrgApp: App {
                                 client.setAuth(token: nil)
                                 isAuthenticated = false
                             },
-                            onShowOnboarding: { showOnboarding = true }
+                            onShowOnboarding: { showOnboarding = true },
+                            onAcceptInvite: { inviteToken = $0 },
+                            onJoinOrg: { joinSlug = $0 }
                         )
                     }
                 } else {
@@ -140,18 +152,26 @@ internal struct SwitcherView: View {
     var onSelectOrg: (String, String, OrgRole) -> Void
     var onSignOut: () -> Void
     var onShowOnboarding: () -> Void
+    var onAcceptInvite: (String) -> Void
+    var onJoinOrg: (String) -> Void
     @State private var orgs = [OrgWithRole]()
     @State private var isLoading = true
     @State private var errorMessage: String?
     @State private var showCreateForm = false
+    @State private var showInviteForm = false
+    @State private var showJoinForm = false
     @State private var newOrgName = ""
     @State private var newOrgSlug = ""
+    @State private var inviteToken = ""
+    @State private var joinSlug = ""
 
     var body: some View {
         VStack {
             HStack {
                 Text("Organizations")
                 Button("New Org") { showCreateForm = true }
+                Button("Accept Invite") { showInviteForm = true }
+                Button("Join Org") { showJoinForm = true }
                 Button("Sign Out") { onSignOut() }
             }
             .padding(.bottom, 4)
@@ -164,6 +184,46 @@ internal struct SwitcherView: View {
                         Button("Cancel") { showCreateForm = false }
                         Button("Create") {
                             Task { await createOrg() }
+                        }
+                    }
+                }
+                .padding(.bottom, 8)
+            }
+
+            if showInviteForm {
+                VStack {
+                    TextField("Invite token", text: $inviteToken)
+                    HStack {
+                        Button("Cancel") { showInviteForm = false }
+                        Button("Accept") {
+                            let token = inviteToken.trimmed
+                            guard !token.isEmpty else {
+                                return
+                            }
+
+                            inviteToken = ""
+                            showInviteForm = false
+                            onAcceptInvite(token)
+                        }
+                    }
+                }
+                .padding(.bottom, 8)
+            }
+
+            if showJoinForm {
+                VStack {
+                    TextField("Organization slug", text: $joinSlug)
+                    HStack {
+                        Button("Cancel") { showJoinForm = false }
+                        Button("Join") {
+                            let slug = joinSlug.trimmed
+                            guard !slug.isEmpty else {
+                                return
+                            }
+
+                            joinSlug = ""
+                            showJoinForm = false
+                            onJoinOrg(slug)
                         }
                     }
                 }
