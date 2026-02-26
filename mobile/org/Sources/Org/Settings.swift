@@ -98,10 +98,17 @@ internal struct SettingsView: View {
                     let admins = (membersSub.data ?? []).filter(\.role.isAdmin)
                     if !admins.isEmpty {
                         Picker("New Owner", selection: $selectedAdminID) {
+                            #if !SKIP
                             Text("Select admin").tag(String?.none)
                             ForEach(admins) { m in
                                 Text(m.name ?? m.email ?? m.userId).tag(Optional(m.userId))
                             }
+                            #else
+                            Text("Select admin").tag(nil as String?)
+                            ForEach(admins) { m in
+                                Text(m.name ?? m.email ?? m.userId).tag(m.userId as String?)
+                            }
+                            #endif
                         }
                         Button("Transfer Ownership") {
                             guard let newOwnerID = selectedAdminID else {

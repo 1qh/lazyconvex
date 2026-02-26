@@ -157,7 +157,11 @@ internal struct ProjectsView: View {
                             .font(.subheadline)
                     }
                     .padding()
-                    .background(.ultraThinMaterial)
+                    #if !SKIP
+                        .background(.ultraThinMaterial)
+                    #else
+                        .background(Color.gray.opacity(0.15))
+                    #endif
                 }
             }
         }

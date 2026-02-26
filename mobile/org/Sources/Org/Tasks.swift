@@ -184,7 +184,11 @@ internal struct TasksView: View {
                             .font(.subheadline)
                     }
                     .padding()
-                    .background(.ultraThinMaterial)
+                    #if !SKIP
+                        .background(.ultraThinMaterial)
+                    #else
+                        .background(Color.gray.opacity(0.15))
+                    #endif
                 }
             }
 
@@ -233,10 +237,17 @@ internal struct TasksView: View {
                 TextField("Title", text: $editTitle)
                     .accessibilityIdentifier("editTaskTitle")
                 Picker("Priority", selection: $editPriority) {
+                    #if !SKIP
                     Text("None").tag(TaskPriority?.none)
                     ForEach(TaskPriority.allCases, id: \.rawValue) { p in
                         Text(p.displayName).tag(Optional(p))
                     }
+                    #else
+                    Text("None").tag(nil as TaskPriority?)
+                    ForEach(TaskPriority.allCases, id: \.self) { p in
+                        Text(p.displayName).tag(p as TaskPriority?)
+                    }
+                    #endif
                 }
                 .accessibilityIdentifier("editTaskPriority")
             }
@@ -293,10 +304,17 @@ internal struct TasksView: View {
             if !available.isEmpty {
                 HStack {
                     Picker("Add editor", selection: $selectedEditorID) {
+                        #if !SKIP
                         Text("Select member").tag(String?.none)
                         ForEach(available) { m in
                             Text(m.name ?? m.email ?? m.userId).tag(Optional(m.userId))
                         }
+                        #else
+                        Text("Select member").tag(nil as String?)
+                        ForEach(available) { m in
+                            Text(m.name ?? m.email ?? m.userId).tag(m.userId as String?)
+                        }
+                        #endif
                     }
                     Button("Add") {
                         guard let editorID = selectedEditorID else {

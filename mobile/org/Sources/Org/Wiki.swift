@@ -165,7 +165,11 @@ internal struct WikiListView: View {
                             .font(.subheadline)
                     }
                     .padding()
-                    .background(.ultraThinMaterial)
+                    #if !SKIP
+                        .background(.ultraThinMaterial)
+                    #else
+                        .background(Color.gray.opacity(0.15))
+                    #endif
                 }
             }
         }
@@ -303,10 +307,17 @@ internal struct WikiEditView: View {
                             if !available.isEmpty {
                                 HStack {
                                     Picker("Add editor", selection: $selectedEditorID) {
+                                        #if !SKIP
                                         Text("Select member").tag(String?.none)
                                         ForEach(available) { m in
                                             Text(m.name ?? m.email ?? m.userId).tag(Optional(m.userId))
                                         }
+                                        #else
+                                        Text("Select member").tag(nil as String?)
+                                        ForEach(available) { m in
+                                            Text(m.name ?? m.email ?? m.userId).tag(m.userId as String?)
+                                        }
+                                        #endif
                                     }
                                     Button("Add") {
                                         guard let editorID = selectedEditorID else {
