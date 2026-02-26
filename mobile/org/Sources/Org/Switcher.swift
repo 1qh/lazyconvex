@@ -190,7 +190,30 @@ internal struct SwitcherView: View {
                 }
             }
             .navigationTitle("Organizations")
-            .toolbar { toolbarContent }
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Menu {
+                        Button(action: { showCreateSheet = true }) {
+                            Label("New Organization", systemImage: "plus")
+                        }
+                        Button(action: { showInviteSheet = true }) {
+                            Label("Accept Invite", systemImage: "envelope.open")
+                        }
+                        Button(action: { showJoinSheet = true }) {
+                            Label("Join Organization", systemImage: "person.badge.plus")
+                        }
+                    } label: {
+                        Image(systemName: "plus")
+                            .accessibilityHidden(true)
+                    }
+                }
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(action: onSignOut) {
+                        Image(systemName: "rectangle.portrait.and.arrow.right")
+                            .accessibilityHidden(true)
+                    }
+                }
+            }
             .sheet(isPresented: $showCreateSheet) {
                 CreateOrgSheet(newOrgName: $newOrgName, newOrgSlug: $newOrgSlug, isPresented: $showCreateSheet, viewModel: viewModel)
             }
@@ -252,30 +275,5 @@ internal struct SwitcherView: View {
             .primaryForeground()
         }
         .listStyle(.plain)
-    }
-
-    @ToolbarContentBuilder private var toolbarContent: some ToolbarContent {
-        ToolbarItem(placement: .primaryAction) {
-            Menu {
-                Button(action: { showCreateSheet = true }) {
-                    Label("New Organization", systemImage: "plus")
-                }
-                Button(action: { showInviteSheet = true }) {
-                    Label("Accept Invite", systemImage: "envelope.open")
-                }
-                Button(action: { showJoinSheet = true }) {
-                    Label("Join Organization", systemImage: "person.badge.plus")
-                }
-            } label: {
-                Image(systemName: "plus")
-                    .accessibilityHidden(true)
-            }
-        }
-        ToolbarItem(placement: .cancellationAction) {
-            Button(action: onSignOut) {
-                Image(systemName: "rectangle.portrait.and.arrow.right")
-                    .accessibilityHidden(true)
-            }
-        }
     }
 }
