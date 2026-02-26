@@ -247,6 +247,7 @@ bunx lazyconvex-codegen-swift --schema packages/be/t.ts --convex packages/be/con
 
 | Guide | What's covered |
 |-------|---------------|
+| [Quickstart](docs/quickstart.md) | From zero to running app in 5 minutes |
 | [Forms](docs/forms.md) | Typesafe forms, multi-step wizards, auto-save, conflict detection, async validation |
 | [Data Fetching](docs/data-fetching.md) | pub/auth queries, where clauses, pagination, search |
 | [Organizations](docs/organizations.md) | orgCrud, ACL, cascade delete, invites, join requests, org hooks |

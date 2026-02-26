@@ -4,9 +4,10 @@
 
 | Module | Key Exports |
 |--------|------------|
+| `lazyconvex` | `strictApi`, `guardApi` |
 | `lazyconvex/server` | `setup`, `ownedTable`, `orgTable`, `baseTable`, `singletonTable`, `childTable`, `orgChildTable`, `orgTables`, `uploadTables`, `rateLimitTable`, `orgCascade`, `ownedCascade`, `canEdit`, `getOrgMember`, `getOrgRole`, `requireOrgMember`, `requireOrgRole`, `handleConvexError`, `getErrorCode`, `getErrorMessage`, `checkRateLimit`, `checkSchema`, `makeOrg`, `makeFileUpload` |
 | `lazyconvex/test` | `makeTestAuth`, `makeOrgTestCrud`, `getOrgMembership`, `discoverModules`, `createTestContext`, `isTestMode` |
-| `lazyconvex/react` | `createOrgHooks`, `useForm`, `useFormMutation`, `useList`, `useOptimisticMutation`, `useSoftDelete`, `useUpload`, `useBulkSelection`, `useOnlineStatus`, `OrgProvider`, `useOrg`, `useActiveOrg`, `useMyOrgs`, `useOrgQuery`, `useOrgMutation`, `canEditResource`, `buildMeta`, `getMeta` |
+| `lazyconvex/react` | `createOrgHooks`, `useForm`, `useFormMutation`, `useList`, `useOptimisticMutation`, `useSoftDelete`, `useUpload`, `useBulkSelection`, `useOnlineStatus`, `OrgProvider`, `useOrg`, `useActiveOrg`, `useMyOrgs`, `useOrgQuery`, `useOrgMutation`, `canEditResource`, `buildMeta`, `getMeta`, `useDevErrors`, `LazyConvexDevtools` |
 | `lazyconvex/components` | `Form`, `defineSteps`, `EditorsSection`, `PermissionGuard`, `OfflineIndicator`, `OrgAvatar`, `RoleBadge`, `AutoSaveIndicator`, `ConflictDialog`, `FileApiProvider` |
 | `lazyconvex/schema` | `child`, `cvFile`, `cvFiles`, `makeBase`, `makeOrgScoped`, `makeOwned`, `makeSingleton`, `orgSchema` |
 | `lazyconvex/zod` | `pickValues`, `defaultValues`, `enumToOptions` |

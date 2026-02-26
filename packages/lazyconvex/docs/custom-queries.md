@@ -139,3 +139,121 @@ const results = usePaginatedQuery(api.blog.listByCategory, { category: 'tech' },
 | Rate limiting | `rateLimit` option | Manual (`checkRateLimit` from `lazyconvex/server`) |
 
 Keep generated CRUD for mutations and simple reads, add custom indexed queries only for hot paths.
+
+## Decision Tree: Which Escape Hatch?
+
+```
+Need to read data?
+  ├─ No auth required → pq
+  └─ Auth required → q
+
+Need to write data?
+  └─ Always → m (gives conflict detection via c.patch)
+
+Need to call an external API?
+  └─ Use raw Convex action (not a lazyconvex builder)
+
+Can generated crud() handle it?
+  ├─ Yes → Keep crud(). Don't write custom code.
+  └─ No → Add custom alongside crud() in the same file
+```
+
+## Type Safety in Custom Handlers
+
+The `c` context object is fully typed. Here's what each builder gives you:
+
+### pq context
+
+```tsx
+handler: async (c, args) => {
+  c.db         // full Convex DatabaseReader
+  c.viewerId   // string | null (authenticated user ID, null for anonymous)
+  c.withAuthor // (docs: Doc[]) => Promise<EnrichedDoc[]> — attaches author name/image
+}
+```
+
+### q context
+
+```tsx
+handler: async (c, args) => {
+  c.db         // full Convex DatabaseReader
+  c.user       // Doc<'users'> — guaranteed non-null (throws if not authenticated)
+  c.viewerId   // string — always present
+  c.get        // (id: Id<T>) => Doc<T> — ownership-checked, throws if not owner
+  c.withAuthor // same as pq
+}
+```
+
+### m context
+
+```tsx
+handler: async (c, args) => {
+  c.db         // full Convex DatabaseWriter
+  c.user       // Doc<'users'>
+  c.get        // ownership-checked get
+  c.create     // (table, data) => Id — sets userId + updatedAt automatically
+  c.patch      // (id, data, expectedUpdatedAt?) => void — conflict detection built-in
+  c.delete     // (id) => void — ownership-checked, cleans up files
+}
+```
+
+## Coexistence Patterns
+
+### Pattern 1: Custom query alongside generated CRUD
+
+The most common pattern. Keep `crud()` for standard operations, add custom endpoints for specialized reads:
+
+```tsx
+export const {
+    create, list, read, rm, update
+  } = crud('blog', owned.blog),
+  bySlug = pq({ args: { slug: z.string() }, handler: async (c, { slug }) => {
+    return c.db.query('blog').withIndex('by_slug', q => q.eq('slug', slug)).unique()
+  }}),
+  trending = pq({ args: {}, handler: async (c) => {
+    return c.db.query('blog').withIndex('by_views').order('desc').take(10)
+  }})
+```
+
+All endpoints — generated and custom — are exported from the same file. The frontend imports them all from `api.blog`:
+
+```tsx
+api.blog.list          // generated
+api.blog.bySlug        // custom
+api.blog.trending      // custom
+api.blog.create        // generated
+```
+
+### Pattern 2: Custom mutation extending generated CRUD
+
+Add a custom mutation that reuses the context helpers:
+
+```tsx
+export const {
+    create, list, read, rm, update
+  } = crud('blog', owned.blog),
+  publish = m({ args: { id: z.string() }, handler: async (c, { id }) => {
+    const doc = await c.get(id)  // ownership check included
+    await c.patch(id, { published: true })
+  }})
+```
+
+### Pattern 3: Gradual replacement
+
+Replace a single generated endpoint while keeping the rest:
+
+```tsx
+export const {
+    create, read, rm, update  // keep these
+  } = crud('blog', owned.blog),
+  list = pq({  // replace generated list with indexed version
+    args: { category: z.string().optional() },
+    handler: async (c, { category }) => {
+      if (category)
+        return c.db.query('blog').withIndex('by_category', q => q.eq('category', category)).collect()
+      return c.db.query('blog').order('desc').collect()
+    }
+  })
+```
+
+The frontend code doesn't change — it still imports `api.blog.list`.
