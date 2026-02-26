@@ -8,6 +8,7 @@ type StrictApi<T> = RemoveIndexSignature<{
 
 const strictApi = <T>(a: T): StrictApi<T> => a as unknown as StrictApi<T>
 
+export { guardApi } from './guard'
 export type { DevError } from './react/devtools'
 export type { Api, ConflictData, FieldKind, FieldMeta, FieldMetaMap, FormReturn } from './react/form'
 export type { OrgContextValue, OrgDoc, OrgProviderProps } from './react/org'
@@ -50,7 +51,7 @@ export type {
   WhereOf,
   WithUrls
 } from './server/types'
-export type { CvMeta, DefType, ZodSchema } from './zod'
 
 export type { StrictApi }
+export type { CvMeta, DefType, ZodSchema } from './zod'
 export { strictApi }

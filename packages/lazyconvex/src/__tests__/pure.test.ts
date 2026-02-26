@@ -31,6 +31,7 @@ import {
   ONE_YEAR_SECONDS,
   sleep
 } from '../constants'
+import { guardApi } from '../guard'
 import { buildMeta, getMeta } from '../react/form'
 import { canEditResource } from '../react/org'
 import { DEFAULT_PAGE_SIZE } from '../react/use-list'
@@ -3030,5 +3031,37 @@ describe('codegen-swift-utils', () => {
     test('mixed special + digit edge case', () => {
       expect(swiftEnumCase('3d-render')).toBe('case _3d_render = "3d-render"')
     })
+  })
+})
+
+describe('guardApi', () => {
+  const fakeApi = { blog: { list: 'fn1' }, blogProfile: { get: 'fn2' }, chat: { send: 'fn3' } },
+    modules = ['blog', 'blogProfile', 'chat']
+
+  test('allows valid module access', () => {
+    const guarded = guardApi(fakeApi, modules)
+    expect(guarded.blog.list).toBe('fn1')
+    expect(guarded.blogProfile.get).toBe('fn2')
+    expect(guarded.chat.send).toBe('fn3')
+  })
+
+  test('throws on unknown module', () => {
+    const guarded = guardApi(fakeApi, modules) as Record<string, unknown>
+    expect(() => guarded.nonexistent).toThrow('does not match any module')
+  })
+
+  test('suggests correct casing on mismatch', () => {
+    const guarded = guardApi(fakeApi, modules) as Record<string, unknown>
+    expect(() => guarded.blogprofile).toThrow('Did you mean api.blogProfile')
+  })
+
+  test('suggests correct casing for all-caps typo', () => {
+    const guarded = guardApi(fakeApi, modules) as Record<string, unknown>
+    expect(() => guarded.BLOG).toThrow('Did you mean api.blog')
+  })
+
+  test('includes valid modules in unknown module error', () => {
+    const guarded = guardApi(fakeApi, modules) as Record<string, unknown>
+    expect(() => guarded.xyz).toThrow('blog, blogProfile, chat')
   })
 })
