@@ -19,6 +19,7 @@ interface BaseNode {
 
 interface EslintContext {
   cwd: string
+  filename: string
   report: (d: { data?: Record<string, string>; messageId: string; node: BaseNode }) => void
 }
 
@@ -30,6 +31,8 @@ interface JsxNode {
 let cachedModules: string[] | undefined
 let cachedSchema: Map<string, Map<string, string>> | undefined
 let discoveredConvexDir: string | undefined
+let discoveryWarned = false
+const seenCrudTables = new Map<string, string>()
 
 const hasGenerated = (dir: string): boolean => existsSync(join(dir, '_generated'))
 
@@ -274,6 +277,26 @@ const getCalleeProperty = (node: CallNode): string | undefined => {
   return getPropertyName(first)
 }
 
+const isInsideTryBlock = (ancestors: BaseNode[]): boolean => {
+  for (let i = ancestors.length - 1; i >= 0; i -= 1) {
+    const a = ancestors[i]
+    if (!a) break
+    if (a.type === 'TryStatement') return true
+    const isFunc = a.type === 'ArrowFunctionExpression' || a.type === 'FunctionExpression'
+    if (isFunc && i > 0 && ancestors[i - 1]?.type === 'CallExpression') return true
+  }
+  return false
+}
+
+const getCacheCrudTable = (node: CallNode): string | undefined => {
+  if (node.arguments.length < 1) return
+  const [arg] = node.arguments
+  if (arg?.type !== 'ObjectExpression') return
+  const obj = arg as BaseNode & { properties: (BaseNode & { key: BaseNode; value: BaseNode })[] }
+  for (const p of obj.properties)
+    if (p.type === 'Property' && getIdentName(p.key) === 'table') return getLiteralString(p.value)
+}
+
 const getComponentKind = (node: JsxNode): string | undefined =>
   node.name?.type === 'JSXIdentifier' && node.name.name ? componentToKind[node.name.name] : undefined
 
@@ -461,15 +484,119 @@ const formFieldKind = {
   }
 }
 
+const discoveryCheck = {
+  create: (context: EslintContext) => {
+    if (discoveryWarned) return {}
+    const hasConvex = getModules(context.cwd).length > 0
+    const hasSchema = parseSchemaFile(context.cwd).size > 0
+    if (hasConvex && hasSchema) return {}
+    discoveryWarned = true
+    const parts: string[] = []
+    if (!hasConvex) parts.push('convex/ directory')
+    if (!hasSchema) parts.push('schema file')
+    return {
+      Program: (node: BaseNode) => {
+        context.report({
+          data: { missing: parts.join(' and ') },
+          messageId: 'discoveryFailed',
+          node
+        })
+      }
+    }
+  },
+  meta: {
+    messages: {
+      discoveryFailed:
+        'lazyconvex: could not find {{missing}} (searched ./convex/ and ./packages/*/convex/). Some rules are inactive.'
+    },
+    type: 'suggestion' as const
+  }
+}
+
+const noDuplicateCrud = {
+  create: (context: EslintContext) => ({
+    CallExpression: (node: CallNode) => {
+      const callee = getIdentName(node.callee)
+      if (!(callee && (crudFactories.has(callee) || callee === 'cacheCrud'))) return
+      if (node.arguments.length < 1) return
+      const [first] = node.arguments
+      if (!first) return
+      const tableName = callee === 'cacheCrud' ? getCacheCrudTable(node) : getLiteralString(first)
+      if (!tableName) return
+      const prev = seenCrudTables.get(tableName)
+      if (prev) return context.report({ data: { file: prev, table: tableName }, messageId: 'duplicateCrud', node: first })
+      seenCrudTables.set(
+        tableName,
+        context.filename.startsWith(context.cwd) ? context.filename.slice(context.cwd.length + 1) : context.filename
+      )
+    }
+  }),
+  meta: {
+    messages: {
+      duplicateCrud: "Duplicate CRUD factory for table '{{table}}'. Already registered in {{file}}."
+    },
+    type: 'problem' as const
+  }
+}
+
+const noRawFetchInServerComponent = {
+  create: (context: EslintContext) => ({
+    CallExpression: (node: CallNode) => {
+      const callee = getIdentName(node.callee)
+      if (!(callee && convexFetchFns.has(callee))) return
+      const src = context as unknown as { sourceCode: { getAncestors: (n: BaseNode) => BaseNode[] } }
+      if (isInsideTryBlock(src.sourceCode.getAncestors(node))) return
+      context.report({ data: { fn: callee }, messageId: 'unhandledFetch', node })
+    }
+  }),
+  meta: {
+    messages: {
+      unhandledFetch:
+        '{{fn}}() without try-catch. If the query fails, the page crashes. Wrap in try-catch or use an error-handling wrapper.'
+    },
+    type: 'suggestion' as const
+  }
+}
+
+const requireErrorBoundary = {
+  create: (context: EslintContext) => {
+    const providerNodes: BaseNode[] = []
+    let hasErrorBoundary = false
+    return {
+      JSXOpeningElement: (node: JsxNode) => {
+        const name = node.name?.type === 'JSXIdentifier' ? node.name.name : undefined
+        if (!name) return
+        if (name.includes('ConvexProvider')) providerNodes.push(node as unknown as BaseNode)
+        if (name.includes('ErrorBoundary')) hasErrorBoundary = true
+      },
+      'Program:exit': () => {
+        if (providerNodes.length > 0 && !hasErrorBoundary)
+          for (const n of providerNodes) context.report({ messageId: 'missingErrorBoundary', node: n })
+      }
+    }
+  },
+  meta: {
+    messages: {
+      missingErrorBoundary:
+        '<ConvexProvider> without an error boundary. Wrap with an ErrorBoundary to handle Convex errors gracefully.'
+    },
+    type: 'suggestion' as const
+  }
+}
+
 const rules = {
   'api-casing': apiCasing,
   'consistent-crud-naming': consistentCrudNaming,
+  'discovery-check': discoveryCheck,
   'form-field-exists': formFieldExists,
   'form-field-kind': formFieldKind,
+  'no-duplicate-crud': noDuplicateCrud,
+  'no-raw-fetch-in-server-component': noRawFetchInServerComponent,
   'no-unsafe-api-cast': noUnsafeApiCast,
   'prefer-useList': preferUseList,
   'prefer-useOrgQuery': preferUseOrgQuery,
-  'require-connection': requireConnection
+  'require-connection': requireConnection,
+  'require-error-boundary': requireErrorBoundary
 }
 
 const plugin = { rules }
@@ -482,12 +609,16 @@ const recommended = {
   rules: {
     'lazyconvex/api-casing': 'error' as const,
     'lazyconvex/consistent-crud-naming': 'error' as const,
+    'lazyconvex/discovery-check': 'warn' as const,
     'lazyconvex/form-field-exists': 'error' as const,
     'lazyconvex/form-field-kind': 'warn' as const,
+    'lazyconvex/no-duplicate-crud': 'error' as const,
+    'lazyconvex/no-raw-fetch-in-server-component': 'warn' as const,
     'lazyconvex/no-unsafe-api-cast': 'warn' as const,
     'lazyconvex/prefer-useList': 'warn' as const,
     'lazyconvex/prefer-useOrgQuery': 'warn' as const,
-    'lazyconvex/require-connection': 'error' as const
+    'lazyconvex/require-connection': 'error' as const,
+    'lazyconvex/require-error-boundary': 'warn' as const
   }
 }
 

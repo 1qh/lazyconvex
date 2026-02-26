@@ -1,3 +1,13 @@
+type RemoveIndexSignature<T> = {
+  [K in keyof T as string extends K ? never : number extends K ? never : symbol extends K ? never : K]: T[K]
+}
+
+type StrictApi<T> = RemoveIndexSignature<{
+  [K in keyof T]: T[K] extends Record<string, unknown> ? StrictApi<T[K]> : T[K]
+}>
+
+const strictApi = <T>(a: T): StrictApi<T> => a as unknown as StrictApi<T>
+
 export type { Api, ConflictData, FieldKind, FieldMeta, FieldMetaMap, FormReturn } from './react/form'
 export type { OrgContextValue, OrgDoc, OrgProviderProps } from './react/org'
 export type { SoftDeleteOpts, ToastFn } from './react/use-soft-delete'
@@ -40,3 +50,6 @@ export type {
   WithUrls
 } from './server/types'
 export type { CvMeta, DefType, ZodSchema } from './zod'
+
+export type { StrictApi }
+export { strictApi }

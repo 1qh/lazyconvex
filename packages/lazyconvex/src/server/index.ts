@@ -6,6 +6,7 @@ export {
   err,
   extractErrorData,
   getErrorCode,
+  getErrorDetail,
   getErrorMessage,
   handleConvexError,
   isRecord,

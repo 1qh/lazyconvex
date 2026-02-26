@@ -71,8 +71,11 @@ const TOKEN_BYTES = 24,
   detectFiles = <S extends ZodRawShape>(s: S) => (Object.keys(s) as (keyof S & string)[]).filter(k => cvFileKindOf(s[k])),
   err = (code: ErrorCode, opts?: string | { message: string }): never => {
     if (!opts) throw new ConvexError({ code })
-    if (typeof opts === 'string') throw new ConvexError({ code, debug: opts })
-    throw new ConvexError({ code, ...opts })
+    if (typeof opts !== 'string') throw new ConvexError({ code, ...opts })
+    const sep = opts.indexOf(':')
+    throw sep > 0
+      ? new ConvexError({ code, debug: opts, op: opts.slice(sep + 1), table: opts.slice(0, sep) })
+      : new ConvexError({ code, debug: opts })
   },
   noFetcher = (): never => err('NO_FETCHER'),
   time = () => ({ updatedAt: Date.now() }),
@@ -247,6 +250,8 @@ interface ConvexErrorData {
   debug?: string
   fields?: string[]
   message?: string
+  op?: string
+  table?: string
 }
 
 type ErrorHandler = Partial<Record<ErrorCode, (data: ConvexErrorData) => void>> & {
@@ -263,7 +268,9 @@ const extractErrorData = (e: unknown): ConvexErrorData | undefined => {
       code: code as ErrorCode,
       debug: typeof data.debug === 'string' ? data.debug : undefined,
       fields: Array.isArray(data.fields) ? (data.fields as string[]) : undefined,
-      message: typeof data.message === 'string' ? data.message : undefined
+      message: typeof data.message === 'string' ? data.message : undefined,
+      op: typeof data.op === 'string' ? data.op : undefined,
+      table: typeof data.table === 'string' ? data.table : undefined
     }
   },
   getErrorCode = (e: unknown): ErrorCode | undefined => extractErrorData(e)?.code,
@@ -272,6 +279,12 @@ const extractErrorData = (e: unknown): ConvexErrorData | undefined => {
     if (d) return d.message ?? ERROR_MESSAGES[d.code]
     if (e instanceof Error) return e.message
     return 'Unknown error'
+  },
+  getErrorDetail = (e: unknown): string => {
+    const d = extractErrorData(e)
+    if (!d) return e instanceof Error ? e.message : 'Unknown error'
+    const base = d.message ?? ERROR_MESSAGES[d.code]
+    return d.table ? `${base} [${d.table}${d.op ? `:${d.op}` : ''}]` : base
   },
   handleConvexError = (e: unknown, handlers: ErrorHandler): void => {
     const d = extractErrorData(e)
@@ -327,6 +340,7 @@ export {
   extractErrorData,
   generateToken,
   getErrorCode,
+  getErrorDetail,
   getErrorMessage,
   getUser,
   groupList,
