@@ -4,11 +4,58 @@ Zod schema → fullstack app. One schema, zero boilerplate.
 
 Define a Zod schema once → authenticated CRUD endpoints, typesafe forms with file upload, real-time queries, pagination, search, conflict detection, soft delete, rate limiting, org multi-tenancy with ACL — all generated. Ship a production app in minutes, not days.
 
-## 445 Lines → 87 Endpoints
+## Before / After
 
-The entire backend for 4 production apps — blog, chat, org collaboration, and movie search — is **445 lines of consumer code**. That's schemas, setup, and endpoint files combined. Those 445 lines produce **87 fully typed, authenticated, rate-limited endpoints**.
+A typical user-owned CRUD in raw Convex:
 
-Here's a blog backend. The whole thing:
+```tsx
+export const list = query({
+  args: { paginationOpts: paginationOptsValidator },
+  handler: async (ctx, { paginationOpts }) => {
+    const userId = await getAuthUserId(ctx)
+    if (!userId) throw new Error('Not authenticated')
+    return ctx.db.query('blog')
+      .withIndex('by_userId', q => q.eq('userId', userId))
+      .order('desc')
+      .paginate(paginationOpts)
+  }
+})
+
+export const create = mutation({
+  args: { title: v.string(), content: v.string(), category: v.string(), published: v.boolean() },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx)
+    if (!userId) throw new Error('Not authenticated')
+    return ctx.db.insert('blog', { ...args, userId, updatedAt: Date.now() })
+  }
+})
+
+export const update = mutation({
+  args: { id: v.id('blog'), title: v.optional(v.string()), content: v.optional(v.string()) },
+  handler: async (ctx, { id, ...fields }) => {
+    const userId = await getAuthUserId(ctx)
+    if (!userId) throw new Error('Not authenticated')
+    const doc = await ctx.db.get(id)
+    if (!doc || doc.userId !== userId) throw new Error('Not found')
+    await ctx.db.patch(id, { ...fields, updatedAt: Date.now() })
+  }
+})
+
+export const rm = mutation({
+  args: { id: v.id('blog') },
+  handler: async (ctx, { id }) => {
+    const userId = await getAuthUserId(ctx)
+    if (!userId) throw new Error('Not authenticated')
+    const doc = await ctx.db.get(id)
+    if (!doc || doc.userId !== userId) throw new Error('Not found')
+    await ctx.db.delete(id)
+  }
+})
+```
+
+~50 lines for 4 endpoints. No validation, no pagination options, no file cleanup, no rate limiting, no conflict detection.
+
+With lazyconvex:
 
 ```tsx
 export const {
@@ -18,7 +65,11 @@ export const {
 } = crud('blog', owned.blog, { rateLimit: { max: 10, window: 60_000 }, search: 'content' })
 ```
 
-11 lines. 8 production endpoints. Each one includes auth + ownership, Zod validation, file upload with auto-cleanup, cursor-based pagination, sliding-window rate limiting, conflict detection, author enrichment, and where-clause filtering. You'd write ~200 lines of raw Convex to get the same thing.
+3 lines. 8 endpoints. Auth, ownership, Zod validation, file upload with auto-cleanup, cursor-based pagination, sliding-window rate limiting, conflict detection, author enrichment, and where-clause filtering — all included.
+
+## 445 Lines → 87 Endpoints
+
+The entire backend for 4 production apps — blog, chat, org collaboration, and movie search — is **445 lines of consumer code**. That's schemas, setup, and endpoint files combined. Those 445 lines produce **87 fully typed, authenticated, rate-limited endpoints**.
 
 Here's a full org-scoped CRUD with per-item editor permissions and soft delete:
 
@@ -204,3 +255,19 @@ bunx lazyconvex-codegen-swift --schema packages/be/t.ts --convex packages/be/con
 | [Testing](docs/testing.md) | makeTestAuth, makeOrgTestCrud, convex-test patterns |
 | [API Reference](docs/api-reference.md) | All exports, error codes, file upload, rate limiting, known limitations |
 | [Migration](docs/migration.md) | Incremental adoption, convert one table at a time, coexistence with raw Convex |
+| [Schema Evolution](docs/schema-evolution.md) | Adding, renaming, removing fields, type changes, deployment strategies |
+
+## Contributing
+
+The library is independently testable without the demo apps:
+
+```bash
+cd packages/lazyconvex
+bun test          # 396 library-only tests, no Convex needed
+bun lint          # library-scoped linting
+bun typecheck     # library-only type checking
+```
+
+Repo-wide commands (`bun fix`, `bun test:all`) include all 4 demo apps and take longer. For library-only changes, the commands above are sufficient.
+
+Run `bunx lazyconvex-check` from any consumer project to validate schema/factory consistency.
