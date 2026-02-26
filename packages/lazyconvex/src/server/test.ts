@@ -1,11 +1,11 @@
-/* eslint-disable no-await-in-loop, max-depth, max-statements, @typescript-eslint/max-params, @typescript-eslint/no-unnecessary-condition, @typescript-eslint/prefer-nullish-coalescing, no-console */
-/** biome-ignore-all lint/complexity/useMaxParams: x */
+/** biome-ignore-all lint/complexity/useMaxParams: test helpers */
 /** biome-ignore-all lint/performance/noAwaitInLoops: sequential deletes */
-import { readdirSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+/* eslint-disable no-await-in-loop, max-depth, max-statements, @typescript-eslint/max-params, @typescript-eslint/no-unnecessary-condition, @typescript-eslint/prefer-nullish-coalescing */
 import type { GenericDataModel, MutationBuilder, QueryBuilder } from 'convex/server'
 
 import { v } from 'convex/values'
+import { readdirSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 
 import type { DbLike, Rec } from './types'
 
@@ -843,5 +843,43 @@ const checkAclPermission = (doc: Rec, userId: string, membership: { isAdmin: boo
     return modules
   }
 
-export type { OrgTestCrudConfig, TestAuthConfig }
-export { discoverModules, getOrgMembership, isTestMode, makeOrgTestCrud, makeTestAuth, TEST_EMAIL }
+interface TestUser {
+  email: string
+  name: string
+}
+
+const DEFAULT_USERS: TestUser[] = [
+    { email: 'test@example.com', name: 'Test User' },
+    { email: 'other@example.com', name: 'Other User' },
+    { email: 'editor@example.com', name: 'Editor User' }
+  ],
+  createTestContext = async (
+    ctx: {
+      run: (fn: (c: { db: DbLike }) => Promise<unknown>) => Promise<unknown>
+      withIdentity: (i: { subject: string; tokenIdentifier: string }) => unknown
+    },
+    users?: TestUser[]
+  ) => {
+    const userList = users ?? DEFAULT_USERS,
+      ids: string[] = []
+    for (const u of userList) {
+      const id = (await ctx.run(async (c: { db: DbLike }) => {
+        const existing = await c.db
+          .query('users')
+          .filter(flt(q => q.eq(q.field('email'), u.email)))
+          .first()
+        if (existing) return existing._id as string
+        return c.db.insert('users', { ...u, emailVerificationTime: Date.now() }) as unknown as string
+      })) as string
+      ids.push(id)
+    }
+    const asUser = (index = 0) => {
+      const uid = ids[index]
+      if (!uid) throw new Error(`No user at index ${String(index)}`)
+      return ctx.withIdentity({ subject: uid, tokenIdentifier: `test|${uid}` })
+    }
+    return { asUser, userIds: ids }
+  }
+
+export type { OrgTestCrudConfig, TestAuthConfig, TestUser }
+export { createTestContext, discoverModules, getOrgMembership, isTestMode, makeOrgTestCrud, makeTestAuth, TEST_EMAIL }
