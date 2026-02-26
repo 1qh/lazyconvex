@@ -10,6 +10,7 @@ import { dirname, join } from 'node:path'
 import type { DbLike, Rec } from './types'
 
 import { flt, idx } from './bridge'
+import { isTestMode } from './env'
 import { generateToken, SEVEN_DAYS_MS, time } from './helpers'
 
 interface TestAuthConfig<DM extends GenericDataModel = GenericDataModel> {
@@ -21,7 +22,6 @@ interface TestAuthConfig<DM extends GenericDataModel = GenericDataModel> {
 const TEST_EMAIL = 'test@playwright.local',
   BATCH_SIZE = 50,
   EXPIRED_OFFSET_MS = 1000,
-  isTestMode = () => process.env.CONVEX_TEST_MODE === 'true',
   getOrgMembership = async (db: DbLike, orgId: string, userId: string) => {
     const orgDoc = await db.get(orgId)
     if (!orgDoc) return null

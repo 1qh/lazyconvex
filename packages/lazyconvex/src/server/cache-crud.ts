@@ -11,6 +11,7 @@ import type { ActionCtxLike, CacheBuilders, CacheCrudResult, DbCtx, RateLimitCon
 
 import { BULK_MAX } from '../constants'
 import { flt, idx as idxBridge, typed } from './bridge'
+import { isTestMode } from './env'
 import {
   checkRateLimit,
   dbDelete,
@@ -23,7 +24,6 @@ import {
   SEVEN_DAYS_MS,
   time
 } from './helpers'
-import { isTestMode } from './test'
 
 const makeCacheCrud = <S extends ZodRawShape, K extends string, DM extends GenericDataModel = GenericDataModel>({
   builders: b,

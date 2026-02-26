@@ -24,6 +24,7 @@ import type {
 
 import { BULK_MAX } from '../constants'
 import { flt, idx, typed } from './bridge'
+import { isTestMode } from './env'
 import {
   addUrls,
   checkRateLimit,
@@ -37,7 +38,6 @@ import {
   pgOpts,
   time
 } from './helpers'
-import { isTestMode } from './test'
 
 const ROLE_LEVEL: Record<OrgRole, number> = { admin: 2, member: 1, owner: 3 },
   getOrgRole = ({

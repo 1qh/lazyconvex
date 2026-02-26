@@ -9,7 +9,7 @@ bun add -d convex-test
 ```
 
 ```tsx
-import { makeTestAuth } from 'lazyconvex/server'
+import { makeTestAuth } from 'lazyconvex/test'
 import { getAuthUserId } from '@convex-dev/auth/server'
 import { mutation, query } from './_generated/server'
 
@@ -52,7 +52,7 @@ describe('blog CRUD', () => {
 `makeOrgTestCrud` creates test helpers for org tables with membership and ACL checks:
 
 ```tsx
-import { makeOrgTestCrud } from 'lazyconvex/server'
+import { makeOrgTestCrud } from 'lazyconvex/test'
 
 export const wikiTest = makeOrgTestCrud({
   acl: true,

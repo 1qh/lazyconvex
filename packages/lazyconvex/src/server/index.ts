@@ -28,4 +28,3 @@ export {
   uploadTables
 } from './schema-helpers'
 export { setup } from './setup'
-export { createTestContext, discoverModules, getOrgMembership, makeOrgTestCrud, makeTestAuth } from './test'

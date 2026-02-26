@@ -7,8 +7,8 @@ import type { DbLike, ErrorCode, FilterLike, Rec } from './types'
 
 import { BYTES_PER_MB } from '../constants'
 import { idx } from './bridge'
+import { isTestMode } from './env'
 import { log } from './helpers'
-import { isTestMode } from './test'
 
 interface FileActionCtx {
   runMutation: (...a: unknown[]) => Promise<unknown>

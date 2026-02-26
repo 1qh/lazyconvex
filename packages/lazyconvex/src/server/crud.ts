@@ -24,6 +24,7 @@ import type {
 
 import { BULK_MAX } from '../constants'
 import { idx, sch, typed } from './bridge'
+import { isTestMode } from './env'
 import {
   addUrls,
   checkRateLimit,
@@ -40,7 +41,6 @@ import {
   pgOpts,
   warnLargeFilterSet
 } from './helpers'
-import { isTestMode } from './test'
 
 interface CrudMCtx extends MutCtx {
   create: (t: string, d: Rec) => Promise<string>
