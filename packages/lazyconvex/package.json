@@ -40,6 +40,7 @@
     "./test": "./src/server/test.ts"
   },
   "bin": {
+    "create-lazyconvex-app": "./src/create.ts",
     "lazyconvex-check": "./src/check.ts",
     "lazyconvex-codegen-swift": "./src/codegen-swift.ts"
   },
