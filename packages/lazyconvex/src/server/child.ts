@@ -1,10 +1,14 @@
+/* eslint-disable no-await-in-loop, no-continue, max-statements */
+// biome-ignore-all lint/performance/noAwaitInLoops: x
+// biome-ignore-all lint/nursery/noContinue: x
 import type { ZodObject, ZodRawShape } from 'zod/v4'
 
 import { zid } from 'convex-helpers/server/zod4'
-import { number } from 'zod/v4'
+import { array, number } from 'zod/v4'
 
 import type { BaseBuilders, ChildCrudResult, CrudHooks, DbReadLike, HookCtx, MutCtx, Rec, UserCtx } from './types'
 
+import { BULK_MAX } from '../constants'
 import { idx, typed } from './bridge'
 import { cleanFiles, dbDelete, dbInsert, dbPatch, detectFiles, err, pickFields, time } from './helpers'
 
@@ -49,6 +53,7 @@ const chk = (ctx: UserCtx): HookCtx => ({
       partial = schema.partial(),
       fileFs = detectFiles(schema.shape),
       idArgs = { id: zid(table) },
+      bulkIdsSchema = array(zid(table)).max(BULK_MAX),
       // oxlint-disable-next-line unicorn/consistent-function-scoping
       verifyParentOwnership = async (ctx: UserCtx, parentId: string) => {
         const p = await ctx.db.get(parentId)
@@ -95,6 +100,64 @@ const chk = (ctx: UserCtx): HookCtx => ({
           await cleanFiles({ doc, fileFields: fileFs, storage: ctx.storage })
           if (hooks?.afterDelete) await hooks.afterDelete(chk(ctx), { doc, id })
           return doc
+        })
+      }),
+      bulkCreate = m({
+        args: { [foreignKey]: zid(parent), items: array(schema).max(BULK_MAX) },
+        handler: typed(async (ctx: UserCtx, a: Rec) => {
+          const parentId = a[foreignKey] as string,
+            items = a.items as Rec[]
+          if (items.length > 100) return err('LIMIT_EXCEEDED', `${table}:bulkCreate`)
+          if (!(await verifyParentOwnership(ctx, parentId))) return err('NOT_FOUND', `${table}:bulkCreate`)
+          const ids: string[] = []
+          for (const item of items) {
+            let data = schema.parse(pickFields(item, schemaKeys)) as Rec
+            if (hooks?.beforeCreate) data = await hooks.beforeCreate(chk(ctx), { data })
+            const id = await dbInsert(ctx.db, table, { ...data, [foreignKey]: parentId, ...time() })
+            if (hooks?.afterCreate) await hooks.afterCreate(chk(ctx), { data, id })
+            ids.push(id)
+          }
+          return ids
+        })
+      }),
+      bulkRm = m({
+        args: { ids: bulkIdsSchema },
+        handler: typed(async (ctx: MutCtx, a: Rec) => {
+          const ids = a.ids as string[]
+          if (ids.length > 100) return err('LIMIT_EXCEEDED', `${table}:bulkRm`)
+          let deleted = 0
+          for (const id of ids) {
+            const doc = await ctx.db.get(id)
+            if (!doc) continue
+            if (!(await verifyParentOwnership(ctx, getFK(doc)))) continue
+            if (hooks?.beforeDelete) await hooks.beforeDelete(chk(ctx), { doc, id })
+            await dbDelete(ctx.db, id)
+            await cleanFiles({ doc, fileFields: fileFs, storage: ctx.storage })
+            if (hooks?.afterDelete) await hooks.afterDelete(chk(ctx), { doc, id })
+            deleted += 1
+          }
+          return deleted
+        })
+      }),
+      bulkUpdate = m({
+        args: { data: partial, ids: bulkIdsSchema },
+        handler: typed(async (ctx: MutCtx, a: Rec) => {
+          const { data, ids } = a as { data: Rec; ids: string[] }
+          if (ids.length > 100) return err('LIMIT_EXCEEDED', `${table}:bulkUpdate`)
+          const results: Rec[] = []
+          for (const id of ids) {
+            const doc = await ctx.db.get(id)
+            if (!doc) continue
+            if (!(await verifyParentOwnership(ctx, getFK(doc)))) continue
+            let patch = partial.parse(pickFields(data, schemaKeys)) as Rec
+            if (hooks?.beforeUpdate) patch = await hooks.beforeUpdate(chk(ctx), { id, patch, prev: doc })
+            const now = time()
+            await cleanFiles({ doc, fileFields: fileFs, next: patch, storage: ctx.storage })
+            await dbPatch(ctx.db, id, { ...patch, ...now })
+            if (hooks?.afterUpdate) await hooks.afterUpdate(chk(ctx), { id, patch, prev: doc })
+            results.push({ ...doc, ...patch, ...now })
+          }
+          return results
         })
       }),
       list = q({
@@ -153,7 +216,17 @@ const chk = (ctx: UserCtx): HookCtx => ({
               })
             }
           : undefined
-    return { create, get, list, ...(pub ? { pub } : {}), rm, update } as unknown as ChildCrudResult<S>
+    return {
+      bulkCreate,
+      bulkRm,
+      bulkUpdate,
+      create,
+      get,
+      list,
+      ...(pub ? { pub } : {}),
+      rm,
+      update
+    } as unknown as ChildCrudResult<S>
   }
 
 export { makeChildCrud }

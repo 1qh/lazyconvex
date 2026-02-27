@@ -315,6 +315,22 @@ const hk = (c: CrudMCtx): HookCtx => ({ db: c.db, storage: c.storage, userId: c.
         args: { index: string(), key: string(), value: string(), ...wArgs },
         handler: typed(indexedH(defaults.auth))
       }),
+      bulkCreate: m({
+        args: { items: array(schema).max(BULK_MAX) },
+        handler: typed(async (c: CrudMCtx, a: Rec) => {
+          const items = a.items as Rec[]
+          if (items.length > 100) return err('LIMIT_EXCEEDED', `${table}:bulkCreate`)
+          const ids: string[] = []
+          for (const item of items) {
+            let data = item
+            if (hooks?.beforeCreate) data = await hooks.beforeCreate(hk(c), { data })
+            const id = await c.create(table, data)
+            if (hooks?.afterCreate) await hooks.afterCreate(hk(c), { data, id })
+            ids.push(id)
+          }
+          return ids
+        })
+      }),
       bulkRm: m({
         args: { ids: bulkIdsSchema },
         handler: typed(async (c: CrudMCtx, { ids }: { ids: string[] }) => {

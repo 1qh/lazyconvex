@@ -177,6 +177,9 @@ interface CanEditOpts {
   userId: string
 }
 interface ChildCrudResult<S extends ZodRawShape> {
+  bulkCreate: RegisteredMutation<'public', Rec, string[]>
+  bulkRm: RegisteredMutation<'public', Rec, number>
+  bulkUpdate: RegisteredMutation<'public', Rec, DocBase<S>[]>
   create: RegisteredMutation<'public', Rec, string>
   get: RegisteredQuery<'public', Rec, DocBase<S> | null>
   list: RegisteredQuery<'public', Rec, DocBase<S>[]>
@@ -199,6 +202,7 @@ interface CrudResult<S extends ZodRawShape> {
     { index: string; key: string; value: string; where?: WhereOf<S> },
     EnrichedDoc<S>[]
   >
+  bulkCreate: RegisteredMutation<'public', { items: _.output<ZodObject<S>>[] }, string[]>
   bulkRm: RegisteredMutation<'public', { ids: string[] }, number>
   bulkUpdate: RegisteredMutation<'public', { data: Partial<_.output<ZodObject<S>>>; ids: string[] }, unknown[]>
   create: RegisteredMutation<'public', _.output<ZodObject<S>>, string>
@@ -272,6 +276,7 @@ type OrgCascadeTableConfig<DM extends GenericDataModel = GenericDataModel> =
   | { fileFields?: string[]; table: keyof DM & string }
 interface OrgCrudResult<S extends ZodRawShape> {
   addEditor: RegisteredMutation<'public', Rec, DocBase<S> | null>
+  bulkCreate: RegisteredMutation<'public', Rec, string[]>
   bulkRm: RegisteredMutation<'public', Rec, number>
   bulkUpdate: RegisteredMutation<'public', Rec, DocBase<S>[]>
   create: RegisteredMutation<'public', Rec, string>

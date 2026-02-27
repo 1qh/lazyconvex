@@ -494,7 +494,7 @@ After any significant refactoring, verify `api.blog.update({ typoField: ... })` 
 
 ### What codegen CAN know (from its own library code)
 
-- Factory patterns: `crud()` always produces `list`, `read`, `create`, `update`, `rm`, `bulkRm`, `bulkUpdate`
+- Factory patterns: `crud()` always produces `list`, `read`, `create`, `update`, `rm`, `bulkCreate`, `bulkRm`, `bulkUpdate`
 - `orgCrud()` with `acl: true` always produces `addEditor`, `removeEditor`, `setEditors`, `editors`
 - `pub` option always produces `pub.list`, `pub.read` (or `pub.list`, `pub.get` for child)
 - `softDelete` always produces `restore`

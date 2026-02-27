@@ -260,6 +260,23 @@ const getEditors = (doc: Rec): string[] => (doc.editors as string[] | undefined)
           return doc
         })
       }),
+      bulkCreate = m({
+        args: { ...orgIdArg, items: array(schema).max(BULK_MAX) },
+        handler: typed(async (c: MutCtx, a: Rec) => {
+          const { items, orgId } = a as { items: Rec[]; orgId: string }
+          if (items.length > 100) return err('LIMIT_EXCEEDED', `${table}:bulkCreate`)
+          await requireOrgMember({ db: c.db, orgId, userId: c.user._id as string })
+          const ids: string[] = []
+          for (const item of items) {
+            let data = item
+            if (hooks?.beforeCreate) data = await hooks.beforeCreate(ohk(c), { data })
+            const id = await dbInsert(c.db, table, { ...data, orgId, userId: c.user._id, ...time() })
+            if (hooks?.afterCreate) await hooks.afterCreate(ohk(c), { data, id })
+            ids.push(id)
+          }
+          return ids
+        })
+      }),
       bulkUpdate = m({
         args: { ...orgIdArg, data: partial, ids: bulkIdsSchema },
         handler: typed(async (c: MutCtx, a: Rec) => {
@@ -320,7 +337,7 @@ const getEditors = (doc: Rec): string[] => (doc.editors as string[] | undefined)
             })
           })
         : undefined,
-      base = { bulkRm, bulkUpdate, create, list, read, restore, rm, update },
+      base = { bulkCreate, bulkRm, bulkUpdate, create, list, read, restore, rm, update },
       itemIdKey = `${table}Id` as const,
       itemIdArg = { [itemIdKey]: zid(table) },
       aclArgs = (a: unknown) => {

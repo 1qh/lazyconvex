@@ -11,11 +11,14 @@ import type { OrgCrudOptions } from '../server/org-crud'
 import type {
   BaseSchema,
   CascadeOption,
+  ChildCrudResult,
   CrudHooks,
   CrudOptions,
+  CrudResult,
   ErrorCode,
   HookCtx,
   OrgCascadeTableConfig,
+  OrgCrudResult,
   OrgSchema,
   OwnedSchema,
   RateLimitConfig,
@@ -3242,6 +3245,7 @@ describe('lazyconvex-check --endpoints', () => {
     expect(eps).toContain('rm')
     expect(eps).toContain('bulkRm')
     expect(eps).toContain('bulkUpdate')
+    expect(eps).toContain('bulkCreate')
     expect(eps).toContain('pub.list')
     expect(eps).toContain('pub.read')
   })
@@ -3263,6 +3267,9 @@ describe('lazyconvex-check --endpoints', () => {
     expect(eps).toContain('create')
     expect(eps).toContain('update')
     expect(eps).toContain('rm')
+    expect(eps).toContain('bulkCreate')
+    expect(eps).toContain('bulkRm')
+    expect(eps).toContain('bulkUpdate')
   })
 
   test('orgCrud with acl adds editor endpoints', () => {
@@ -3292,6 +3299,9 @@ describe('lazyconvex-check --endpoints', () => {
     expect(eps).toContain('create')
     expect(eps).toContain('update')
     expect(eps).toContain('rm')
+    expect(eps).toContain('bulkCreate')
+    expect(eps).toContain('bulkRm')
+    expect(eps).toContain('bulkUpdate')
   })
 
   test('childCrud with pub adds pub.list and pub.get', () => {
@@ -3776,5 +3786,96 @@ describe('security ESLint rules', () => {
 
   test('no-unlimited-file-size is warn level in recommended', () => {
     expect(eslintRecommended.rules['lazyconvex/no-unlimited-file-size']).toBe('warn')
+  })
+})
+
+describe('bulk operations', () => {
+  const blogSchema = object({
+    content: string(),
+    published: boolean(),
+    title: string()
+  })
+
+  test('CrudResult includes bulkCreate', () => {
+    expect(blogSchema.shape).toBeDefined()
+    type R = CrudResult<typeof blogSchema.shape>
+    type HasBulkCreate = 'bulkCreate' extends keyof R ? true : false
+    const _check: HasBulkCreate = true
+    expect(_check).toBe(true)
+  })
+
+  test('OrgCrudResult includes bulkCreate', () => {
+    type R = OrgCrudResult<typeof blogSchema.shape>
+    type HasBC = 'bulkCreate' extends keyof R ? true : false
+    const _exists: HasBC = true
+    expect(_exists).toBe(true)
+  })
+
+  test('ChildCrudResult includes bulkCreate, bulkRm, and bulkUpdate', () => {
+    type R = ChildCrudResult<typeof blogSchema.shape>
+    type HasBC = 'bulkCreate' extends keyof R ? true : false
+    type HasBR = 'bulkRm' extends keyof R ? true : false
+    type HasBU = 'bulkUpdate' extends keyof R ? true : false
+    const _bcExists: HasBC = true,
+      _brExists: HasBR = true,
+      _buExists: HasBU = true
+    expect(_bcExists).toBe(true)
+    expect(_brExists).toBe(true)
+    expect(_buExists).toBe(true)
+  })
+
+  test('endpointsForFactory includes bulkCreate for crud', () => {
+    const eps = endpointsForFactory({ factory: 'crud', file: 'test.ts', options: '', table: 'test' })
+    expect(eps).toContain('bulkCreate')
+    expect(eps).toContain('bulkRm')
+    expect(eps).toContain('bulkUpdate')
+  })
+
+  test('endpointsForFactory includes bulkCreate for orgCrud', () => {
+    const eps = endpointsForFactory({ factory: 'orgCrud', file: 'test.ts', options: '', table: 'test' })
+    expect(eps).toContain('bulkCreate')
+    expect(eps).toContain('bulkRm')
+    expect(eps).toContain('bulkUpdate')
+  })
+
+  test('endpointsForFactory includes bulk ops for childCrud', () => {
+    const eps = endpointsForFactory({ factory: 'childCrud', file: 'test.ts', options: '', table: 'test' })
+    expect(eps).toContain('bulkCreate')
+    expect(eps).toContain('bulkRm')
+    expect(eps).toContain('bulkUpdate')
+  })
+
+  test('BULK_MAX limits array size to 100', () => {
+    expect(BULK_MAX).toBe(100)
+  })
+
+  test('bulk operations not added to singletonCrud', () => {
+    const eps = endpointsForFactory({ factory: 'singletonCrud', file: 'test.ts', options: '', table: 'test' })
+    expect(eps).not.toContain('bulkCreate')
+    expect(eps).not.toContain('bulkRm')
+    expect(eps).not.toContain('bulkUpdate')
+  })
+
+  test('CrudResult bulkCreate key exists alongside bulkRm', () => {
+    type R = CrudResult<typeof blogSchema.shape>
+    type HasBC = 'bulkCreate' extends keyof R ? true : false
+    type HasBR = 'bulkRm' extends keyof R ? true : false
+    const _bc: HasBC = true,
+      _br: HasBR = true
+    expect(_bc).toBe(true)
+    expect(_br).toBe(true)
+  })
+
+  test('ChildCrudResult has all 3 bulk ops', () => {
+    type R = ChildCrudResult<typeof blogSchema.shape>
+    type HasBC = 'bulkCreate' extends keyof R ? true : false
+    type HasBR = 'bulkRm' extends keyof R ? true : false
+    type HasBU = 'bulkUpdate' extends keyof R ? true : false
+    const _bc: HasBC = true,
+      _br: HasBR = true,
+      _bu: HasBU = true
+    expect(_bc).toBe(true)
+    expect(_br).toBe(true)
+    expect(_bu).toBe(true)
   })
 })
