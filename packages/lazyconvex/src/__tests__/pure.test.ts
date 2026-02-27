@@ -6,8 +6,10 @@ import { ConvexError } from 'convex/values'
 import { array, boolean, date, number, object, optional, string, enum as zenum } from 'zod/v4'
 
 import type { FactoryCall } from '../check'
+import type { MutationType, PendingMutation } from '../react/optimistic-store'
 import type { InfiniteListOptions } from '../react/use-infinite-list'
 import type { UseListOptions } from '../react/use-list'
+import type { MutateOptions } from '../react/use-mutate'
 import type { UseSearchOptions, UseSearchResult } from '../react/use-search'
 import type { OrgCrudOptions } from '../server/org-crud'
 import type {
@@ -60,8 +62,10 @@ import {
 } from '../react/devtools'
 import { makeErrorHandler } from '../react/error-toast'
 import { buildMeta, getMeta } from '../react/form'
+import { createOptimisticStore, makeTempId } from '../react/optimistic-store'
 import { canEditResource } from '../react/org'
 import { DEFAULT_PAGE_SIZE } from '../react/use-list'
+import { applyOptimistic } from '../react/use-list'
 import { DEFAULT_DEBOUNCE_MS, DEFAULT_MIN_LENGTH } from '../react/use-search'
 import { fetchWithRetry, withRetry } from '../retry'
 import { child, cvFile, cvFiles, makeBase, makeOrgScoped, makeOwned, makeSingleton } from '../schema'
@@ -4221,5 +4225,224 @@ describe('global hooks', () => {
       ctx: GlobalHookCtx = { db: {} as GlobalHookCtx['db'], table: 'blog' },
       result = hooks.beforeUpdate?.(ctx, { id: '123', patch: { title: 'new' }, prev: { title: 'old' } })
     expect(result).toEqual({ globalField: true, title: 'new' })
+  })
+})
+
+describe('optimistic store', () => {
+  test('createOptimisticStore starts with empty entries', () => {
+    const store = createOptimisticStore()
+    expect(store.getSnapshot()).toEqual([])
+  })
+
+  test('add pushes entry and notifies subscribers', () => {
+    const store = createOptimisticStore()
+    let notified = 0
+    store.subscribe(() => {
+      notified += 1
+    })
+    store.add({ args: { title: 'test' }, id: '1', tempId: 'temp_1', timestamp: 1000, type: 'create' })
+    expect(store.getSnapshot()).toHaveLength(1)
+    expect(notified).toBe(1)
+  })
+
+  test('remove filters entry by tempId', () => {
+    const store = createOptimisticStore()
+    store.add({ args: {}, id: '1', tempId: 'temp_1', timestamp: 1000, type: 'create' })
+    store.add({ args: {}, id: '2', tempId: 'temp_2', timestamp: 1001, type: 'create' })
+    store.remove('temp_1')
+    expect(store.getSnapshot()).toHaveLength(1)
+    expect(store.getSnapshot()[0]?.tempId).toBe('temp_2')
+  })
+
+  test('subscribe returns unsubscribe function', () => {
+    const store = createOptimisticStore()
+    let notified = 0
+    const unsub = store.subscribe(() => {
+      notified += 1
+    })
+    store.add({ args: {}, id: '1', tempId: 't1', timestamp: 1000, type: 'create' })
+    expect(notified).toBe(1)
+    unsub()
+    store.add({ args: {}, id: '2', tempId: 't2', timestamp: 1001, type: 'create' })
+    expect(notified).toBe(1)
+  })
+
+  test('makeTempId generates unique ids', () => {
+    const id1 = makeTempId(),
+     id2 = makeTempId()
+    expect(id1).not.toBe(id2)
+    expect(id1).toContain('__optimistic_')
+    expect(id2).toContain('__optimistic_')
+  })
+
+  test('multiple subscribers all get notified', () => {
+    const store = createOptimisticStore()
+    let count1 = 0,
+     count2 = 0
+    store.subscribe(() => {
+      count1 += 1
+    })
+    store.subscribe(() => {
+      count2 += 1
+    })
+    store.add({ args: {}, id: '1', tempId: 't1', timestamp: 1000, type: 'create' })
+    expect(count1).toBe(1)
+    expect(count2).toBe(1)
+  })
+})
+
+describe('applyOptimistic', () => {
+  test('returns items unchanged when no pending mutations', () => {
+    const items = [
+      { _id: '1', title: 'a' },
+      { _id: '2', title: 'b' }
+    ]
+    expect(applyOptimistic(items, [])).toBe(items)
+  })
+
+  test('prepends optimistic creates', () => {
+    const items = [{ _id: '1', title: 'existing' }],
+     pending: PendingMutation[] = [
+      { args: { title: 'new' }, id: 'temp_1', tempId: 'temp_1', timestamp: 2000, type: 'create' }
+    ],
+     result = applyOptimistic(items, pending)
+    expect(result).toHaveLength(2)
+    expect(result[0]?.title).toBe('new')
+    expect(result[0]?._id).toBe('temp_1')
+    expect(result[0]?.__optimistic).toBe(true)
+    expect(result[1]?._id).toBe('1')
+  })
+
+  test('filters out optimistic deletes', () => {
+    const items = [
+      { _id: '1', title: 'a' },
+      { _id: '2', title: 'b' }
+    ],
+     pending: PendingMutation[] = [{ args: { id: '1' }, id: '1', tempId: 'temp_d', timestamp: 2000, type: 'delete' }],
+     result = applyOptimistic(items, pending)
+    expect(result).toHaveLength(1)
+    expect(result[0]?._id).toBe('2')
+  })
+
+  test('merges optimistic updates', () => {
+    const items = [{ _id: '1', status: 'draft', title: 'old' }],
+     pending: PendingMutation[] = [
+      { args: { id: '1', title: 'new' }, id: '1', tempId: 'temp_u', timestamp: 2000, type: 'update' }
+    ],
+     result = applyOptimistic(items, pending)
+    expect(result).toHaveLength(1)
+    expect(result[0]?.title).toBe('new')
+    expect(result[0]?.status).toBe('draft')
+    expect(result[0]?._id).toBe('1')
+  })
+
+  test('handles create + delete + update together', () => {
+    const items = [
+      { _id: '1', title: 'keep' },
+      { _id: '2', title: 'remove' },
+      { _id: '3', title: 'update' }
+    ],
+     pending: PendingMutation[] = [
+      { args: { title: 'brand new' }, id: 'temp_c', tempId: 'temp_c', timestamp: 3000, type: 'create' },
+      { args: { id: '2' }, id: '2', tempId: 'temp_d', timestamp: 3001, type: 'delete' },
+      { args: { id: '3', title: 'updated' }, id: '3', tempId: 'temp_u', timestamp: 3002, type: 'update' }
+    ],
+     result = applyOptimistic(items, pending)
+    expect(result).toHaveLength(3)
+    expect(result[0]?.title).toBe('brand new')
+    expect(result[0]?.__optimistic).toBe(true)
+    expect(result[1]?._id).toBe('1')
+    expect(result[2]?.title).toBe('updated')
+  })
+
+  test('multiple updates to same id merge patches', () => {
+    const items = [{ _id: '1', a: 1, b: 2, c: 3 }],
+     pending: PendingMutation[] = [
+      { args: { a: 10, id: '1' }, id: '1', tempId: 't1', timestamp: 1000, type: 'update' },
+      { args: { b: 20, id: '1' }, id: '1', tempId: 't2', timestamp: 1001, type: 'update' }
+    ],
+     result = applyOptimistic(items, pending)
+    expect(result[0]).toEqual({ _id: '1', a: 10, b: 20, c: 3, id: '1' })
+  })
+
+  test('delete of non-existent id is no-op', () => {
+    const items = [{ _id: '1', title: 'a' }],
+     pending: PendingMutation[] = [{ args: { id: '999' }, id: '999', tempId: 'td', timestamp: 1000, type: 'delete' }],
+     result = applyOptimistic(items, pending)
+    expect(result).toHaveLength(1)
+    expect(result[0]?._id).toBe('1')
+  })
+
+  test('update of non-existent id is no-op', () => {
+    const items = [{ _id: '1', title: 'a' }],
+     pending: PendingMutation[] = [
+      { args: { id: '999', title: 'x' }, id: '999', tempId: 'tu', timestamp: 1000, type: 'update' }
+    ],
+     result = applyOptimistic(items, pending)
+    expect(result).toHaveLength(1)
+    expect(result[0]?.title).toBe('a')
+  })
+
+  test('optimistic creates get __optimistic flag and timestamps', () => {
+    const pending: PendingMutation[] = [
+      { args: { title: 'test' }, id: 'tc', tempId: 'tc', timestamp: 5000, type: 'create' }
+    ],
+     result = applyOptimistic([], pending)
+    expect(result[0]?._creationTime).toBe(5000)
+    expect(result[0]?.updatedAt).toBe(5000)
+    expect(result[0]?.__optimistic).toBe(true)
+  })
+
+  test('empty items with creates works', () => {
+    const pending: PendingMutation[] = [
+      { args: { title: 'first' }, id: 't1', tempId: 't1', timestamp: 1000, type: 'create' },
+      { args: { title: 'second' }, id: 't2', tempId: 't2', timestamp: 1001, type: 'create' }
+    ],
+     result = applyOptimistic([], pending)
+    expect(result).toHaveLength(2)
+    expect(result[0]?.title).toBe('second')
+    expect(result[1]?.title).toBe('first')
+  })
+})
+
+describe('optimistic types', () => {
+  test('PendingMutation has required fields', () => {
+    const entry: PendingMutation = {
+      args: { title: 'test' },
+      id: '123',
+      tempId: 'temp_1',
+      timestamp: Date.now(),
+      type: 'create'
+    }
+    expect(entry.type).toBe('create')
+    expect(entry.tempId).toContain('temp')
+  })
+
+  test('MutationType is create | delete | update', () => {
+    const types: MutationType[] = ['create', 'delete', 'update']
+    expect(types).toHaveLength(3)
+  })
+
+  test('MutateOptions accepts optimistic and type', () => {
+    const opts: MutateOptions = { optimistic: false, type: 'update' }
+    expect(opts.optimistic).toBe(false)
+    expect(opts.type).toBe('update')
+  })
+
+  test('MutateOptions fields are all optional', () => {
+    const opts: MutateOptions = {}
+    expect(opts.optimistic).toBeUndefined()
+    expect(opts.type).toBeUndefined()
+  })
+
+  test('UseListOptions accepts optimistic field', () => {
+    const opts: UseListOptions = { optimistic: false, pageSize: 25 }
+    expect(opts.optimistic).toBe(false)
+    expect(opts.pageSize).toBe(25)
+  })
+
+  test('UseListOptions optimistic defaults to true conceptually', () => {
+    const opts: UseListOptions = {}
+    expect(opts.optimistic).toBeUndefined()
   })
 })

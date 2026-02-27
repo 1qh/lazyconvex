@@ -4,9 +4,12 @@ import type { PaginatedQueryArgs, PaginatedQueryReference } from 'convex/react'
 import type { FunctionReturnType } from 'convex/server'
 
 import { usePaginatedQuery } from 'convex/react'
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
+
+import type { PendingMutation } from './optimistic-store'
 
 import { trackSubscription, untrackSubscription, updateSubscription } from './devtools'
+import { usePendingMutations } from './optimistic-store'
 
 type ListItems<F extends PaginatedQueryReference> = FunctionReturnType<F>['page']
 
@@ -14,15 +17,54 @@ type ListRest<F extends PaginatedQueryReference> =
   PaginatedQueryArgs<F> extends Record<string, never>
     ? [args?: PaginatedQueryArgs<F>, options?: UseListOptions]
     : [args: PaginatedQueryArgs<F>, options?: UseListOptions]
+type Rec = Record<string, unknown>
+
 interface UseListOptions {
+  optimistic?: boolean
   pageSize?: number
 }
-const isDev = typeof process !== 'undefined' && process.env.NODE_ENV !== 'production',
+
+const classifyPending = (pending: PendingMutation[]) => {
+    const deleteIds = new Set<string>(),
+      updates = new Map<string, Rec>(),
+      creates: Rec[] = []
+    for (const p of pending) 
+      if (p.type === 'delete') deleteIds.add(p.id)
+      else if (p.type === 'update') {
+        const prev = updates.get(p.id)
+        updates.set(p.id, prev ? { ...prev, ...p.args } : p.args)
+      } else if (p.type === 'create')
+        creates.push({
+          ...p.args,
+          __optimistic: true,
+          _creationTime: p.timestamp,
+          _id: p.tempId,
+          updatedAt: p.timestamp
+        })
+    
+    return { creates, deleteIds, updates }
+  },
+  isDev = typeof process !== 'undefined' && process.env.NODE_ENV !== 'production',
   DEFAULT_PAGE_SIZE = 50,
+  applyOptimistic = <T extends Rec>(items: T[], pending: PendingMutation[]): T[] => {
+    if (pending.length === 0) return items
+    const { creates, deleteIds, updates } = classifyPending(pending)
+    let result = items
+    if (deleteIds.size > 0) result = result.filter(i => !deleteIds.has((i as Rec)._id as string))
+    if (updates.size > 0)
+      result = result.map(i => {
+        const patch = updates.get((i as Rec)._id as string)
+        return patch ? ({ ...i, ...patch, _id: (i as Rec)._id } as T) : i
+      })
+    if (creates.length > 0) result = [...(creates.toReversed() as T[]), ...result]
+    return result
+  },
   useList = <F extends PaginatedQueryReference>(query: F, ...rest: ListRest<F>) => {
     const queryArgs = (rest[0] ?? {}) as unknown as PaginatedQueryArgs<F>,
       pageSize = rest[1]?.pageSize ?? DEFAULT_PAGE_SIZE,
+      isOptimistic = rest[1]?.optimistic !== false,
       { loadMore, results, status } = usePaginatedQuery(query, queryArgs, { initialNumItems: pageSize }),
+      pending = usePendingMutations(),
       subIdRef = useRef<number>(0)
 
     useEffect(() => {
@@ -45,13 +87,18 @@ const isDev = typeof process !== 'undefined' && process.env.NODE_ENV !== 'produc
       updateSubscription(subIdRef.current, devStatus)
     }, [status, results])
 
+    const items = useMemo(
+      () => (isOptimistic ? applyOptimistic(results as Rec[], pending) : results),
+      [isOptimistic, pending, results]
+    )
+
     return {
       isDone: status === 'Exhausted',
-      items: results as ListItems<F>,
+      items: items as ListItems<F>,
       loadMore: (n?: number) => loadMore(n ?? pageSize),
       status
     }
   }
 
 export type { UseListOptions }
-export { DEFAULT_PAGE_SIZE, useList }
+export { applyOptimistic, DEFAULT_PAGE_SIZE, useList }
