@@ -2,6 +2,7 @@
 /* eslint-disable no-console, max-statements */
 /** biome-ignore-all lint/style/noProcessEnv: cli */
 /** biome-ignore-all lint/performance/noAwaitInLoops: sequential */
+/** biome-ignore-all lint/nursery/noContinue: cli directory scanning */
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { basename, dirname, join } from 'node:path'
 
@@ -22,6 +23,18 @@ interface Issue {
   file?: string
   level: 'error' | 'warn'
   message: string
+}
+
+interface TableIndex {
+  fields: string[]
+  name: string
+  type: 'custom' | 'default' | 'search'
+}
+
+interface WhereField {
+  field: string
+  source: string
+  table: string
 }
 
 const schemaMarkers = ['makeOwned(', 'makeOrgScoped(', 'makeSingleton(', 'makeBase(', 'child('],
@@ -235,6 +248,201 @@ const schemaMarkers = ['makeOwned(', 'makeOrgScoped(', 'makeSingleton(', 'makeBa
 
     if (errors.length) process.exit(1)
   },
+  FACTORY_DEFAULT_INDEXES: Record<string, TableIndex[]> = {
+    cacheCrud: [],
+    childCrud: [],
+    crud: [{ fields: ['userId'], name: 'by_user', type: 'default' }],
+    orgCrud: [
+      { fields: ['orgId'], name: 'by_org', type: 'default' },
+      { fields: ['orgId', 'userId'], name: 'by_org_user', type: 'default' }
+    ],
+    singletonCrud: [{ fields: ['userId'], name: 'by_user', type: 'default' }]
+  },
+  RESERVED_WHERE_KEYS = new Set(['$between', '$gt', '$gte', '$lt', '$lte', 'or', 'own']),
+  TABLE_HELPER_SRC = [
+    'ownedTable',
+    'orgTable',
+    'orgChildTable',
+    'childTable',
+    'baseTable',
+    'singletonTable',
+    'defineTable'
+  ].join('|'),
+  findSchemaDefFile = (convexDir: string): undefined | { content: string; path: string } => {
+    for (const name of readdirSync(convexDir))
+      if (name.endsWith('.ts') && !name.includes('.test.') && !name.startsWith('_')) {
+        const full = join(convexDir, name),
+          content = readFileSync(full, 'utf8')
+        if (content.includes('defineSchema(')) return { content, path: full }
+      }
+  },
+  extractCustomIndexes = (schemaContent: string): Map<string, TableIndex[]> => {
+    const result = new Map<string, TableIndex[]>(),
+      helperPat = new RegExp(`(\\w+)\\s*:\\s*(?:${TABLE_HELPER_SRC})\\s*\\(`, 'gu'),
+      tables: { name: string; pos: number }[] = []
+    let tm = helperPat.exec(schemaContent)
+    while (tm) {
+      const tName = tm[1] ?? ''
+      tables.push({ name: tName, pos: tm.index })
+      result.set(tName, [])
+      tm = helperPat.exec(schemaContent)
+    }
+    for (let ti = 0; ti < tables.length; ti += 1) {
+      const tEntry = tables[ti]
+      if (!tEntry) break
+      const nextEntry = tables[ti + 1],
+        start = tEntry.pos,
+        end = nextEntry ? nextEntry.pos : schemaContent.length,
+        segment = schemaContent.slice(start, end),
+        tableName = tEntry.name,
+        indexes = result.get(tableName) ?? [],
+        idxPat = /\.index\(\s*['"](?<iname>[^'"]+)['"]\s*,\s*\[(?<ifields>[^\]]*)\]\s*\)/gu
+      let im = idxPat.exec(segment)
+      while (im) {
+        const idxName = im.groups?.iname ?? '',
+          idxFieldsRaw = im.groups?.ifields ?? '',
+          fields: string[] = [],
+          fieldPat = /['"](?<fname>[^'"]+)['"]/gu
+        let fm = fieldPat.exec(idxFieldsRaw)
+        while (fm) {
+          const fName = fm.groups?.fname ?? ''
+          fields.push(fName)
+          fm = fieldPat.exec(idxFieldsRaw)
+        }
+        indexes.push({ fields, name: idxName, type: 'custom' })
+        im = idxPat.exec(segment)
+      }
+      const searchPat =
+        /\.searchIndex\(\s*['"](?<sname>[^'"]+)['"]\s*,\s*\{[^}]*searchField:\s*['"](?<sfield>[^'"]+)['"]/gu
+      let sm = searchPat.exec(segment)
+      while (sm) {
+        const sName = sm.groups?.sname ?? '',
+          sField = sm.groups?.sfield ?? ''
+        indexes.push({ fields: [sField], name: sName, type: 'search' })
+        sm = searchPat.exec(segment)
+      }
+      result.set(tableName, indexes)
+    }
+    return result
+  },
+  extractWhereFromOptions = (opts: string): string[] => {
+    const fields = new Set<string>(),
+      whereIdx = opts.indexOf('where:')
+    if (whereIdx === -1) return []
+    const braceStart = opts.indexOf('{', whereIdx + 6)
+    if (braceStart === -1) return []
+    let depth = 1,
+      pos = braceStart + 1
+    while (pos < opts.length && depth > 0) {
+      if (opts[pos] === '{') depth += 1
+      else if (opts[pos] === '}') depth -= 1
+      pos += 1
+    }
+    const block = opts.slice(braceStart + 1, pos - 1),
+      fieldPat = /(?<wkey>\$?\w+)\s*:/gu
+    let fm = fieldPat.exec(block)
+    while (fm) {
+      const fKey = fm.groups?.wkey ?? ''
+      if (!RESERVED_WHERE_KEYS.has(fKey)) fields.add(fKey)
+      fm = fieldPat.exec(block)
+    }
+    return [...fields]
+  },
+  scanWhereUsage = (root: string, cvxDir: string): WhereField[] => {
+    const results: WhereField[] = [],
+      schemaPath = join(cvxDir, 'schema.ts'),
+      skip = new Set(['.cache', '.git', '.next', '.turbo', '_generated', 'build', 'dist', 'node_modules']),
+      processFile = (filePath: string, fileName: string) => {
+        const fileContent = readFileSync(filePath, 'utf8'),
+          apiPat = /api\.(?<tbl>\w+)\.(?:list|search)\b/gu
+        let am = apiPat.exec(fileContent)
+        while (am) {
+          const table = am.groups?.tbl ?? '',
+            after = fileContent.slice(am.index, Math.min(am.index + 500, fileContent.length)),
+            wIdx = after.indexOf('where:')
+          if (wIdx !== -1 && wIdx < 200) {
+            const wFields = extractWhereFromOptions(after.slice(Math.max(0, wIdx - 10)))
+            for (const f of wFields) results.push({ field: f, source: fileName, table })
+          }
+          am = apiPat.exec(fileContent)
+        }
+      },
+      scan = (dir: string) => {
+        if (!existsSync(dir)) return
+        for (const entry of readdirSync(dir, { withFileTypes: true }))
+          if (entry.isDirectory()) {
+            if (!(skip.has(entry.name) || entry.name.startsWith('.'))) scan(join(dir, entry.name))
+          } else if (
+            (entry.name.endsWith('.ts') || entry.name.endsWith('.tsx')) &&
+            !entry.name.includes('.test.') &&
+            !entry.name.includes('.config.') &&
+            join(dir, entry.name) !== schemaPath
+          )
+            processFile(join(dir, entry.name), entry.name)
+      }
+    scan(root)
+    return results
+  },
+  // oxlint-disable-next-line complexity
+  // eslint-disable-next-line complexity
+  printIndexReport = (convexDir: string, calls: FactoryCall[]) => {
+    const schemaDef = findSchemaDefFile(convexDir),
+      customIndexes = schemaDef ? extractCustomIndexes(schemaDef.content) : new Map<string, TableIndex[]>(),
+      root = dirname(convexDir),
+      projectWhere = scanWhereUsage(root, convexDir),
+      whereByTable = new Map<string, Set<string>>(),
+      issues: Issue[] = []
+    for (const w of projectWhere) {
+      const set = whereByTable.get(w.table) ?? new Set()
+      set.add(w.field)
+      whereByTable.set(w.table, set)
+    }
+    for (const call of calls) {
+      const wFields = extractWhereFromOptions(call.options)
+      if (wFields.length) {
+        const set = whereByTable.get(call.table) ?? new Set()
+        for (const f of wFields) set.add(f)
+        whereByTable.set(call.table, set)
+      }
+    }
+    console.log(bold('Index Analysis\n'))
+    if (schemaDef) console.log(`${dim('schema def:')} ${schemaDef.path}\n`)
+    let totalIndexes = 0
+    for (const call of calls) {
+      const defaults = FACTORY_DEFAULT_INDEXES[call.factory] ?? [],
+        custom = customIndexes.get(call.table) ?? [],
+        allIndexes = [...defaults, ...custom],
+        allFields = new Set<string>()
+      for (const idx of allIndexes) for (const f of idx.fields) allFields.add(f)
+      totalIndexes += allIndexes.length
+      console.log(`  ${bold(call.table)} ${dim(`(${call.factory})`)} ${dim(`\u2014 ${call.file}`)}`)
+      for (const idx of allIndexes) {
+        const symbol = idx.type === 'search' ? dim('\uD83D\uDD0D') : green('\u2713')
+        console.log(`    ${symbol} ${idx.name} ${dim(`[${idx.fields.join(', ')}]`)} ${dim(`(${idx.type})`)}`)
+      }
+      if (!allIndexes.length) console.log(`    ${dim('(no indexes)')}`)
+      const tableWhereFields = whereByTable.get(call.table)
+      if (tableWhereFields)
+        for (const field of tableWhereFields)
+          if (!allFields.has(field)) {
+            console.log(`    ${yellow('\u26A0')} where filter on '${field}' \u2014 no matching index`)
+            issues.push({
+              file: call.file,
+              level: 'warn',
+              message: `"${call.table}": where on '${field}' is runtime-filtered. Add .index('by_${field}', ['${field}']) for better performance`
+            })
+          }
+
+      console.log('')
+    }
+    console.log(`${bold(String(totalIndexes))} indexes across ${bold(String(calls.length))} tables\n`)
+    if (issues.length) {
+      console.log(bold('Performance Suggestions\n'))
+      for (const issue of issues)
+        console.log(`  ${yellow('\u26A0')} ${issue.file ? `${dim(issue.file)} ` : ''}${issue.message}`)
+      console.log(`\n${yellow(`${issues.length} unindexed where clause(s)`)}\n`)
+    } else console.log(green('\u2713 All detected where clauses have matching indexes\n'))
+  },
   run = () => {
     const root = process.cwd(),
       flags = new Set(process.argv.slice(2))
@@ -263,10 +471,23 @@ const schemaMarkers = ['makeOwned(', 'makeOrgScoped(', 'makeSingleton(', 'makeBa
       return
     }
 
+    if (flags.has('--indexes')) {
+      const { calls } = extractFactoryCalls(convexDir)
+      printIndexReport(convexDir, calls)
+      return
+    }
+
     runCheck(convexDir, schemaFile)
   }
 
 if (import.meta.main) run()
 
-export { endpointsForFactory }
-export type { FactoryCall }
+export {
+  endpointsForFactory,
+  extractCustomIndexes,
+  extractWhereFromOptions,
+  FACTORY_DEFAULT_INDEXES,
+  printIndexReport,
+  scanWhereUsage
+}
+export type { FactoryCall, TableIndex, WhereField }

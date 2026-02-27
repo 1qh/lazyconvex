@@ -39,7 +39,7 @@ import type {
   WhereOf
 } from '../server/types'
 
-import { endpointsForFactory } from '../check'
+import { endpointsForFactory, extractCustomIndexes, extractWhereFromOptions, FACTORY_DEFAULT_INDEXES } from '../check'
 import { isValidSwiftIdent, SWIFT_KEYWORDS, swiftEnumCase } from '../codegen-swift-utils'
 import { defineSteps } from '../components/step-form'
 import {
@@ -4579,5 +4579,140 @@ describe('devtools cache tracking', () => {
     trackCacheAccess({ hit: true, key: 'tmdb_count', table: 'movie' })
     trackCacheAccess({ hit: false, key: 'tmdb_count', table: 'movie' })
     expect(true).toBe(true)
+  })
+})
+
+describe('extractCustomIndexes', () => {
+  test('parses single .index() from schema definition', () => {
+    const content = `export default defineSchema({ blog: ownedTable(owned.blog).index('by_published', ['published']), chat: ownedTable(owned.chat) })`,
+      result = extractCustomIndexes(content)
+    expect(result.get('blog')).toEqual([{ fields: ['published'], name: 'by_published', type: 'custom' }])
+    expect(result.get('chat')).toEqual([])
+  })
+
+  test('parses multiple indexes on same table', () => {
+    const content = `export default defineSchema({ blog: ownedTable(owned.blog).index('by_published', ['published']).index('by_category', ['category']) })`,
+      result = extractCustomIndexes(content)
+    expect(result.get('blog')).toHaveLength(2)
+    expect(result.get('blog')).toContainEqual({ fields: ['published'], name: 'by_published', type: 'custom' })
+    expect(result.get('blog')).toContainEqual({ fields: ['category'], name: 'by_category', type: 'custom' })
+  })
+
+  test('parses compound index fields', () => {
+    const content = `export default defineSchema({ wiki: orgTable(orgScoped.wiki).index('by_slug', ['orgId', 'slug']) })`,
+      result = extractCustomIndexes(content)
+    expect(result.get('wiki')).toEqual([{ fields: ['orgId', 'slug'], name: 'by_slug', type: 'custom' }])
+  })
+
+  test('parses searchIndex', () => {
+    const content = `export default defineSchema({ blog: ownedTable(owned.blog).searchIndex('search_field', { searchField: 'content' }) })`,
+      result = extractCustomIndexes(content)
+    expect(result.get('blog')).toEqual([{ fields: ['content'], name: 'search_field', type: 'search' }])
+  })
+
+  test('parses mixed index and searchIndex', () => {
+    const content = `export default defineSchema({ blog: ownedTable(owned.blog).index('by_published', ['published']).searchIndex('search_field', { searchField: 'content' }) })`,
+      result = extractCustomIndexes(content)
+    expect(result.get('blog')).toHaveLength(2)
+    const blogIdxs = result.get('blog')
+    expect(blogIdxs).toBeDefined()
+    expect(blogIdxs?.map(i => i.type)).toContain('custom')
+    expect(blogIdxs?.map(i => i.type)).toContain('search')
+  })
+
+  test('returns empty map for content without table helpers', () => {
+    const result = extractCustomIndexes('const x = 1')
+    expect(result.size).toBe(0)
+  })
+
+  test('parses defineTable usage', () => {
+    const content = `export default defineSchema({ message: defineTable({ content: v.string() }).index('by_chat', ['chatId']) })`,
+      result = extractCustomIndexes(content)
+    expect(result.get('message')).toEqual([{ fields: ['chatId'], name: 'by_chat', type: 'custom' }])
+  })
+
+  test('handles multiple tables', () => {
+    const content = `export default defineSchema({ blog: ownedTable(owned.blog).index('by_published', ['published']), movie: baseTable(base.movie).index('by_tmdb_id', ['tmdb_id']) })`,
+      result = extractCustomIndexes(content)
+    expect(result.size).toBe(2)
+    expect(result.get('blog')?.[0]?.name).toBe('by_published')
+    expect(result.get('movie')?.[0]?.name).toBe('by_tmdb_id')
+  })
+})
+
+describe('extractWhereFromOptions', () => {
+  test('extracts simple field', () => {
+    expect(extractWhereFromOptions(', owned.chat, { pub: { where: { isPublic: true } } }')).toEqual(['isPublic'])
+  })
+
+  test('extracts multiple fields', () => {
+    const result = extractWhereFromOptions(', owned.blog, { pub: { where: { published: true, category: "tech" } } }')
+    expect(result).toContain('published')
+    expect(result).toContain('category')
+    expect(result).toHaveLength(2)
+  })
+
+  test('ignores reserved keys like or and own', () => {
+    const result = extractWhereFromOptions(', schema, { where: { or: [{ published: true }], own: true } }')
+    expect(result).toEqual(['published'])
+  })
+
+  test('ignores comparison operators', () => {
+    const result = extractWhereFromOptions(', schema, { where: { createdAt: { $gt: 100 } } }')
+    expect(result).toEqual(['createdAt'])
+  })
+
+  test('returns empty for no where clause', () => {
+    expect(extractWhereFromOptions(', owned.blog, { search: "content" }')).toEqual([])
+  })
+
+  test('returns empty for empty string', () => {
+    expect(extractWhereFromOptions('')).toEqual([])
+  })
+
+  test('handles nested where in pub options', () => {
+    const result = extractWhereFromOptions(', owned.blog, { pub: { where: { published: true } }, search: "content" }')
+    expect(result).toEqual(['published'])
+  })
+})
+
+describe('FACTORY_DEFAULT_INDEXES', () => {
+  test('crud has by_user index', () => {
+    expect(FACTORY_DEFAULT_INDEXES.crud).toEqual([{ fields: ['userId'], name: 'by_user', type: 'default' }])
+  })
+
+  test('orgCrud has by_org and by_org_user indexes', () => {
+    expect(FACTORY_DEFAULT_INDEXES.orgCrud).toEqual([
+      { fields: ['orgId'], name: 'by_org', type: 'default' },
+      { fields: ['orgId', 'userId'], name: 'by_org_user', type: 'default' }
+    ])
+  })
+
+  test('singletonCrud has by_user index', () => {
+    expect(FACTORY_DEFAULT_INDEXES.singletonCrud).toEqual([{ fields: ['userId'], name: 'by_user', type: 'default' }])
+  })
+
+  test('cacheCrud has no default indexes', () => {
+    expect(FACTORY_DEFAULT_INDEXES.cacheCrud).toEqual([])
+  })
+
+  test('childCrud has no default indexes', () => {
+    expect(FACTORY_DEFAULT_INDEXES.childCrud).toEqual([])
+  })
+
+  test('orgCrud by_org indexes orgId field', () => {
+    const orgIdx = FACTORY_DEFAULT_INDEXES.orgCrud
+    expect(orgIdx).toBeDefined()
+    const byOrg = orgIdx?.find(ix => ix.name === 'by_org')
+    expect(byOrg).toBeDefined()
+    expect(byOrg?.fields).toEqual(['orgId'])
+  })
+
+  test('orgCrud by_org_user indexes orgId and userId', () => {
+    const orgIdx = FACTORY_DEFAULT_INDEXES.orgCrud
+    expect(orgIdx).toBeDefined()
+    const byOrgUser = orgIdx?.find(ix => ix.name === 'by_org_user')
+    expect(byOrgUser).toBeDefined()
+    expect(byOrgUser?.fields).toEqual(['orgId', 'userId'])
   })
 })
