@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-/* eslint-disable no-console, max-statements, complexity */
+/* eslint-disable no-console, max-statements */
 /** biome-ignore-all lint/style/noProcessEnv: cli */
 /** biome-ignore-all lint/performance/noAwaitInLoops: sequential */
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
@@ -11,6 +11,13 @@ const red = (s: string) => `\u001B[31m${s}\u001B[0m`,
   dim = (s: string) => `\u001B[2m${s}\u001B[0m`,
   bold = (s: string) => `\u001B[1m${s}\u001B[0m`
 
+interface FactoryCall {
+  factory: string
+  file: string
+  options: string
+  table: string
+}
+
 interface Issue {
   file?: string
   level: 'error' | 'warn'
@@ -18,8 +25,15 @@ interface Issue {
 }
 
 const schemaMarkers = ['makeOwned(', 'makeOrgScoped(', 'makeSingleton(', 'makeBase(', 'child('],
-  factoryPattern = /(?<factory>crud|orgCrud|childCrud|cacheCrud|singletonCrud)\(\s*['"](?<table>\w+)['"]/gu,
+  factoryPat = /(?<factory>crud|orgCrud|childCrud|cacheCrud|singletonCrud)\(\s*['"](?<table>\w+)['"]/gu,
   wrapperFactories = ['makeOwned', 'makeOrgScoped', 'makeSingleton', 'makeBase'],
+  CRUD_BASE = ['create', 'update', 'rm', 'bulkRm', 'bulkUpdate'],
+  CRUD_PUB = ['pub.list', 'pub.read'],
+  ORG_CRUD_BASE = ['list', 'read', 'create', 'update', 'rm', 'bulkRm', 'bulkUpdate'],
+  ORG_ACL = ['addEditor', 'removeEditor', 'setEditors', 'editors'],
+  CHILD_BASE = ['list', 'create', 'update', 'rm'],
+  CACHE_BASE = ['get', 'all', 'list', 'create', 'update', 'rm', 'invalidate', 'purge', 'load', 'refresh'],
+  SINGLETON_BASE = ['get', 'upsert'],
   isSchemaFile = (content: string): boolean => {
     for (const marker of schemaMarkers) if (content.includes(marker)) return true
     return false
@@ -76,49 +90,92 @@ const schemaMarkers = ['makeOwned(', 'makeOrgScoped(', 'makeSingleton(', 'makeBa
     }
     return tables
   },
-  extractFactoryCalls = (
-    convexDir: string
-  ): { calls: { factory: string; file: string; table: string }[]; files: string[] } => {
-    const calls: { factory: string; file: string; table: string }[] = [],
+  extractRemainingOptions = (content: string, startPos: number): string => {
+    let depth = 1,
+      pos = startPos
+    while (pos < content.length && depth > 0) {
+      if (content[pos] === '(') depth += 1
+      else if (content[pos] === ')') depth -= 1
+      pos += 1
+    }
+    return content.slice(startPos, pos - 1)
+  },
+  extractFactoryCalls = (convexDir: string): { calls: FactoryCall[]; files: string[] } => {
+    const calls: FactoryCall[] = [],
       files: string[] = []
     for (const entry of readdirSync(convexDir))
       if (entry.endsWith('.ts') && !entry.startsWith('_') && !entry.includes('.test.') && !entry.includes('.config.')) {
         const full = join(convexDir, entry),
           content = readFileSync(full, 'utf8')
         files.push(entry)
-        let m = factoryPattern.exec(content)
+        let m = factoryPat.exec(content)
         while (m) {
-          if (m.groups?.factory && m.groups.table)
-            calls.push({ factory: m.groups.factory, file: entry, table: m.groups.table })
-          m = factoryPattern.exec(content)
+          if (m.groups?.factory && m.groups.table) {
+            const afterTable = content.indexOf(m.groups.table, m.index) + m.groups.table.length,
+              rest = extractRemainingOptions(content, afterTable)
+            calls.push({ factory: m.groups.factory, file: entry, options: rest, table: m.groups.table })
+          }
+          m = factoryPat.exec(content)
         }
-        factoryPattern.lastIndex = 0
+        factoryPat.lastIndex = 0
       }
     return { calls, files }
   },
-  run = () => {
-    const root = process.cwd(),
-      issues: Issue[] = []
-
-    console.log(bold('\nlazyconvex check\n'))
-
-    const convexDir = findConvexDir(root)
-    if (!convexDir) {
-      console.log(red('✗ Could not find convex/ directory with _generated/'))
-      console.log(dim('  Run from project root or a directory containing convex/'))
-      process.exit(1)
+  hasOption = (opts: string, key: string): boolean => opts.includes(key),
+  endpointsForFactory = (call: FactoryCall): string[] => {
+    const { factory, options: opts } = call
+    if (factory === 'singletonCrud') return [...SINGLETON_BASE]
+    if (factory === 'cacheCrud') return [...CACHE_BASE]
+    if (factory === 'childCrud') {
+      const eps = [...CHILD_BASE]
+      if (hasOption(opts, 'pub')) {
+        eps.push('pub.list')
+        eps.push('pub.get')
+      }
+      return eps
     }
-    console.log(`${dim('convex dir:')} ${convexDir}`)
-
-    const schemaFile = findSchemaFile(convexDir)
-    if (!schemaFile) {
-      console.log(red('✗ Could not find schema file with lazyconvex markers'))
-      console.log(dim('  Expected a .ts file importing makeOwned/makeOrgScoped/etc.'))
-      process.exit(1)
+    if (factory === 'orgCrud') {
+      const eps = [...ORG_CRUD_BASE]
+      if (hasOption(opts, 'acl')) eps.push(...ORG_ACL)
+      if (hasOption(opts, 'softDelete')) eps.push('restore')
+      if (hasOption(opts, 'search')) eps.push('search')
+      return eps
     }
-    console.log(`${dim('schema:')}    ${schemaFile.path}\n`)
-
-    const schemaTables = extractSchemaTableNames(schemaFile.content),
+    const eps = [...CRUD_BASE, ...CRUD_PUB]
+    if (hasOption(opts, 'search')) eps.push('pub.search')
+    if (hasOption(opts, 'softDelete')) eps.push('restore')
+    return eps
+  },
+  printEndpoints = (calls: FactoryCall[]) => {
+    let total = 0
+    console.log(bold('Generated Endpoints\n'))
+    for (const call of calls) {
+      const eps = endpointsForFactory(call)
+      total += eps.length
+      console.log(`  ${bold(call.table)} ${dim(`(${call.factory})`)} ${dim(`\u2014 ${call.file}`)}`)
+      const groups: Record<string, string[]> = {}
+      for (const ep of eps) {
+        const dot = ep.indexOf('.')
+        if (dot > 0) {
+          const prefix = ep.slice(0, dot),
+            name = ep.slice(dot + 1)
+          groups[prefix] ??= []
+          groups[prefix].push(name)
+        } else {
+          groups[''] ??= []
+          groups[''].push(ep)
+        }
+      }
+      if (groups['']) console.log(`    ${groups[''].join(', ')}`)
+      for (const [prefix, names] of Object.entries(groups))
+        if (prefix) console.log(`    ${dim(`${prefix}.`)}${names.join(`, ${dim(`${prefix}.`)}`)}`)
+      console.log('')
+    }
+    console.log(`${bold(String(total))} endpoints from ${bold(String(calls.length))} factory calls\n`)
+  },
+  runCheck = (convexDir: string, schemaFile: { content: string; path: string }) => {
+    const issues: Issue[] = [],
+      schemaTables = extractSchemaTableNames(schemaFile.content),
       { calls, files } = extractFactoryCalls(convexDir)
 
     console.log(`${dim('tables in schema:')} ${[...schemaTables].join(', ') || 'none'}`)
@@ -161,21 +218,55 @@ const schemaMarkers = ['makeOwned(', 'makeOrgScoped(', 'makeSingleton(', 'makeBa
         })
 
     if (!issues.length) {
-      console.log(green('✓ All checks passed\n'))
+      console.log(green('\u2713 All checks passed\n'))
       return
     }
 
     const errors = issues.filter(i => i.level === 'error'),
       warnings = issues.filter(i => i.level === 'warn')
 
-    for (const issue of errors) console.log(`${red('✗')} ${issue.file ? `${dim(issue.file)} ` : ''}${issue.message}`)
-    for (const issue of warnings) console.log(`${yellow('⚠')} ${issue.file ? `${dim(issue.file)} ` : ''}${issue.message}`)
+    for (const issue of errors) console.log(`${red('\u2717')} ${issue.file ? `${dim(issue.file)} ` : ''}${issue.message}`)
+    for (const issue of warnings)
+      console.log(`${yellow('\u26A0')} ${issue.file ? `${dim(issue.file)} ` : ''}${issue.message}`)
 
     console.log(
       `\n${errors.length ? red(`${errors.length} error(s)`) : ''}${errors.length && warnings.length ? ', ' : ''}${warnings.length ? yellow(`${warnings.length} warning(s)`) : ''}\n`
     )
 
     if (errors.length) process.exit(1)
+  },
+  run = () => {
+    const root = process.cwd(),
+      flags = new Set(process.argv.slice(2))
+
+    console.log(bold('\nlazyconvex check\n'))
+
+    const convexDir = findConvexDir(root)
+    if (!convexDir) {
+      console.log(red('\u2717 Could not find convex/ directory with _generated/'))
+      console.log(dim('  Run from project root or a directory containing convex/'))
+      process.exit(1)
+    }
+    console.log(`${dim('convex dir:')} ${convexDir}`)
+
+    const schemaFile = findSchemaFile(convexDir)
+    if (!schemaFile) {
+      console.log(red('\u2717 Could not find schema file with lazyconvex markers'))
+      console.log(dim('  Expected a .ts file importing makeOwned/makeOrgScoped/etc.'))
+      process.exit(1)
+    }
+    console.log(`${dim('schema:')}    ${schemaFile.path}\n`)
+
+    if (flags.has('--endpoints')) {
+      const { calls } = extractFactoryCalls(convexDir)
+      printEndpoints(calls)
+      return
+    }
+
+    runCheck(convexDir, schemaFile)
   }
 
-run()
+if (import.meta.main) run()
+
+export { endpointsForFactory }
+export type { FactoryCall }
