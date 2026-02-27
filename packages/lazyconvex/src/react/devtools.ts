@@ -15,8 +15,10 @@ interface DevError {
 
 interface DevSubscription {
   args: string
+  firstResultAt: number
   id: number
   lastUpdate: number
+  latencyMs: number
   query: string
   startedAt: number
   status: 'error' | 'loaded' | 'loading'
@@ -24,6 +26,7 @@ interface DevSubscription {
 }
 
 const MAX_ERRORS = 50,
+  SLOW_THRESHOLD_MS = 5000,
   STALE_THRESHOLD_MS = 30_000,
   errorStore: DevError[] = [],
   subStore = new Map<number, DevSubscription>()
@@ -57,8 +60,10 @@ const notify = () => {
     nextId += 1
     subStore.set(id, {
       args: args ? JSON.stringify(args) : '{}',
+      firstResultAt: 0,
       id,
       lastUpdate: 0,
+      latencyMs: 0,
       query,
       startedAt: Date.now(),
       status: 'loading',
@@ -70,8 +75,13 @@ const notify = () => {
   updateSubscription = (id: number, status: 'error' | 'loaded' | 'loading') => {
     const sub = subStore.get(id)
     if (!sub) return
+    const now = Date.now()
+    if (sub.firstResultAt === 0 && status === 'loaded') {
+      sub.firstResultAt = now
+      sub.latencyMs = now - sub.startedAt
+    }
     sub.status = status
-    sub.lastUpdate = Date.now()
+    sub.lastUpdate = now
     sub.updateCount += 1
     notify()
   },
@@ -104,6 +114,7 @@ export type { DevError, DevSubscription }
 export {
   clearErrors,
   pushError,
+  SLOW_THRESHOLD_MS,
   STALE_THRESHOLD_MS,
   trackSubscription,
   untrackSubscription,

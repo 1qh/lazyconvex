@@ -1,6 +1,7 @@
 export {
   clearErrors,
   pushError,
+  SLOW_THRESHOLD_MS,
   STALE_THRESHOLD_MS,
   trackSubscription,
   untrackSubscription,

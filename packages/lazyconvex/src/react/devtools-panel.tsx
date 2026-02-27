@@ -3,7 +3,7 @@ import { useState } from 'react'
 
 import type { DevError, DevSubscription } from './devtools'
 
-import { STALE_THRESHOLD_MS, useDevErrors } from './devtools'
+import { SLOW_THRESHOLD_MS, STALE_THRESHOLD_MS, useDevErrors } from './devtools'
 
 const formatTime = (ts: number) => {
     const d = new Date(ts),
@@ -14,6 +14,7 @@ const formatTime = (ts: number) => {
   },
   MAX_BADGE = 99,
   isStale = (sub: DevSubscription) => sub.status === 'loaded' && Date.now() - sub.lastUpdate > STALE_THRESHOLD_MS,
+  isSlow = (sub: DevSubscription) => sub.latencyMs > SLOW_THRESHOLD_MS,
   ErrorRow = ({ error }: { error: DevError }) => {
     const [expanded, setExpanded] = useState(false),
       code = error.data?.code,
@@ -47,6 +48,7 @@ const formatTime = (ts: number) => {
   },
   SubRow = ({ sub }: { sub: DevSubscription }) => {
     const stale = isStale(sub),
+      slow = isSlow(sub),
       statusColor =
         sub.status === 'loaded'
           ? stale
@@ -55,13 +57,19 @@ const formatTime = (ts: number) => {
           : sub.status === 'error'
             ? 'text-red-400'
             : 'text-blue-400',
-      statusLabel = stale ? 'stale' : sub.status
+      statusLabel = stale ? 'stale' : sub.status,
+      latencyLabel = sub.latencyMs > 0 ? `${sub.latencyMs}ms` : ''
     return (
       <li className='flex items-center gap-2 border-b border-zinc-800 px-3 py-2 text-xs last:border-b-0'>
         <span
           className={`size-1.5 shrink-0 rounded-full ${sub.status === 'loaded' ? (stale ? 'bg-yellow-400' : 'bg-emerald-400') : sub.status === 'error' ? 'bg-red-400' : 'bg-blue-400'}`}
         />
         <span className='min-w-0 flex-1 truncate font-mono text-zinc-300'>{sub.query}</span>
+        {latencyLabel ? (
+          <span className={`shrink-0 font-mono tabular-nums ${slow ? 'text-orange-400' : 'text-zinc-500'}`}>
+            {latencyLabel}
+          </span>
+        ) : null}
         <span className={`shrink-0 font-mono ${statusColor}`}>{statusLabel}</span>
         <span className='shrink-0 text-zinc-500 tabular-nums'>{sub.updateCount}x</span>
       </li>
@@ -77,6 +85,7 @@ const formatTime = (ts: number) => {
     const errorCount = errors.length,
       subCount = subscriptions.length,
       staleCount = subscriptions.filter(isStale).length,
+      slowCount = subscriptions.filter(isSlow).length,
       count = errorCount
 
     if (!open)
@@ -112,6 +121,7 @@ const formatTime = (ts: number) => {
               type='button'>
               Subs{subCount > 0 ? ` (${subCount})` : ''}
               {staleCount > 0 ? ` \u00B7 ${staleCount} stale` : ''}
+              {slowCount > 0 ? ` \u00B7 ${slowCount} slow` : ''}
             </button>
           </div>
           <div className='flex gap-1'>
