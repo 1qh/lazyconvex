@@ -1,8 +1,12 @@
 export {
   clearErrors,
+  clearMutations,
+  completeMutation,
   pushError,
   SLOW_THRESHOLD_MS,
   STALE_THRESHOLD_MS,
+  trackCacheAccess,
+  trackMutation,
   trackSubscription,
   untrackSubscription,
   updateSubscription,

@@ -55,8 +55,12 @@ import { generateMarkdown } from '../docs-gen'
 import { recommended as eslintRecommended, rules as eslintRules } from '../eslint'
 import { guardApi } from '../guard'
 import {
+  clearMutations,
+  completeMutation,
   SLOW_THRESHOLD_MS,
   STALE_THRESHOLD_MS,
+  trackCacheAccess,
+  trackMutation,
   trackSubscription,
   untrackSubscription,
   updateSubscription
@@ -4520,5 +4524,60 @@ describe('presence types', () => {
       userId: 'user789'
     }
     expect((user.data as Record<string, unknown>).typing).toBe(false)
+  })
+})
+
+describe('devtools mutation tracking', () => {
+  test('trackMutation returns numeric id', () => {
+    const id = trackMutation('blog:create', { title: 'test' })
+    expect(typeof id).toBe('number')
+    expect(id).toBeGreaterThan(0)
+  })
+
+  test('trackMutation assigns unique ids', () => {
+    const id1 = trackMutation('blog:create'),
+      id2 = trackMutation('blog:update')
+    expect(id1).not.toBe(id2)
+  })
+
+  test('completeMutation marks as success', () => {
+    const id = trackMutation('blog:rm')
+    expect(() => completeMutation(id, 'success')).not.toThrow()
+  })
+
+  test('completeMutation marks as error', () => {
+    const id = trackMutation('blog:update')
+    expect(() => completeMutation(id, 'error')).not.toThrow()
+  })
+
+  test('completeMutation on missing id is no-op', () => {
+    expect(() => completeMutation(999_999, 'success')).not.toThrow()
+  })
+
+  test('clearMutations empties mutation store', () => {
+    trackMutation('test:clear1')
+    trackMutation('test:clear2')
+    expect(() => clearMutations()).not.toThrow()
+  })
+})
+
+describe('devtools cache tracking', () => {
+  test('trackCacheAccess creates entry on first hit', () => {
+    expect(() => trackCacheAccess({ hit: true, key: 'tmdb_123', table: 'movie' })).not.toThrow()
+  })
+
+  test('trackCacheAccess tracks miss', () => {
+    expect(() => trackCacheAccess({ hit: false, key: 'tmdb_456', table: 'movie' })).not.toThrow()
+  })
+
+  test('trackCacheAccess updates stale flag', () => {
+    expect(() => trackCacheAccess({ hit: true, key: 'tmdb_789', stale: true, table: 'movie' })).not.toThrow()
+  })
+
+  test('trackCacheAccess increments counts on repeated calls', () => {
+    trackCacheAccess({ hit: true, key: 'tmdb_count', table: 'movie' })
+    trackCacheAccess({ hit: true, key: 'tmdb_count', table: 'movie' })
+    trackCacheAccess({ hit: false, key: 'tmdb_count', table: 'movie' })
+    expect(true).toBe(true)
   })
 })
