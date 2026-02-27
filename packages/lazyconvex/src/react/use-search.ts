@@ -31,15 +31,14 @@ const DEFAULT_DEBOUNCE_MS = 300,
       [query, setQueryRaw] = useState(''),
       [debouncedQuery, setDebouncedQuery] = useState(''),
       timerRef = useRef<null | ReturnType<typeof setTimeout>>(null),
-
-     setQuery = useCallback(
-      (q: string) => {
-        setQueryRaw(q)
-        if (timerRef.current) clearTimeout(timerRef.current)
-        timerRef.current = setTimeout(() => setDebouncedQuery(q), debounceMs)
-      },
-      [debounceMs]
-    )
+      setQuery = useCallback(
+        (q: string) => {
+          setQueryRaw(q)
+          if (timerRef.current) clearTimeout(timerRef.current)
+          timerRef.current = setTimeout(() => setDebouncedQuery(q), debounceMs)
+        },
+        [debounceMs]
+      )
 
     useEffect(
       () => () => {

@@ -4177,12 +4177,12 @@ describe('global hooks', () => {
 
   test('GlobalHookCtx includes table name for cross-cutting concerns', () => {
     const tables: string[] = [],
-     hooks: GlobalHooks = {
-      afterCreate: _c => {
-        tables.push(_c.table)
-      }
-    },
-     ctx: GlobalHookCtx = { db: {} as GlobalHookCtx['db'], table: 'blog' }
+      hooks: GlobalHooks = {
+        afterCreate: _c => {
+          tables.push(_c.table)
+        }
+      },
+      ctx: GlobalHookCtx = { db: {} as GlobalHookCtx['db'], table: 'blog' }
     hooks.afterCreate?.(ctx, { data: {}, id: '123' })
     const ctx2: GlobalHookCtx = { db: {} as GlobalHookCtx['db'], table: 'wiki' }
     hooks.afterCreate?.(ctx2, { data: {}, id: '456' })
@@ -4204,22 +4204,22 @@ describe('global hooks', () => {
   test('GlobalHooks beforeCreate receives table in context', () => {
     let capturedTable = ''
     const hooks: GlobalHooks = {
-      beforeCreate: (_c, { data }) => {
-        capturedTable = _c.table
-        return data
-      }
-    },
-     ctx: GlobalHookCtx = { db: {} as GlobalHookCtx['db'], table: 'blog' }
+        beforeCreate: (_c, { data }) => {
+          capturedTable = _c.table
+          return data
+        }
+      },
+      ctx: GlobalHookCtx = { db: {} as GlobalHookCtx['db'], table: 'blog' }
     hooks.beforeCreate?.(ctx, { data: { title: 'test' } })
     expect(capturedTable).toBe('blog')
   })
 
   test('GlobalHooks beforeUpdate composes data transform', () => {
     const hooks: GlobalHooks = {
-      beforeUpdate: (_ctx, { patch }) => ({ ...patch, globalField: true })
-    },
-     ctx: GlobalHookCtx = { db: {} as GlobalHookCtx['db'], table: 'blog' },
-     result = hooks.beforeUpdate?.(ctx, { id: '123', patch: { title: 'new' }, prev: { title: 'old' } })
+        beforeUpdate: (_ctx, { patch }) => ({ ...patch, globalField: true })
+      },
+      ctx: GlobalHookCtx = { db: {} as GlobalHookCtx['db'], table: 'blog' },
+      result = hooks.beforeUpdate?.(ctx, { id: '123', patch: { title: 'new' }, prev: { title: 'old' } })
     expect(result).toEqual({ globalField: true, title: 'new' })
   })
 })

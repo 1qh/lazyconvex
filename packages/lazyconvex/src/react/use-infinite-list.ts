@@ -21,24 +21,22 @@ type InfiniteListRest<F extends PaginatedQueryReference> =
 type ListItems<F extends PaginatedQueryReference> = FunctionReturnType<F>['page']
 
 const useInfiniteList = <F extends PaginatedQueryReference>(query: F, ...rest: InfiniteListRest<F>) => {
-  const [args, opts] = rest,
-    { isDone, items, loadMore, status } = useList(
-      query,
-      ...((args === undefined ? [] : [args, { pageSize: opts?.pageSize }]) as Parameters<typeof useList>[1][])
-    ),
+  const [args, opts] = rest as [PaginatedQueryArgs<F> | undefined, InfiniteListOptions | undefined],
+    { isDone, items, loadMore, status } = (useList as (...a: unknown[]) => ReturnType<typeof useList>)(query, args ?? {}, {
+      pageSize: opts?.pageSize
+    }),
     sentinelRef = useRef<HTMLElement | null>(null),
     observerRef = useRef<IntersectionObserver | null>(null),
     isLoadingMore = status === 'LoadingMore',
     canLoad = status === 'CanLoadMore',
     pageSize = opts?.pageSize ?? DEFAULT_PAGE_SIZE,
-
-   handleIntersect = useCallback(
-    (entries: IntersectionObserverEntry[]) => {
-      const [entry] = entries
-      if (entry?.isIntersecting && canLoad && !isLoadingMore) loadMore(pageSize)
-    },
-    [canLoad, isLoadingMore, loadMore, pageSize]
-  )
+    handleIntersect = useCallback(
+      (entries: IntersectionObserverEntry[]) => {
+        const [entry] = entries
+        if (entry?.isIntersecting && canLoad && !isLoadingMore) loadMore(pageSize)
+      },
+      [canLoad, isLoadingMore, loadMore, pageSize]
+    )
 
   useEffect(() => {
     const el = sentinelRef.current
