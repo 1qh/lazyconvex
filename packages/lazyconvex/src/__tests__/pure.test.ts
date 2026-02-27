@@ -10,6 +10,8 @@ import type { UseListOptions } from '../react/use-list'
 import type { OrgCrudOptions } from '../server/org-crud'
 import type {
   BaseSchema,
+  CacheHookCtx,
+  CacheHooks,
   CascadeOption,
   ChildCrudResult,
   CrudHooks,
@@ -3877,5 +3879,121 @@ describe('bulk operations', () => {
     expect(_bc).toBe(true)
     expect(_br).toBe(true)
     expect(_bu).toBe(true)
+  })
+})
+
+describe('cacheCrud hooks', () => {
+  test('CacheHookCtx has db property', () => {
+    const ctx: CacheHookCtx = {
+      db: {} as CacheHookCtx['db']
+    }
+    expect(ctx.db).toBeDefined()
+  })
+
+  test('CacheHookCtx does not require userId or storage', () => {
+    const ctx: CacheHookCtx = { db: {} as CacheHookCtx['db'] }
+    expect('userId' in ctx).toBe(false)
+    expect('storage' in ctx).toBe(false)
+  })
+
+  test('CacheHooks interface is structurally valid', () => {
+    const hooks: CacheHooks = {
+      afterCreate: () => {
+        /* Noop */
+      },
+      afterDelete: () => {
+        /* Noop */
+      },
+      afterUpdate: () => {
+        /* Noop */
+      },
+      beforeCreate: (_ctx, { data }) => data,
+      beforeDelete: () => {
+        /* Noop */
+      },
+      beforeUpdate: (_ctx, { patch }) => patch,
+      onFetch: data => data
+    }
+    expect(hooks.beforeCreate).toBeDefined()
+    expect(hooks.afterCreate).toBeDefined()
+    expect(hooks.beforeUpdate).toBeDefined()
+    expect(hooks.afterUpdate).toBeDefined()
+    expect(hooks.beforeDelete).toBeDefined()
+    expect(hooks.afterDelete).toBeDefined()
+    expect(hooks.onFetch).toBeDefined()
+  })
+
+  test('CacheHooks are all optional', () => {
+    const hooks: CacheHooks = {}
+    expect(hooks.beforeCreate).toBeUndefined()
+    expect(hooks.onFetch).toBeUndefined()
+  })
+
+  test('CacheHooks can be async', () => {
+    const hooks: CacheHooks = {
+      afterDelete: async () => {
+        /* Noop */
+      },
+      beforeCreate: async (_ctx, { data }) => data,
+      beforeUpdate: async (_ctx, { patch }) => patch,
+      onFetch: async data => data
+    }
+    expect(hooks.beforeCreate).toBeDefined()
+    expect(hooks.onFetch).toBeDefined()
+  })
+
+  test('onFetch receives plain data without context', () => {
+    const hooks: CacheHooks = {
+        onFetch: data => {
+          expect(data).toBeDefined()
+          return { ...data, normalized: true }
+        }
+      },
+      result = hooks.onFetch?.({ title: 'test' })
+    expect(result).toEqual({ normalized: true, title: 'test' })
+  })
+
+  test('CacheHooks beforeCreate transforms data', () => {
+    const hooks: CacheHooks = {
+        beforeCreate: (_ctx, { data }) => ({ ...data, extra: 'added' })
+      },
+      ctx: CacheHookCtx = { db: {} as CacheHookCtx['db'] },
+      result = hooks.beforeCreate?.(ctx, { data: { title: 'hi' } })
+    expect(result).toEqual({ extra: 'added', title: 'hi' })
+  })
+
+  test('CacheHooks beforeUpdate transforms patch', () => {
+    const hooks: CacheHooks = {
+        beforeUpdate: (_ctx, { patch }) => ({ ...patch, modified: true })
+      },
+      ctx: CacheHookCtx = { db: {} as CacheHookCtx['db'] },
+      result = hooks.beforeUpdate?.(ctx, { id: '123', patch: { title: 'new' }, prev: { title: 'old' } })
+    expect(result).toEqual({ modified: true, title: 'new' })
+  })
+
+  test('CacheHooks afterDelete receives doc and id', () => {
+    let capturedId = '',
+      capturedDoc: Record<string, unknown> = {}
+    const hooks: CacheHooks = {
+        afterDelete: (_ctx, { doc, id }) => {
+          capturedId = id
+          capturedDoc = doc as Record<string, unknown>
+        }
+      },
+      ctx: CacheHookCtx = { db: {} as CacheHookCtx['db'] }
+    hooks.afterDelete?.(ctx, { doc: { title: 'deleted' }, id: 'doc_123' })
+    expect(capturedId).toBe('doc_123')
+    expect(capturedDoc.title).toBe('deleted')
+  })
+
+  test('CacheHooks differ from CrudHooks by context type', () => {
+    const cacheCtx: CacheHookCtx = { db: {} as CacheHookCtx['db'] },
+      crudCtx: HookCtx = {
+        db: {} as HookCtx['db'],
+        storage: {} as HookCtx['storage'],
+        userId: 'user_123'
+      }
+    expect(Object.keys(cacheCtx)).toEqual(['db'])
+    expect(Object.keys(crudCtx).toSorted()).toEqual(['db', 'storage', 'userId'])
   })
 })

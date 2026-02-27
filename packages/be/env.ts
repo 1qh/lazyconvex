@@ -8,5 +8,6 @@ export default createEnv({
     TMDB_KEY: string()
   },
   runtimeEnv: process.env,
-  skipValidation: Boolean(process.env.CI) || process.env.npm_lifecycle_event === 'lint'
+  skipValidation:
+    Boolean(process.env.CI) || Boolean(process.env.CONVEX_TEST_MODE) || process.env.npm_lifecycle_event === 'lint'
 })

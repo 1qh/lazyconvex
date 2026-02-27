@@ -8,6 +8,7 @@ import { zCustomMutation, zCustomQuery } from 'convex-helpers/server/zod4'
 import type { OrgCrudOptions } from './org-crud'
 import type {
   BaseSchema,
+  CacheHooks,
   CrudOptions,
   DbLike,
   Mb,
@@ -123,6 +124,7 @@ const setup = <DM extends GenericDataModel>(config: SetupConfig<DM>) => {
       }),
     cacheCrud = <S extends ZodRawShape, K extends keyof S & string>(opts: {
       fetcher?: (c: unknown, key: unknown) => Promise<unknown>
+      hooks?: CacheHooks
       key: K
       rateLimit?: { max: number; window: number }
       schema: BaseSchema<S>
