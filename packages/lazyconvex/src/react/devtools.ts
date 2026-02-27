@@ -13,8 +13,20 @@ interface DevError {
   timestamp: number
 }
 
+interface DevSubscription {
+  args: string
+  id: number
+  lastUpdate: number
+  query: string
+  startedAt: number
+  status: 'error' | 'loaded' | 'loading'
+  updateCount: number
+}
+
 const MAX_ERRORS = 50,
-  store: DevError[] = []
+  STALE_THRESHOLD_MS = 30_000,
+  errorStore: DevError[] = [],
+  subStore = new Map<number, DevSubscription>()
 
 let nextId = 1,
   listeners: (() => void)[] = []
@@ -32,12 +44,39 @@ const notify = () => {
         timestamp: Date.now()
       }
     nextId += 1
-    store.unshift(entry)
-    if (store.length > MAX_ERRORS) store.length = MAX_ERRORS
+    errorStore.unshift(entry)
+    if (errorStore.length > MAX_ERRORS) errorStore.length = MAX_ERRORS
     notify()
   },
   clearErrors = () => {
-    store.length = 0
+    errorStore.length = 0
+    notify()
+  },
+  trackSubscription = (query: string, args?: Record<string, unknown>): number => {
+    const id = nextId
+    nextId += 1
+    subStore.set(id, {
+      args: args ? JSON.stringify(args) : '{}',
+      id,
+      lastUpdate: 0,
+      query,
+      startedAt: Date.now(),
+      status: 'loading',
+      updateCount: 0
+    })
+    notify()
+    return id
+  },
+  updateSubscription = (id: number, status: 'error' | 'loaded' | 'loading') => {
+    const sub = subStore.get(id)
+    if (!sub) return
+    sub.status = status
+    sub.lastUpdate = Date.now()
+    sub.updateCount += 1
+    notify()
+  },
+  untrackSubscription = (id: number) => {
+    subStore.delete(id)
     notify()
   },
   useDevErrors = () => {
@@ -52,13 +91,22 @@ const notify = () => {
     return useMemo(
       () => ({
         clear: clearErrors,
-        errors: [...store],
-        push: pushError
+        errors: [...errorStore],
+        push: pushError,
+        subscriptions: [...subStore.values()]
       }),
       // eslint-disable-next-line react-hooks/exhaustive-deps
-      [store.length]
+      [errorStore.length, subStore.size]
     )
   }
 
-export type { DevError }
-export { clearErrors, pushError, useDevErrors }
+export type { DevError, DevSubscription }
+export {
+  clearErrors,
+  pushError,
+  STALE_THRESHOLD_MS,
+  trackSubscription,
+  untrackSubscription,
+  updateSubscription,
+  useDevErrors
+}

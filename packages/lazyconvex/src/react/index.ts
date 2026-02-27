@@ -1,4 +1,12 @@
-export { clearErrors, pushError, useDevErrors } from './devtools'
+export {
+  clearErrors,
+  pushError,
+  STALE_THRESHOLD_MS,
+  trackSubscription,
+  untrackSubscription,
+  updateSubscription,
+  useDevErrors
+} from './devtools'
 export { default as LazyConvexDevtools } from './devtools-panel'
 export type { ErrorToastOptions, ToastFn } from './error-toast'
 export { makeErrorHandler, useErrorToast } from './error-toast'
