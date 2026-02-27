@@ -1,5 +1,7 @@
 export { clearErrors, pushError, useDevErrors } from './devtools'
 export { default as LazyConvexDevtools } from './devtools-panel'
+export type { ErrorToastOptions, ToastFn } from './error-toast'
+export { makeErrorHandler, useErrorToast } from './error-toast'
 export { buildMeta, getMeta, useForm, useFormMutation } from './form'
 export {
   canEditResource,

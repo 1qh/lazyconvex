@@ -32,6 +32,7 @@ import {
   sleep
 } from '../constants'
 import { guardApi } from '../guard'
+import { makeErrorHandler } from '../react/error-toast'
 import { buildMeta, getMeta } from '../react/form'
 import { canEditResource } from '../react/org'
 import { DEFAULT_PAGE_SIZE } from '../react/use-list'
@@ -3063,5 +3064,59 @@ describe('guardApi', () => {
   test('includes valid modules in unknown module error', () => {
     const guarded = guardApi(fakeApi, modules) as Record<string, unknown>
     expect(() => guarded.xyz).toThrow('blog, blogProfile, chat')
+  })
+})
+
+describe('makeErrorHandler', () => {
+  test('calls toast with message for unknown error', () => {
+    const messages: string[] = [],
+      handler = makeErrorHandler((m: string) => {
+        messages.push(m)
+      })
+    handler(new Error('something broke'))
+    expect(messages).toEqual(['something broke'])
+  })
+
+  test('calls toast with ConvexError message', () => {
+    const messages: string[] = [],
+      handler = makeErrorHandler((m: string) => {
+        messages.push(m)
+      })
+    handler(new ConvexError({ code: 'NOT_FOUND', message: 'Blog not found' }))
+    expect(messages).toEqual(['Blog not found'])
+  })
+
+  test('calls override handler for specific code', () => {
+    const messages: string[] = []
+    let overrideCalled = false
+    const handler = makeErrorHandler(
+      (m: string) => {
+        messages.push(m)
+      },
+      {
+        RATE_LIMITED: () => {
+          overrideCalled = true
+        }
+      }
+    )
+    handler(new ConvexError({ code: 'RATE_LIMITED' }))
+    expect(overrideCalled).toBe(true)
+    expect(messages).toEqual([])
+  })
+
+  test('falls back to toast for codes without override', () => {
+    const messages: string[] = [],
+      handler = makeErrorHandler(
+        (m: string) => {
+          messages.push(m)
+        },
+        {
+          RATE_LIMITED: () => {
+            /* Noop */
+          }
+        }
+      )
+    handler(new ConvexError({ code: 'NOT_FOUND', message: 'Gone' }))
+    expect(messages).toEqual(['Gone'])
   })
 })
