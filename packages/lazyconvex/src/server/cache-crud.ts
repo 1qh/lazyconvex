@@ -33,6 +33,7 @@ const chk = (c: DbCtx) => ({ db: c.db }),
     key,
     rateLimit: rl,
     schema,
+    staleWhileRevalidate: swr,
     table,
     ttl = SEVEN_DAYS_MS
   }: {
@@ -42,6 +43,7 @@ const chk = (c: DbCtx) => ({ db: c.db }),
     key: K
     rateLimit?: RateLimitConfig
     schema: ZodObject<S>
+    staleWhileRevalidate?: boolean
     table: string
     ttl?: number
   }): CacheCrudResult<S> => {
@@ -65,7 +67,9 @@ const chk = (c: DbCtx) => ({ db: c.db }),
         args: typed(kArgs),
         handler: typed(async (c: DbCtx, a: Rec) => {
           const d = await c.db.query(table).withIndex(indexName, byK(a[key])).first()
-          return d && valid(d) ? { ...d, cacheHit: true } : null
+          if (!d) return null
+          if (valid(d)) return { ...d, cacheHit: true, stale: false }
+          return swr ? { ...d, cacheHit: true, stale: true } : null
         })
       }),
       read = b.cq({ args: idArgs, handler: typed(async (c: DbCtx, { id }: { id: string }) => c.db.get(id)) }),

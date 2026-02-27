@@ -1,29 +1,37 @@
 /* eslint-disable @typescript-eslint/naming-convention, @typescript-eslint/no-magic-numbers, max-statements */
-import type { GenericTableInfo } from 'convex/server'
+import type { GenericTableInfo, RegisteredQuery } from 'convex/server'
 
 import { describe, expect, test } from 'bun:test'
 import { ConvexError } from 'convex/values'
 import { array, boolean, date, number, object, optional, string, enum as zenum } from 'zod/v4'
 
 import type { FactoryCall } from '../check'
+import type { InfiniteListOptions } from '../react/use-infinite-list'
 import type { UseListOptions } from '../react/use-list'
+import type { UseSearchOptions, UseSearchResult } from '../react/use-search'
 import type { OrgCrudOptions } from '../server/org-crud'
 import type {
   BaseSchema,
+  CacheCrudResult,
   CacheHookCtx,
   CacheHooks,
+  CacheOptions,
   CascadeOption,
   ChildCrudResult,
   CrudHooks,
   CrudOptions,
   CrudResult,
   ErrorCode,
+  GlobalHookCtx,
+  GlobalHooks,
   HookCtx,
   OrgCascadeTableConfig,
   OrgCrudResult,
   OrgSchema,
   OwnedSchema,
   RateLimitConfig,
+  Rec,
+  SetupConfig,
   SingletonSchema,
   WhereOf
 } from '../server/types'
@@ -54,6 +62,7 @@ import { makeErrorHandler } from '../react/error-toast'
 import { buildMeta, getMeta } from '../react/form'
 import { canEditResource } from '../react/org'
 import { DEFAULT_PAGE_SIZE } from '../react/use-list'
+import { DEFAULT_DEBOUNCE_MS, DEFAULT_MIN_LENGTH } from '../react/use-search'
 import { fetchWithRetry, withRetry } from '../retry'
 import { child, cvFile, cvFiles, makeBase, makeOrgScoped, makeOwned, makeSingleton } from '../schema'
 import { generateFieldValue, generateOne, generateSeed } from '../seed'
@@ -3995,5 +4004,222 @@ describe('cacheCrud hooks', () => {
       }
     expect(Object.keys(cacheCtx)).toEqual(['db'])
     expect(Object.keys(crudCtx).toSorted()).toEqual(['db', 'storage', 'userId'])
+  })
+})
+
+describe('stale-while-revalidate for cacheCrud', () => {
+  test('CacheCrudResult get includes stale field in return type', () => {
+    type R = CacheCrudResult<{ title: ReturnType<typeof string> }>
+    type GetResult = R['get'] extends RegisteredQuery<'public', Rec, infer T> ? T : never
+    type HasStale = GetResult extends null | { stale: boolean } ? true : false
+    const _check: HasStale = true
+    expect(_check).toBe(true)
+  })
+
+  test('CacheCrudResult get can return stale: true', () => {
+    type R = CacheCrudResult<{ title: ReturnType<typeof string> }>
+    type GetResult = R['get'] extends RegisteredQuery<'public', Rec, infer T> ? T : never
+    type StaleResult = Extract<GetResult, { stale: boolean }>
+    type IsStaleBoolean = StaleResult['stale'] extends boolean ? true : false
+    const _check: IsStaleBoolean = true
+    expect(_check).toBe(true)
+  })
+
+  test('CacheCrudResult get still returns null for missing entries', () => {
+    type R = CacheCrudResult<{ title: ReturnType<typeof string> }>
+    type GetResult = R['get'] extends RegisteredQuery<'public', Rec, infer T> ? T : never
+    type CanBeNull = null extends GetResult ? true : false
+    const _check: CanBeNull = true
+    expect(_check).toBe(true)
+  })
+
+  test('CacheOptions accepts staleWhileRevalidate field', () => {
+    type Opts = CacheOptions<{ title: ReturnType<typeof string> }, 'title'>
+    type HasSWR = 'staleWhileRevalidate' extends keyof Opts ? true : false
+    const _check: HasSWR = true
+    expect(_check).toBe(true)
+  })
+
+  test('staleWhileRevalidate is optional in CacheOptions', () => {
+    type Opts = CacheOptions<{ title: ReturnType<typeof string> }, 'title'>
+    const opts: Opts = { key: 'title', schema: object({ title: string() }), table: 'test' }
+    expect(opts.staleWhileRevalidate).toBeUndefined()
+  })
+})
+
+describe('useInfiniteList', () => {
+  test('InfiniteListOptions accepts pageSize', () => {
+    const opts: InfiniteListOptions = { pageSize: 20 }
+    expect(opts.pageSize).toBe(20)
+  })
+
+  test('InfiniteListOptions accepts rootMargin', () => {
+    const opts: InfiniteListOptions = { rootMargin: '100px' }
+    expect(opts.rootMargin).toBe('100px')
+  })
+
+  test('InfiniteListOptions accepts threshold', () => {
+    const opts: InfiniteListOptions = { threshold: 0.5 }
+    expect(opts.threshold).toBe(0.5)
+  })
+
+  test('InfiniteListOptions fields are all optional', () => {
+    const opts: InfiniteListOptions = {}
+    expect(opts.pageSize).toBeUndefined()
+    expect(opts.rootMargin).toBeUndefined()
+    expect(opts.threshold).toBeUndefined()
+  })
+})
+
+describe('useSearch', () => {
+  test('UseSearchOptions accepts debounceMs', () => {
+    const opts: UseSearchOptions = { debounceMs: 500 }
+    expect(opts.debounceMs).toBe(500)
+  })
+
+  test('UseSearchOptions accepts minLength', () => {
+    const opts: UseSearchOptions = { minLength: 3 }
+    expect(opts.minLength).toBe(3)
+  })
+
+  test('UseSearchOptions fields are all optional', () => {
+    const opts: UseSearchOptions = {}
+    expect(opts.debounceMs).toBeUndefined()
+    expect(opts.minLength).toBeUndefined()
+  })
+
+  test('DEFAULT_DEBOUNCE_MS is 300', () => {
+    expect(DEFAULT_DEBOUNCE_MS).toBe(300)
+  })
+
+  test('DEFAULT_MIN_LENGTH is 1', () => {
+    expect(DEFAULT_MIN_LENGTH).toBe(1)
+  })
+
+  test('UseSearchResult shape is correct', () => {
+    type R = UseSearchResult<string[]>
+    type HasQuery = 'query' extends keyof R ? true : false
+    type HasSetQuery = 'setQuery' extends keyof R ? true : false
+    type HasResults = 'results' extends keyof R ? true : false
+    type HasIsSearching = 'isSearching' extends keyof R ? true : false
+    const _q: HasQuery = true,
+      _sq: HasSetQuery = true,
+      _r: HasResults = true,
+      _is: HasIsSearching = true
+    expect(_q).toBe(true)
+    expect(_sq).toBe(true)
+    expect(_r).toBe(true)
+    expect(_is).toBe(true)
+  })
+})
+
+describe('global hooks', () => {
+  test('GlobalHookCtx has db and table, optional userId and storage', () => {
+    const ctx: GlobalHookCtx = { db: {} as GlobalHookCtx['db'], table: 'blog' }
+    expect(ctx.db).toBeDefined()
+    expect(ctx.table).toBe('blog')
+    expect(ctx.userId).toBeUndefined()
+    expect(ctx.storage).toBeUndefined()
+  })
+
+  test('GlobalHookCtx accepts userId and storage', () => {
+    const ctx: GlobalHookCtx = {
+      db: {} as GlobalHookCtx['db'],
+      storage: {} as NonNullable<GlobalHookCtx['storage']>,
+      table: 'blog',
+      userId: 'user_123'
+    }
+    expect(ctx.userId).toBe('user_123')
+    expect(ctx.storage).toBeDefined()
+  })
+
+  test('GlobalHooks interface is structurally valid', () => {
+    const hooks: GlobalHooks = {
+      afterCreate: () => {
+        /* Noop */
+      },
+      afterDelete: () => {
+        /* Noop */
+      },
+      afterUpdate: () => {
+        /* Noop */
+      },
+      beforeCreate: (_ctx, { data }) => data,
+      beforeDelete: () => {
+        /* Noop */
+      },
+      beforeUpdate: (_ctx, { patch }) => patch
+    }
+    expect(hooks.beforeCreate).toBeDefined()
+    expect(hooks.afterCreate).toBeDefined()
+    expect(hooks.beforeUpdate).toBeDefined()
+    expect(hooks.afterUpdate).toBeDefined()
+    expect(hooks.beforeDelete).toBeDefined()
+    expect(hooks.afterDelete).toBeDefined()
+  })
+
+  test('GlobalHooks are all optional', () => {
+    const hooks: GlobalHooks = {}
+    expect(hooks.beforeCreate).toBeUndefined()
+    expect(hooks.afterDelete).toBeUndefined()
+  })
+
+  test('GlobalHooks can be async', () => {
+    const hooks: GlobalHooks = {
+      afterDelete: async () => {
+        /* Noop */
+      },
+      beforeCreate: async (_ctx, { data }) => data
+    }
+    expect(hooks.beforeCreate).toBeDefined()
+    expect(hooks.afterDelete).toBeDefined()
+  })
+
+  test('GlobalHookCtx includes table name for cross-cutting concerns', () => {
+    const tables: string[] = [],
+     hooks: GlobalHooks = {
+      afterCreate: _c => {
+        tables.push(_c.table)
+      }
+    },
+     ctx: GlobalHookCtx = { db: {} as GlobalHookCtx['db'], table: 'blog' }
+    hooks.afterCreate?.(ctx, { data: {}, id: '123' })
+    const ctx2: GlobalHookCtx = { db: {} as GlobalHookCtx['db'], table: 'wiki' }
+    hooks.afterCreate?.(ctx2, { data: {}, id: '456' })
+    expect(tables).toEqual(['blog', 'wiki'])
+  })
+
+  test('SetupConfig accepts hooks field', () => {
+    type HasHooks = 'hooks' extends keyof SetupConfig ? true : false
+    const _check: HasHooks = true
+    expect(_check).toBe(true)
+  })
+
+  test('SetupConfig hooks is optional', () => {
+    type IsOptional = undefined extends SetupConfig['hooks'] ? true : false
+    const _check: IsOptional = true
+    expect(_check).toBe(true)
+  })
+
+  test('GlobalHooks beforeCreate receives table in context', () => {
+    let capturedTable = ''
+    const hooks: GlobalHooks = {
+      beforeCreate: (_c, { data }) => {
+        capturedTable = _c.table
+        return data
+      }
+    },
+     ctx: GlobalHookCtx = { db: {} as GlobalHookCtx['db'], table: 'blog' }
+    hooks.beforeCreate?.(ctx, { data: { title: 'test' } })
+    expect(capturedTable).toBe('blog')
+  })
+
+  test('GlobalHooks beforeUpdate composes data transform', () => {
+    const hooks: GlobalHooks = {
+      beforeUpdate: (_ctx, { patch }) => ({ ...patch, globalField: true })
+    },
+     ctx: GlobalHookCtx = { db: {} as GlobalHookCtx['db'], table: 'blog' },
+     result = hooks.beforeUpdate?.(ctx, { id: '123', patch: { title: 'new' }, prev: { title: 'old' } })
+    expect(result).toEqual({ globalField: true, title: 'new' })
   })
 })

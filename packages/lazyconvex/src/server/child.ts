@@ -1,4 +1,4 @@
-/* eslint-disable no-await-in-loop, no-continue, max-statements */
+/* eslint-disable complexity, no-await-in-loop, no-continue, max-statements */
 // biome-ignore-all lint/performance/noAwaitInLoops: x
 // biome-ignore-all lint/nursery/noContinue: x
 import type { ZodObject, ZodRawShape } from 'zod/v4'
@@ -6,7 +6,17 @@ import type { ZodObject, ZodRawShape } from 'zod/v4'
 import { zid } from 'convex-helpers/server/zod4'
 import { array, number } from 'zod/v4'
 
-import type { BaseBuilders, ChildCrudResult, CrudHooks, DbReadLike, HookCtx, MutCtx, Rec, UserCtx } from './types'
+import type {
+  BaseBuilders,
+  ChildCrudResult,
+  CrudHooks,
+  DbReadLike,
+  GlobalHooks,
+  HookCtx,
+  MutCtx,
+  Rec,
+  UserCtx
+} from './types'
 
 import { BULK_MAX } from '../constants'
 import { idx, typed } from './bridge'
@@ -34,19 +44,60 @@ const chk = (ctx: UserCtx): HookCtx => ({
     const p = await db.get(parentId)
     return p?.[field] ? p : null
   },
+  mergeChildHooks = (gh: GlobalHooks | undefined, fh: CrudHooks | undefined, table: string): CrudHooks | undefined => {
+    if (!(gh || fh)) return
+    const merged: CrudHooks = {}
+    if (gh?.beforeCreate ?? fh?.beforeCreate)
+      merged.beforeCreate = async (ctx: HookCtx, args: { data: Rec }) => {
+        let { data } = args
+        if (gh?.beforeCreate) data = await gh.beforeCreate({ ...ctx, table }, { data })
+        if (fh?.beforeCreate) data = await fh.beforeCreate(ctx, { data })
+        return data
+      }
+    if (gh?.afterCreate ?? fh?.afterCreate)
+      merged.afterCreate = async (ctx: HookCtx, args: { data: Rec; id: string }) => {
+        if (gh?.afterCreate) await gh.afterCreate({ ...ctx, table }, args)
+        if (fh?.afterCreate) await fh.afterCreate(ctx, args)
+      }
+    if (gh?.beforeUpdate ?? fh?.beforeUpdate)
+      merged.beforeUpdate = async (ctx: HookCtx, args: { id: string; patch: Rec; prev: Rec }) => {
+        let { patch } = args
+        if (gh?.beforeUpdate) patch = await gh.beforeUpdate({ ...ctx, table }, { ...args, patch })
+        if (fh?.beforeUpdate) patch = await fh.beforeUpdate(ctx, { ...args, patch })
+        return patch
+      }
+    if (gh?.afterUpdate ?? fh?.afterUpdate)
+      merged.afterUpdate = async (ctx: HookCtx, args: { id: string; patch: Rec; prev: Rec }) => {
+        if (gh?.afterUpdate) await gh.afterUpdate({ ...ctx, table }, args)
+        if (fh?.afterUpdate) await fh.afterUpdate(ctx, args)
+      }
+    if (gh?.beforeDelete ?? fh?.beforeDelete)
+      merged.beforeDelete = async (ctx: HookCtx, args: { doc: Rec; id: string }) => {
+        if (gh?.beforeDelete) await gh.beforeDelete({ ...ctx, table }, args)
+        if (fh?.beforeDelete) await fh.beforeDelete(ctx, args)
+      }
+    if (gh?.afterDelete ?? fh?.afterDelete)
+      merged.afterDelete = async (ctx: HookCtx, args: { doc: Rec; id: string }) => {
+        if (gh?.afterDelete) await gh.afterDelete({ ...ctx, table }, args)
+        if (fh?.afterDelete) await fh.afterDelete(ctx, args)
+      }
+    return merged
+  },
   makeChildCrud = <S extends ZodRawShape, PS extends ZodRawShape = ZodRawShape>({
     builders,
+    globalHooks: gh,
     meta,
     options,
     table
   }: {
     builders: BaseBuilders
+    globalHooks?: GlobalHooks
     meta: ChildMeta<S, PS>
     options?: ChildCrudOptions<PS>
     table: string
   }): ChildCrudResult<S> => {
     const { m, pq, q } = builders,
-      hooks = options?.hooks,
+      hooks = mergeChildHooks(gh, options?.hooks, table),
       { foreignKey, index, parent, schema } = meta,
       getFK = (doc: Rec): string => doc[foreignKey] as string,
       schemaKeys = Object.keys(schema.shape),

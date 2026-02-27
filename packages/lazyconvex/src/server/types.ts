@@ -45,6 +45,7 @@ interface CacheOptions<S extends ZodRawShape, K extends keyof _.output<ZodObject
   hooks?: CacheHooks
   key: K
   schema: ZodObject<S>
+  staleWhileRevalidate?: boolean
   table: string
   ttl?: number
 }
@@ -90,6 +91,20 @@ interface CrudOptions<S extends ZodRawShape> {
 }
 interface DbCtx {
   db: DbLike
+}
+interface GlobalHookCtx {
+  db: DbLike
+  storage?: StorageLike
+  table: string
+  userId?: string
+}
+interface GlobalHooks {
+  afterCreate?: (ctx: GlobalHookCtx, args: { data: Rec; id: string }) => Promise<void> | void
+  afterDelete?: (ctx: GlobalHookCtx, args: { doc: Rec; id: string }) => Promise<void> | void
+  afterUpdate?: (ctx: GlobalHookCtx, args: { id: string; patch: Rec; prev: Rec }) => Promise<void> | void
+  beforeCreate?: (ctx: GlobalHookCtx, args: { data: Rec }) => Promise<Rec> | Rec
+  beforeDelete?: (ctx: GlobalHookCtx, args: { doc: Rec; id: string }) => Promise<void> | void
+  beforeUpdate?: (ctx: GlobalHookCtx, args: { id: string; patch: Rec; prev: Rec }) => Promise<Rec> | Rec
 }
 interface HookCtx {
   db: DbLike
@@ -168,7 +183,7 @@ interface CacheCrudResult<S extends ZodRawShape> {
   all: RegisteredQuery<'public', Rec, DocBase<S>[]>
   checkRL?: RegisteredMutation<'internal', Rec, void>
   create: RegisteredMutation<'public', Rec, string>
-  get: RegisteredQuery<'public', Rec, (DocBase<S> & { cacheHit: true }) | null>
+  get: RegisteredQuery<'public', Rec, (DocBase<S> & { cacheHit: true; stale: boolean }) | null>
   getInternal: RegisteredQuery<'internal', Rec, DocBase<S> | null>
   invalidate: RegisteredMutation<'public', Rec, DocBase<S> | null>
   list: RegisteredQuery<'public', Rec, PaginatedResult<DocBase<S>>>
@@ -361,6 +376,7 @@ interface SearchLike {
 interface SetupConfig<DM extends GenericDataModel = GenericDataModel> {
   action: ActionBuilder<DM, 'public'>
   getAuthUserId: (ctx: never) => Promise<null | string>
+  hooks?: GlobalHooks
   internalMutation: MutationBuilder<DM, 'internal'>
   internalQuery: QueryBuilder<DM, 'internal'>
   mutation: MutationBuilder<DM, 'public'>
@@ -452,6 +468,8 @@ export type {
   ErrorCode,
   FID,
   FilterLike,
+  GlobalHookCtx,
+  GlobalHooks,
   HookCtx,
   IndexLike,
   Mb,

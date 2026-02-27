@@ -24,8 +24,11 @@ export {
   useOrgQuery
 } from './org'
 export { useBulkSelection } from './use-bulk-selection'
+export { useCacheEntry } from './use-cache'
+export { useInfiniteList } from './use-infinite-list'
 export { useList } from './use-list'
 export { default as useOnlineStatus } from './use-online-status'
 export { useOptimisticMutation } from './use-optimistic'
+export { useSearch } from './use-search'
 export { useSoftDelete } from './use-soft-delete'
 export { default as useUpload } from './use-upload'
