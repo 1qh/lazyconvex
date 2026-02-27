@@ -42,7 +42,8 @@
   "bin": {
     "create-lazyconvex-app": "./src/create.ts",
     "lazyconvex-check": "./src/check.ts",
-    "lazyconvex-codegen-swift": "./src/codegen-swift.ts"
+    "lazyconvex-codegen-swift": "./src/codegen-swift.ts",
+    "lazyconvex-viz": "./src/viz.ts"
   },
   "files": [
     "src",
