@@ -104,6 +104,14 @@ One line of config. 12 endpoints. Role-based access, editor ACL, soft delete wit
 | External API cache with TTL + auto-refresh | 0 |
 | Branded types — compile-time factory mismatch prevention | 0 |
 | Swift codegen — typed native APIs from the same schema | 0 |
+| Typed error handling with discriminated result unions | 0 |
+| Rich error metadata (retryAfter, limit) for rate limiting | 0 |
+| Unified CLI (`lazyconvex init`, `check`, `codegen-swift`) | 0 |
+| Project health score (`lazyconvex check --health`) | 0 |
+| Schema preview (`lazyconvex check --schema`) | 0 |
+| Browser devtools panel (customizable position, tabs) | 0 |
+| Interactive schema playground component | 0 |
+| JSDoc on all public exports | 0 |
 
 ## Install
 
@@ -207,7 +215,7 @@ Each wrapper brands schemas at the type level. Passing an owned schema to `orgCr
 
 ## Demo Apps
 
-4 apps × 3 platforms = 12 real-world demos with **1,138 tests** across all platforms:
+4 apps × 3 platforms = 12 real-world demos with **1,381 tests** across all platforms:
 
 | App | What it shows | Backend |
 |-----|---------------|---------|
@@ -221,10 +229,10 @@ Each wrapper brands schemas at the type level. Passing an owned schema to `orgCr
 | Platform | Framework | Tests |
 |----------|-----------|------:|
 | Web | Playwright E2E | 220 |
-| Desktop | XCUITest (SwiftCrossUI) | 223 |
-| Mobile | Maestro (Skip) | 84 |
+| Desktop | Swift Testing + XCTest | 32 |
+| Mobile | Maestro (Skip) | 92 |
 | Backend | convex-test | 215 |
-| Library | bun:test | 396 |
+| Library | bun:test | 822 |
 
 ### Native Apps
 
@@ -265,7 +273,7 @@ The library is independently testable without the demo apps:
 
 ```bash
 cd packages/lazyconvex
-bun test          # 396 library-only tests, no Convex needed
+bun test          # 822 library-only tests, no Convex needed
 bun lint          # library-scoped linting
 bun typecheck     # library-only type checking
 ```
