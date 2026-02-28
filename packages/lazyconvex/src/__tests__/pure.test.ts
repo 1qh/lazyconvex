@@ -3828,7 +3828,7 @@ describe('lazyconvex-docs', () => {
   test('generateMarkdown produces markdown header', () => {
     const md = generateMarkdown([], new Map())
     expect(md).toContain('# API Reference')
-    expect(md).toContain('lazyconvex-docs')
+    expect(md).toContain('lazyconvex docs')
   })
 
   test('generateMarkdown includes factory table', () => {

@@ -632,9 +632,9 @@ const schemaMarkers = ['makeOwned(', 'makeOrgScoped(', 'makeSingleton(', 'makeBa
     }
     if (!allIssues.length) console.log(`  ${green('\u2713 No issues found')}\n`)
     console.log(
-      `  ${dim('Run')} lazyconvex-check --endpoints ${dim('for endpoint list')}\n` +
-        `  ${dim('Run')} lazyconvex-check --indexes ${dim('for index analysis')}\n` +
-        `  ${dim('Run')} lazyconvex-check --access ${dim('for access matrix')}\n`
+      `  ${dim('Run')} lazyconvex check --endpoints ${dim('for endpoint list')}\n` +
+        `  ${dim('Run')} lazyconvex check --indexes ${dim('for index analysis')}\n` +
+        `  ${dim('Run')} lazyconvex check --access ${dim('for access matrix')}\n`
     )
   },
   run = () => {

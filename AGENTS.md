@@ -510,4 +510,4 @@ After any significant refactoring, verify `api.blog.update({ typoField: ... })` 
 
 ### Test: is this generic?
 
-If a developer runs `bunx lazyconvex-codegen-swift --schema their-schema.ts --convex their-convex/` on a project lazyconvex has never seen, does it produce correct output? If not, something is hardcoded that shouldn't be.
+If a developer runs `bunx lazyconvex codegen-swift --schema their-schema.ts --convex their-convex/` on a project lazyconvex has never seen, does it produce correct output? If not, something is hardcoded that shouldn't be.

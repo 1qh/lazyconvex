@@ -1,13 +1,22 @@
 #!/usr/bin/env bun
+/* eslint-disable no-console */
+/** biome-ignore-all lint/style/noProcessEnv: cli */
 
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-const SCHEMA_TS = `import { ownedTable, rateLimitTable, uploadTables } from 'lazyconvex/server'
+const green = (s: string) => `\u001B[32m${s}\u001B[0m`,
+  yellow = (s: string) => `\u001B[33m${s}\u001B[0m`,
+  dim = (s: string) => `\u001B[2m${s}\u001B[0m`,
+  bold = (s: string) => `\u001B[1m${s}\u001B[0m`,
+  SCHEMA_TS = `import { authTables } from '@convex-dev/auth/server'
 import { defineSchema } from 'convex/server'
+import { ownedTable, rateLimitTable, uploadTables } from 'lazyconvex/server'
+
 import { owned } from './t'
 
 export default defineSchema({
+  ...authTables,
   ...uploadTables(),
   ...rateLimitTable(),
   blog: ownedTable(owned.blog)
@@ -19,7 +28,7 @@ import { boolean, object, string, enum as zenum } from 'zod/v4'
 const owned = makeOwned({
   blog: object({
     title: string().min(1),
-    content: string(),
+    content: string().min(3),
     category: zenum(['tech', 'life', 'tutorial']),
     published: boolean(),
     coverImage: cvFile().nullable().optional()
@@ -48,8 +57,10 @@ export { crud, m, pq, q }
 import { owned } from './t'
 
 export const {
-  create, list, read, rm, update
-} = crud('blog', owned.blog)
+  bulkRm, bulkUpdate, create,
+  pub: { list, read },
+  rm, update
+} = crud('blog', owned.blog, { search: 'content' })
 `,
   PROVIDER_TSX = `'use client'
 import type { ReactNode } from 'react'
@@ -140,6 +151,9 @@ const BlogPage = () => {
 
 export default BlogPage
 `,
+  ENV_LOCAL = `CONVEX_URL=
+NEXT_PUBLIC_CONVEX_URL=
+`,
   BACKEND_FILES: [string, string][] = [
     ['schema.ts', SCHEMA_TS],
     ['t.ts', T_TS],
@@ -164,11 +178,11 @@ export default BlogPage
   }): boolean => {
     const path = join(absDir, name)
     if (existsSync(path)) {
-      process.stdout.write(`  skip ${label}/${name} (exists)\n`)
+      console.log(`  ${yellow('skip')} ${label}/${name} ${dim('(exists)')}`)
       return false
     }
     writeFileSync(path, content)
-    process.stdout.write(`  create ${label}/${name}\n`)
+    console.log(`  ${green('✓')} ${label}/${name}`)
     return true
   },
   writeFilesToDir = (absDir: string, label: string, files: [string, string][]) => {
@@ -180,20 +194,53 @@ export default BlogPage
       else skipped += 1
     return { created, skipped }
   },
-  printSummary = (created: number, skipped: number) => {
-    process.stdout.write('\n')
-    if (created > 0) process.stdout.write(`Created ${created} file${created > 1 ? 's' : ''}.\n`)
-    if (skipped > 0) process.stdout.write(`Skipped ${skipped} existing file${skipped > 1 ? 's' : ''}.\n`)
-    process.stdout.write('\nNext steps:\n')
-    process.stdout.write('  bun add lazyconvex convex @convex-dev/auth zod\n')
-    process.stdout.write('  bunx convex dev & bun dev\n\n')
+  parseFlags = (args: string[]) => {
+    let convexDir = 'convex',
+      appDir = 'src/app',
+      help = false
+    for (const arg of args)
+      if (arg === '--help' || arg === '-h') help = true
+      else if (arg.startsWith('--convex-dir=')) convexDir = arg.slice('--convex-dir='.length)
+      else if (arg.startsWith('--app-dir=')) appDir = arg.slice('--app-dir='.length)
+
+    return { appDir, convexDir, help }
   },
-  run = () => {
-    const convexDir = process.argv[2] ?? 'convex',
-      appDir = process.argv[3] ?? 'src/app',
-      b = writeFilesToDir(join(process.cwd(), convexDir), convexDir, BACKEND_FILES),
-      f = writeFilesToDir(join(process.cwd(), appDir), appDir, FRONTEND_FILES)
+  printHelp = () => {
+    console.log(`${bold('lazyconvex init')} — scaffold a lazyconvex project\n`)
+    console.log(bold('Usage:'))
+    console.log('  lazyconvex init [options]\n')
+    console.log(bold('Options:'))
+    console.log(`  --convex-dir=DIR  Convex directory ${dim('(default: convex)')}`)
+    console.log(`  --app-dir=DIR     Next.js app directory ${dim('(default: src/app)')}`)
+    console.log('  --help, -h        Show this help\n')
+  },
+  printSummary = (created: number, skipped: number) => {
+    console.log('')
+    if (created > 0) console.log(`${green('✓')} Created ${created} file${created > 1 ? 's' : ''}.`)
+    if (skipped > 0) console.log(`${yellow('⚠')} Skipped ${skipped} existing file${skipped > 1 ? 's' : ''}.`)
+    console.log(`\n${bold('Next steps:')}`)
+    console.log(`  ${dim('$')} bun add lazyconvex convex @convex-dev/auth zod`)
+    console.log(`  ${dim('$')} bunx convex dev & bun dev\n`)
+  },
+  init = (args: string[] = []) => {
+    const { appDir, convexDir, help } = parseFlags(args)
+    if (help) {
+      printHelp()
+      return
+    }
+    console.log(`\n${bold('Scaffolding lazyconvex project...')}\n`)
+    const b = writeFilesToDir(join(process.cwd(), convexDir), convexDir, BACKEND_FILES),
+      f = writeFilesToDir(join(process.cwd(), appDir), appDir, FRONTEND_FILES),
+      envPath = join(process.cwd(), '.env.local')
+    if (existsSync(envPath)) console.log(`  ${yellow('skip')} .env.local ${dim('(exists)')}`)
+    else {
+      writeFileSync(envPath, ENV_LOCAL)
+      console.log(`  ${green('✓')} .env.local`)
+    }
     printSummary(b.created + f.created, b.skipped + f.skipped)
   }
 
-run()
+if (process.argv[1]?.endsWith('create.ts') || process.argv[1]?.endsWith('create-lazyconvex-app'))
+  init(process.argv.slice(2))
+
+export { init }

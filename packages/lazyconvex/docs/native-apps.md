@@ -7,7 +7,7 @@ lazyconvex includes a Swift codegen CLI and 8 native apps (4 mobile + 4 desktop)
 Generate typed Swift models, enums, and API wrappers from your Zod schemas:
 
 ```bash
-bunx lazyconvex-codegen-swift --schema packages/be/t.ts --convex packages/be/convex \
+bunx lazyconvex codegen-swift --schema packages/be/t.ts --convex packages/be/convex \
   --output swift-core/Sources/ConvexCore/Generated.swift \
   --mobile-output mobile/convex-shared/Sources/ConvexShared/MobileAPI.swift
 ```

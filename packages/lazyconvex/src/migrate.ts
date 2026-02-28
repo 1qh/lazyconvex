@@ -294,7 +294,7 @@ const WRAPPER_FACTORIES = ['makeOwned', 'makeOrgScoped', 'makeSingleton', 'makeB
     console.log(bold('\nlazyconvex migrate\n'))
 
     if (flags.has('--help') || flags.has('-h')) {
-      console.log(`Usage: lazyconvex-migrate [options]
+      console.log(`Usage: lazyconvex migrate [options]
 
 Compare schema versions and generate migration plans.
 
@@ -305,9 +305,9 @@ Options:
   --help, -h      Show this help
 
 Examples:
-  lazyconvex-migrate                    Compare HEAD vs working tree
-  lazyconvex-migrate --from HEAD~3      Compare 3 commits ago vs now
-  lazyconvex-migrate --snapshot         Print current schema tables & fields
+  lazyconvex migrate                    Compare HEAD vs working tree
+  lazyconvex migrate --from HEAD~3      Compare 3 commits ago vs now
+  lazyconvex migrate --snapshot         Print current schema tables & fields
 `)
       return
     }

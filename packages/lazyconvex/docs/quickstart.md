@@ -31,7 +31,7 @@ This creates the `convex/` directory with `_generated/` files.
 ## 4. Scaffold lazyconvex files
 
 ```bash
-bunx create-lazyconvex-app convex
+bunx lazyconvex init
 ```
 
 This generates four files:

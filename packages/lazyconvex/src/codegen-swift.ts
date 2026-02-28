@@ -42,7 +42,7 @@ const parseArgs = (): { convex: string; mobileOutput: string; output: string; sc
     }
     if (!(r.schema && r.convex && r.output)) {
       process.stderr.write(
-        'Usage: lazyconvex-codegen-swift --schema <path> --convex <path> --output <path> [--mobile-output <path>]\n'
+        'Usage: lazyconvex codegen-swift --schema <path> --convex <path> --output <path> [--mobile-output <path>]\n'
       )
       process.exit(1)
     }

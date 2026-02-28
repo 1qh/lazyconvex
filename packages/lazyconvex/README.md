@@ -239,7 +239,7 @@ let subID = BlogAPI.subscribePaginated(onUpdate: { result in ... }, onError: { e
 A typo in a field name or wrong enum value is a Swift compile error. Zero `[String: Any]` dictionaries.
 
 ```bash
-bunx lazyconvex-codegen-swift --schema packages/be/t.ts --convex packages/be/convex \
+bunx lazyconvex codegen-swift --schema packages/be/t.ts --convex packages/be/convex \
   --output Generated.swift --mobile-output MobileAPI.swift
 ```
 
@@ -272,4 +272,4 @@ bun typecheck     # library-only type checking
 
 Repo-wide commands (`bun fix`, `bun test:all`) include all 4 demo apps and take longer. For library-only changes, the commands above are sufficient.
 
-Run `bunx lazyconvex-check` from any consumer project to validate schema/factory consistency.
+Run `bunx lazyconvex check` from any consumer project to validate schema/factory consistency.

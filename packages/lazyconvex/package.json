@@ -42,12 +42,7 @@
     "./seed": "./src/seed.ts"
   },
   "bin": {
-    "create-lazyconvex-app": "./src/create.ts",
-    "lazyconvex-check": "./src/check.ts",
-    "lazyconvex-codegen-swift": "./src/codegen-swift.ts",
-    "lazyconvex-docs": "./src/docs-gen.ts",
-    "lazyconvex-migrate": "./src/migrate.ts",
-    "lazyconvex-viz": "./src/viz.ts"
+    "lazyconvex": "./src/cli.ts"
   },
   "files": [
     "src",
