@@ -43,10 +43,15 @@ import type {
 
 import {
   accessForFactory,
+  checkIndexCoverage,
+  checkSchemaConsistency,
   endpointsForFactory,
   extractCustomIndexes,
   extractWhereFromOptions,
-  FACTORY_DEFAULT_INDEXES
+  FACTORY_DEFAULT_INDEXES,
+  HEALTH_ERROR_PENALTY,
+  HEALTH_MAX,
+  HEALTH_WARN_PENALTY
 } from '../check'
 import { isValidSwiftIdent, SWIFT_KEYWORDS, swiftEnumCase } from '../codegen-swift-utils'
 import { defineSteps } from '../components/step-form'
@@ -6004,6 +6009,82 @@ describe('middleware', () => {
     test('MiddlewareCtx operation is create, update, or delete', () => {
       const ops: MiddlewareCtx['operation'][] = ['create', 'update', 'delete']
       expect(ops).toHaveLength(3)
+    })
+  })
+})
+
+describe('health check', () => {
+  describe('checkSchemaConsistency', () => {
+    test('returns empty issues for consistent schema', async () => {
+      const { mkdirSync, writeFileSync } = await import('node:fs'),
+        tmpDir = `/tmp/lazyconvex-test-health-${Date.now()}`
+      mkdirSync(`${tmpDir}/convex/_generated`, { recursive: true })
+      writeFileSync(`${tmpDir}/convex/blog.ts`, "crud('blog', owned.blog)")
+      const schemaFile = {
+          content: 'const owned = makeOwned({ blog: object({ title: string() }) })',
+          path: `${tmpDir}/schema.ts`
+        },
+        issues = checkSchemaConsistency(`${tmpDir}/convex`, schemaFile),
+        schemaErrors = issues.filter(i => i.level === 'error')
+      expect(schemaErrors).toHaveLength(0)
+    })
+  })
+
+  describe('checkIndexCoverage', () => {
+    test('returns empty issues when no where clauses used', async () => {
+      const { mkdirSync, writeFileSync } = await import('node:fs'),
+        calls: FactoryCall[] = [{ factory: 'crud', file: 'blog.ts', options: '', table: 'blog' }],
+        tmpDir = `/tmp/lazyconvex-test-idx-${Date.now()}`
+      mkdirSync(`${tmpDir}/convex/_generated`, { recursive: true })
+      writeFileSync(`${tmpDir}/convex/schema.ts`, 'export default defineSchema({})')
+      const issues = checkIndexCoverage(`${tmpDir}/convex`, calls)
+      expect(issues).toHaveLength(0)
+    })
+  })
+
+  describe('health scoring', () => {
+    test('HEALTH_MAX is 100', () => {
+      expect(HEALTH_MAX).toBe(100)
+    })
+
+    test('HEALTH_ERROR_PENALTY is 15', () => {
+      expect(HEALTH_ERROR_PENALTY).toBe(15)
+    })
+
+    test('HEALTH_WARN_PENALTY is 5', () => {
+      expect(HEALTH_WARN_PENALTY).toBe(5)
+    })
+
+    test('score calculation: perfect score with no issues', () => {
+      expect(HEALTH_MAX).toBe(100)
+    })
+
+    test('score calculation: 1 error reduces by HEALTH_ERROR_PENALTY', () => {
+      const score = HEALTH_MAX - HEALTH_ERROR_PENALTY
+      expect(score).toBe(85)
+    })
+
+    test('score calculation: 1 warning reduces by HEALTH_WARN_PENALTY', () => {
+      const score = HEALTH_MAX - HEALTH_WARN_PENALTY
+      expect(score).toBe(95)
+    })
+
+    test('score calculation: multiple errors and warnings compound', () => {
+      const errors = 2,
+        warns = 3,
+        score = HEALTH_MAX - errors * HEALTH_ERROR_PENALTY - warns * HEALTH_WARN_PENALTY
+      expect(score).toBe(55)
+    })
+
+    test('score never goes below 0', () => {
+      const errors = 10,
+        warns = 10,
+        raw = HEALTH_MAX - errors * HEALTH_ERROR_PENALTY - warns * HEALTH_WARN_PENALTY
+      expect(Math.max(0, raw)).toBe(0)
+    })
+
+    test('error penalty is higher than warn penalty', () => {
+      expect(HEALTH_ERROR_PENALTY).toBeGreaterThan(HEALTH_WARN_PENALTY)
     })
   })
 })

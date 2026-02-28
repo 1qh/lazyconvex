@@ -509,6 +509,134 @@ const schemaMarkers = ['makeOwned(', 'makeOrgScoped(', 'makeSingleton(', 'makeBa
     }
     console.log(`${bold(String(totalEndpoints))} endpoints across ${bold(String(calls.length))} tables\n`)
   },
+  checkSchemaConsistency = (convexDir: string, schemaFile: { content: string; path: string }): Issue[] => {
+    const issues: Issue[] = [],
+      schemaTables = extractSchemaTableNames(schemaFile.content),
+      { calls, files } = extractFactoryCalls(convexDir),
+      seen = new Map<string, string>()
+    for (const call of calls) {
+      if (seen.has(call.table))
+        issues.push({
+          file: call.file,
+          level: 'error',
+          message: `Duplicate factory for table "${call.table}" (also in ${seen.get(call.table)})`
+        })
+      else seen.set(call.table, call.file)
+      if (!schemaTables.has(call.table))
+        issues.push({
+          file: call.file,
+          level: 'error',
+          message: `${call.factory}('${call.table}') but no "${call.table}" table found in schema`
+        })
+    }
+    const factoryTables = new Set(calls.map(c => c.table))
+    for (const table of schemaTables)
+      if (!factoryTables.has(table))
+        issues.push({
+          file: basename(schemaFile.path),
+          level: 'warn',
+          message: `Table "${table}" defined in schema but no factory call found`
+        })
+    const convexFiles = new Set(files.map(f => f.replace('.ts', '')))
+    for (const call of calls)
+      if (call.table !== basename(call.file, '.ts') && !convexFiles.has(call.table))
+        issues.push({
+          file: call.file,
+          level: 'warn',
+          message: `${call.factory}('${call.table}') in ${call.file} — table name doesn't match filename`
+        })
+    return issues
+  },
+  checkIndexCoverage = (convexDir: string, calls: FactoryCall[]): Issue[] => {
+    const schemaDef = findSchemaDefFile(convexDir),
+      customIndexes = schemaDef ? extractCustomIndexes(schemaDef.content) : new Map<string, TableIndex[]>(),
+      root = dirname(convexDir),
+      projectWhere = scanWhereUsage(root, convexDir),
+      whereByTable = new Map<string, Set<string>>(),
+      issues: Issue[] = []
+    for (const w of projectWhere) {
+      const set = whereByTable.get(w.table) ?? new Set()
+      set.add(w.field)
+      whereByTable.set(w.table, set)
+    }
+    for (const call of calls) {
+      const wFields = extractWhereFromOptions(call.options)
+      if (wFields.length) {
+        const set = whereByTable.get(call.table) ?? new Set()
+        for (const f of wFields) set.add(f)
+        whereByTable.set(call.table, set)
+      }
+    }
+    for (const call of calls) {
+      const defaults = FACTORY_DEFAULT_INDEXES[call.factory] ?? [],
+        custom = customIndexes.get(call.table) ?? [],
+        allIndexes = [...defaults, ...custom],
+        allFields = new Set<string>()
+      for (const ix of allIndexes) for (const f of ix.fields) allFields.add(f)
+      const tableWhereFields = whereByTable.get(call.table)
+      if (tableWhereFields)
+        for (const field of tableWhereFields)
+          if (!allFields.has(field))
+            issues.push({
+              file: call.file,
+              level: 'warn',
+              message: `"${call.table}": where on '${field}' — no matching index`
+            })
+    }
+    return issues
+  },
+  HEALTH_MAX = 100,
+  HEALTH_ERROR_PENALTY = 15,
+  HEALTH_WARN_PENALTY = 5,
+  // oxlint-disable-next-line max-statements
+
+  printHealthReport = (convexDir: string, schemaFile: { content: string; path: string }) => {
+    const { calls } = extractFactoryCalls(convexDir),
+      schemaIssues = checkSchemaConsistency(convexDir, schemaFile),
+      indexIssues = checkIndexCoverage(convexDir, calls)
+    let totalEndpoints = 0
+    for (const call of calls) totalEndpoints += endpointsForFactory(call).length
+    let totalIndexes = 0
+    const schemaDef = findSchemaDefFile(convexDir),
+      customIndexes = schemaDef ? extractCustomIndexes(schemaDef.content) : new Map<string, TableIndex[]>()
+    for (const call of calls) {
+      const defaults = FACTORY_DEFAULT_INDEXES[call.factory] ?? [],
+        custom = customIndexes.get(call.table) ?? []
+      totalIndexes += defaults.length + custom.length
+    }
+    const accessLevels = new Set<string>()
+    for (const call of calls) for (const entry of accessForFactory(call)) accessLevels.add(entry.level)
+    const allIssues = [...schemaIssues, ...indexIssues],
+      errors = allIssues.filter(i => i.level === 'error'),
+      warnings = allIssues.filter(i => i.level === 'warn'),
+      rawScore = HEALTH_MAX - errors.length * HEALTH_ERROR_PENALTY - warnings.length * HEALTH_WARN_PENALTY,
+      score = Math.max(0, Math.min(HEALTH_MAX, rawScore)),
+      scoreColor = score >= 90 ? green : score >= 70 ? yellow : red
+    console.log(bold('Project Health Report\n'))
+    console.log(`  ${bold('Score:')} ${scoreColor(`${score}/100`)}\n`)
+    console.log(`  ${dim('Tables:')}      ${calls.length}`)
+    console.log(`  ${dim('Endpoints:')}   ${totalEndpoints}`)
+    console.log(`  ${dim('Indexes:')}     ${totalIndexes}`)
+    console.log(`  ${dim('Access:')}      ${[...accessLevels].join(', ')}\n`)
+    if (errors.length) {
+      console.log(`  ${red('Errors')} ${dim(`(-${HEALTH_ERROR_PENALTY} pts each)`)}\n`)
+      for (const issue of errors)
+        console.log(`    ${red('\u2717')} ${issue.file ? `${dim(issue.file)} ` : ''}${issue.message}`)
+      console.log('')
+    }
+    if (warnings.length) {
+      console.log(`  ${yellow('Warnings')} ${dim(`(-${HEALTH_WARN_PENALTY} pts each)`)}\n`)
+      for (const issue of warnings)
+        console.log(`    ${yellow('\u26A0')} ${issue.file ? `${dim(issue.file)} ` : ''}${issue.message}`)
+      console.log('')
+    }
+    if (!allIssues.length) console.log(`  ${green('\u2713 No issues found')}\n`)
+    console.log(
+      `  ${dim('Run')} lazyconvex-check --endpoints ${dim('for endpoint list')}\n` +
+        `  ${dim('Run')} lazyconvex-check --indexes ${dim('for index analysis')}\n` +
+        `  ${dim('Run')} lazyconvex-check --access ${dim('for access matrix')}\n`
+    )
+  },
   run = () => {
     const root = process.cwd(),
       flags = new Set(process.argv.slice(2))
@@ -537,6 +665,11 @@ const schemaMarkers = ['makeOwned(', 'makeOrgScoped(', 'makeSingleton(', 'makeBa
       return
     }
 
+    if (flags.has('--health')) {
+      printHealthReport(convexDir, schemaFile)
+      return
+    }
+
     if (flags.has('--access')) {
       const { calls } = extractFactoryCalls(convexDir)
       printAccessReport(calls)
@@ -556,11 +689,17 @@ if (import.meta.main) run()
 
 export {
   accessForFactory,
+  checkIndexCoverage,
+  checkSchemaConsistency,
   endpointsForFactory,
   extractCustomIndexes,
   extractWhereFromOptions,
   FACTORY_DEFAULT_INDEXES,
+  HEALTH_ERROR_PENALTY,
+  HEALTH_MAX,
+  HEALTH_WARN_PENALTY,
   printAccessReport,
+  printHealthReport,
   printIndexReport,
   scanWhereUsage
 }
