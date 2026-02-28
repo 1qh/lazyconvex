@@ -65,4 +65,5 @@ class ConvexErrorBoundary extends Component<ConvexErrorBoundaryProps, ConvexErro
   }
 }
 
+/** Exports ConvexErrorBoundary component. */
 export default ConvexErrorBoundary

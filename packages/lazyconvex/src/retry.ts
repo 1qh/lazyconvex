@@ -22,6 +22,7 @@ const DEFAULT_OPTIONS: Required<RetryOptions> = {
       jitter = Math.random() * JITTER_RANGE + JITTER_BASE
     return Math.min(opts.initialDelayMs * opts.base ** attempt * jitter, opts.maxDelayMs)
   },
+  /** Retries an async function with exponential backoff and jitter. */
   withRetry = async <T>(fn: () => Promise<T>, options: RetryOptions = {}): Promise<T> => {
     const opts = { ...DEFAULT_OPTIONS, ...options }
     let lastError: Error = new Error('Retry failed')
@@ -34,6 +35,7 @@ const DEFAULT_OPTIONS: Required<RetryOptions> = {
       }
     throw lastError
   },
+  /** Fetches a URL with automatic retry on server errors. */
   fetchWithRetry = async (url: string, options?: RequestInit & { retry?: RetryOptions }): Promise<Response> => {
     const { retry, ...fetchOptions } = options ?? {}
     return withRetry(async () => {

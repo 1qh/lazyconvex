@@ -36,4 +36,5 @@ const PermissionGuard = ({
   return children
 }
 
+/** Exports PermissionGuard component. */
 export default PermissionGuard

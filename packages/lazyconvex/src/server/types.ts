@@ -454,69 +454,134 @@ interface SingletonOptions {
 }
 type SingletonSchema<T extends ZodRawShape> = SchemaBrand<'singleton'> & ZodObject<T>
 export type {
+  /** Action builder type for public visibility. */
   Ab,
+  /** Context object for action functions with query and mutation execution. */
   ActionCtxLike,
+  /** Author information containing user metadata like name, email, and image. */
   AuthorInfo,
+  /** Base builders for query and mutation functions. */
   BaseBuilders,
+  /** Schema branded as base type for cache CRUD operations. */
   BaseSchema,
+  /** Builders for cache CRUD operations. */
   CacheBuilders,
+  /** Result type for cache CRUD factory with all generated endpoints. */
   CacheCrudResult,
+  /** Context for cache hooks with database access. */
   CacheHookCtx,
+  /** Lifecycle hooks for cache CRUD operations. */
   CacheHooks,
+  /** Configuration options for cache CRUD factory. */
   CacheOptions,
+  /** Options for checking if a user can edit a document with ACL. */
   CanEditOpts,
+  /** Configuration for cascade delete on related tables. */
   CascadeOption,
+  /** Configuration for child table relationships. */
   ChildConfig,
+  /** Result type for child CRUD factory with all generated endpoints. */
   ChildCrudResult,
+  /** Comparison operators for where clause filtering. */
   ComparisonOp,
+  /** Builders for CRUD operations with pagination. */
   CrudBuilders,
+  /** Lifecycle hooks for CRUD operations. */
   CrudHooks,
+  /** Configuration options for CRUD factory. */
   CrudOptions,
+  /** Read API for CRUD with list, read, and optional search endpoints. */
   CrudReadApi,
+  /** Result type for CRUD factory with all generated endpoints. */
   CrudResult,
+  /** Context with database access. */
   DbCtx,
+  /** Database interface with read/write operations. */
   DbLike,
+  /** Read-only database interface. */
   DbReadLike,
+  /** Base document type with id, creation time, and update timestamp. */
   DocBase,
+  /** Document enriched with author info, ownership flag, and file URLs. */
   EnrichedDoc,
+  /** Union type of all possible error codes. */
   ErrorCode,
+  /** File ID type for storage references. */
   FID,
+  /** Filter builder interface for query construction. */
   FilterLike,
+  /** Context for global hooks with database and storage access. */
   GlobalHookCtx,
+  /** Global lifecycle hooks applied to all CRUD operations. */
   GlobalHooks,
+  /** Context for CRUD hooks with database, storage, and user info. */
   HookCtx,
+  /** Index builder interface for query optimization. */
   IndexLike,
+  /** Mutation builder type for public visibility. */
   Mb,
+  /** Middleware for intercepting CRUD operations. */
   Middleware,
+  /** Context for middleware with operation type. */
   MiddlewareCtx,
+  /** Context for mutation functions with auth and storage. */
   MutationCtxLike,
+  /** Mutation context with user info and storage. */
   MutCtx,
+  /** Configuration for org cascade delete tables. */
   OrgCascadeTableConfig,
+  /** Result type for org CRUD factory with all generated endpoints. */
   OrgCrudResult,
+  /** Org-scoped document enriched with author info and org ID. */
   OrgEnrichedDoc,
+  /** Organization role type: admin, member, or owner. */
   OrgRole,
+  /** Schema branded as org type for org CRUD operations. */
   OrgSchema,
+  /** Minimal user shape for org operations. */
   OrgUserLike,
+  /** Schema branded as owned type for user-owned CRUD operations. */
   OwnedSchema,
+  /** Paginated result with page data and cursor for next page. */
   PaginatedResult,
+  /** Shape of pagination options validator. */
   PaginationOptsShape,
+  /** Query builder type for public visibility. */
   Qb,
+  /** Context for query functions with auth and storage. */
   QueryCtxLike,
+  /** Query builder interface for database queries. */
   QueryLike,
+  /** Configuration for sliding window rate limiting. */
   RateLimitConfig,
+  /** Context for read operations with author enrichment. */
   ReadCtx,
+  /** Generic record type for flexible data structures. */
   Rec,
+  /** Schema brand marker for type safety. */
   SchemaBrand,
+  /** Search builder interface for full-text search. */
   SearchLike,
+  /** Configuration for setup function with builders and hooks. */
   SetupConfig,
+  /** Result type for singleton CRUD factory. */
   SingletonCrudResult,
+  /** Singleton document with user ID and file URLs. */
   SingletonDoc,
+  /** Configuration options for singleton CRUD factory. */
   SingletonOptions,
+  /** Schema branded as singleton type for per-user data. */
   SingletonSchema,
+  /** Storage interface for file operations. */
   StorageLike,
+  /** User context with database and user info. */
   UserCtx,
+  /** Where clause group for filtering with optional OR. */
   WhereGroupOf,
+  /** Where clause for filtering with comparison operators. */
   WhereOf,
+  /** Document with file URL properties added. */
   WithUrls
 }
+/** Map of error codes to human-readable error messages. */
 export { ERROR_MESSAGES }

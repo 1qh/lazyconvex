@@ -86,4 +86,5 @@ const EditorsSection = ({
   )
 }
 
+/** Exports EditorsSection component. */
 export default EditorsSection

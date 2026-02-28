@@ -199,5 +199,7 @@ const useWithGuard = <T extends Record<string, unknown>, S extends ZodObject<Zod
     )
   }
 
+/** Exports form components and hooks. */
 export type { TypedFields }
+
 export { AutoSaveIndicator, ConflictDialog, Form, useForm, useFormMutation }

@@ -319,6 +319,7 @@ const checkFieldKindMismatch = (node: JsxNode, tables: Map<string, Map<string, s
 
 type MemberNode = BaseNode & { object: BaseNode; property: BaseNode }
 
+/** ESLint rule to detect and suggest corrections for api module name casing errors. */
 const apiCasing = {
   create: (context: EslintContext) => {
     const modules = getModules(context.cwd)
@@ -351,6 +352,7 @@ const apiCasing = {
   }
 }
 
+/** ESLint rule to ensure CRUD factory table names match their schema property names. */
 const consistentCrudNaming = {
   create: (context: EslintContext) => ({
     CallExpression: (node: CallNode) => {
@@ -370,6 +372,7 @@ const consistentCrudNaming = {
 
 const isRouteHandler = (filename: string): boolean => routeFilePattern.test(filename)
 
+/** ESLint rule to require await connection() in Next.js server components before Convex fetches. */
 const requireConnection = {
   create: (context: EslintContext) => {
     if (isRouteHandler(context.filename)) return {}
@@ -394,6 +397,7 @@ const requireConnection = {
   }
 }
 
+/** ESLint rule to prevent unsafe type casts on api objects. */
 const noUnsafeApiCast = {
   create: (context: EslintContext) => ({
     TSAsExpression: (node: BaseNode & { expression: BaseNode }) => {
@@ -410,6 +414,7 @@ const noUnsafeApiCast = {
   }
 }
 
+/** ESLint rule to suggest useList() instead of useQuery() for list endpoints. */
 const preferUseList = {
   create: (context: EslintContext) => ({
     CallExpression: (node: CallNode) => {
@@ -428,6 +433,7 @@ const preferUseList = {
   }
 }
 
+/** ESLint rule to suggest useOrgQuery() instead of useQuery() with orgId. */
 const preferUseOrgQuery = {
   create: (context: EslintContext) => ({
     CallExpression: (node: CallNode) => {
@@ -445,6 +451,7 @@ const preferUseOrgQuery = {
   }
 }
 
+/** ESLint rule to validate form field names exist in the schema. */
 const formFieldExists = {
   create: (context: EslintContext) => {
     const tables = parseSchemaFile(context.cwd)
@@ -474,6 +481,7 @@ const formFieldExists = {
   }
 }
 
+/** ESLint rule to validate form field components match their schema field types. */
 const formFieldKind = {
   create: (context: EslintContext) => {
     const tables = parseSchemaFile(context.cwd)
@@ -490,6 +498,7 @@ const formFieldKind = {
   }
 }
 
+/** ESLint rule to warn if convex/ directory or schema file cannot be discovered. */
 const discoveryCheck = {
   create: (context: EslintContext) => {
     if (discoveryWarned) return {}
@@ -519,6 +528,7 @@ const discoveryCheck = {
   }
 }
 
+/** ESLint rule to detect duplicate CRUD factory registrations for the same table. */
 const noDuplicateCrud = {
   create: (context: EslintContext) => ({
     CallExpression: (node: CallNode) => {
@@ -545,6 +555,7 @@ const noDuplicateCrud = {
   }
 }
 
+/** ESLint rule to require try-catch around Convex fetch functions in server components. */
 const noRawFetchInServerComponent = {
   create: (context: EslintContext) => ({
     CallExpression: (node: CallNode) => {
@@ -564,6 +575,7 @@ const noRawFetchInServerComponent = {
   }
 }
 
+/** ESLint rule to require ErrorBoundary when using ConvexProvider. */
 const requireErrorBoundary = {
   create: (context: EslintContext) => {
     const providerNodes: BaseNode[] = []
@@ -607,6 +619,7 @@ const hasProperty = (obj: BaseNode & { properties: (BaseNode & { key: BaseNode }
   return false
 }
 
+/** ESLint rule to require rateLimit option on write CRUD factories. */
 const requireRateLimit = {
   create: (context: EslintContext) => ({
     CallExpression: (node: CallNode) => {
@@ -650,6 +663,7 @@ const bodyContainsIdent = (nodes: BaseNode[], target: string): boolean => {
   return false
 }
 
+/** ESLint rule to require auth checks in mutation handlers. */
 const noUnprotectedMutation = {
   create: (context: EslintContext) => {
     if (context.filename.includes('_generated') || context.filename.includes('.test.')) return {}
@@ -672,6 +686,7 @@ const noUnprotectedMutation = {
   }
 }
 
+/** ESLint rule to require .max() on cvFile/cvFiles in schema. */
 const noUnlimitedFileSize = {
   create: (context: EslintContext) => {
     const content = findSchemaContent(context.cwd)
@@ -706,6 +721,7 @@ const noUnlimitedFileSize = {
   }
 }
 
+/** ESLint rule to require specific field names in search configuration. */
 const noEmptySearchConfig = {
   create: (context: EslintContext) => ({
     CallExpression: (node: CallNode) => {
@@ -735,6 +751,7 @@ const noEmptySearchConfig = {
   }
 }
 
+/** Map of all ESLint rules provided by the lazyconvex plugin. */
 const rules = {
   'api-casing': apiCasing,
   'consistent-crud-naming': consistentCrudNaming,
@@ -754,8 +771,10 @@ const rules = {
   'require-rate-limit': requireRateLimit
 }
 
+/** ESLint plugin object containing all lazyconvex rules. */
 const plugin = { rules }
 
+/** Recommended ESLint configuration for lazyconvex projects. */
 const recommended = {
   files: ['**/*.ts', '**/*.tsx'],
   plugins: {

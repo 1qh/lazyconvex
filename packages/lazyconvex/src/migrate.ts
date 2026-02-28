@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
-/* eslint-disable no-console, max-statements */
+/* eslint-disable no-console, max-statements, complexity */
+/* oxlint-disable eslint/max-statements, eslint/complexity */
 /** biome-ignore-all lint/style/noProcessEnv: cli */
 import { execSync } from 'node:child_process'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
@@ -81,8 +82,6 @@ const WRAPPER_FACTORIES = ['makeOwned', 'makeOrgScoped', 'makeSingleton', 'makeB
     }
     return fields
   },
-  // oxlint-disable-next-line complexity
-  // eslint-disable-next-line complexity
   parseSchemaContent = (content: string): SchemaSnapshot => {
     const tables: TableSnapshot[] = []
     for (const factory of WRAPPER_FACTORIES) {

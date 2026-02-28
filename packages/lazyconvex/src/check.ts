@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
-/* eslint-disable no-console, max-statements */
+/* eslint-disable no-console, max-statements, complexity, max-depth */
+/* oxlint-disable eslint/max-statements, eslint/complexity, max-depth */
 /** biome-ignore-all lint/style/noProcessEnv: cli */
 /** biome-ignore-all lint/performance/noAwaitInLoops: sequential */
 /** biome-ignore-all lint/nursery/noContinue: cli directory scanning */
@@ -30,6 +31,17 @@ interface Issue {
   message: string
 }
 
+interface SchemaField {
+  field: string
+  type: string
+}
+
+interface SchemaTable {
+  factory: string
+  fields: SchemaField[]
+  table: string
+}
+
 interface TableIndex {
   fields: string[]
   name: string
@@ -45,6 +57,21 @@ interface WhereField {
 const schemaMarkers = ['makeOwned(', 'makeOrgScoped(', 'makeSingleton(', 'makeBase(', 'child('],
   factoryPat = /(?<factory>crud|orgCrud|childCrud|cacheCrud|singletonCrud)\(\s*['"](?<table>\w+)['"]/gu,
   wrapperFactories = ['makeOwned', 'makeOrgScoped', 'makeSingleton', 'makeBase'],
+  childSchemaPat = /child\(\{[^}]*schema\s*:\s*object\(\{/gu,
+  childNamePat = /(?<cname>\w+)\s*:\s*child\(/u,
+  childValidPat = /child\(\{[^}]*foreignKey[^}]*parent[^}]*schema/u,
+  objPropPat = /(?<pname>\w+)\s*:\s*object\(\{/gu,
+  fieldLinePat = /^(?<fname>\w+)\s*:\s*(?<ftype>.+?)\s*,?$/u,
+  trailingCommaPat = /,$/u,
+  parenContentPat = /\([^)]*\)/gu,
+  braceContentPat = /\{[^}]*\}/gu,
+  schemaFactoryMap: Record<string, string> = {
+    child: 'childCrud',
+    makeBase: 'cacheCrud',
+    makeOrgScoped: 'orgCrud',
+    makeOwned: 'crud',
+    makeSingleton: 'singletonCrud'
+  },
   CRUD_BASE = ['create', 'update', 'rm', 'bulkCreate', 'bulkRm', 'bulkUpdate'],
   CRUD_PUB = ['pub.list', 'pub.read'],
   ORG_CRUD_BASE = ['list', 'read', 'create', 'update', 'rm', 'bulkCreate', 'bulkRm', 'bulkUpdate'],
@@ -140,6 +167,101 @@ const schemaMarkers = ['makeOwned(', 'makeOrgScoped(', 'makeSingleton(', 'makeBa
     return { calls, files }
   },
   hasOption = (opts: string, key: string): boolean => opts.includes(key),
+  parseObjectFields = (content: string, startPos: number): SchemaField[] => {
+    const fields: SchemaField[] = []
+    let depth = 1,
+      pos = startPos
+    while (pos < content.length && depth > 0) {
+      if (content[pos] === '(' || content[pos] === '{' || content[pos] === '[') depth += 1
+      else if (content[pos] === ')' || content[pos] === '}' || content[pos] === ']') depth -= 1
+      pos += 1
+    }
+    const block = content.slice(startPos, pos - 1)
+    for (const line of block.split('\n')) {
+      const trimmed = line.trim()
+      if (trimmed && !trimmed.startsWith('//')) {
+        const m = fieldLinePat.exec(trimmed)
+        if (m?.groups) {
+          const { fname: field, ftype: rawType } = m.groups
+          if (field && rawType) {
+            const typeStr = rawType
+              .replace(trailingCommaPat, '')
+              .trim()
+              .replace(parenContentPat, '()')
+              .replace(braceContentPat, '{}')
+            fields.push({ field, type: typeStr })
+          }
+        }
+      }
+    }
+    return fields
+  },
+  extractSchemaFields = (content: string): SchemaTable[] => {
+    const tables: SchemaTable[] = [],
+      allFactories = [...wrapperFactories, 'child']
+    for (const factory of allFactories) {
+      const pat = factory === 'child' ? new RegExp(childSchemaPat.source, 'gu') : new RegExp(`${factory}\\(\\{`, 'gu')
+      let fm = pat.exec(content)
+      while (fm) {
+        const startBlock = fm.index + fm[0].length
+        if (factory === 'child') {
+          const lookback = Math.max(0, fm.index - 50)
+          if (childValidPat.test(content.slice(fm.index))) {
+            const tableLine = childNamePat.exec(content.slice(lookback, fm.index + 10)),
+              tableName = tableLine?.groups?.cname ?? 'unknown',
+              fields = parseObjectFields(content, startBlock)
+            tables.push({ factory: schemaFactoryMap[factory] ?? factory, fields, table: tableName })
+          }
+        } else {
+          let depth = 1,
+            pos = startBlock
+          while (pos < content.length && depth > 0) {
+            if (content[pos] === '{') depth += 1
+            else if (content[pos] === '}') depth -= 1
+            pos += 1
+          }
+          const block = content.slice(startBlock, pos - 1),
+            pp = new RegExp(objPropPat.source, 'gu')
+          let pm = pp.exec(block)
+          while (pm) {
+            const tableName = pm.groups?.pname ?? 'unknown',
+              objStart = block.indexOf('{', pm.index + pm[0].length - 1) + 1,
+              fields = parseObjectFields(block, objStart)
+            tables.push({ factory: schemaFactoryMap[factory] ?? factory, fields, table: tableName })
+            pm = pp.exec(block)
+          }
+        }
+        fm = pat.exec(content)
+      }
+    }
+    return tables
+  },
+  printSchemaPreview = (content: string, calls: FactoryCall[]) => {
+    const tables = extractSchemaFields(content)
+    console.log(bold('Schema Preview\n'))
+    if (!tables.length) {
+      console.log(dim('  No tables found in schema file.\n'))
+      return
+    }
+    for (const t of tables) {
+      const call = calls.find(c => c.table === t.table),
+        options: string[] = []
+      if (call) {
+        if (hasOption(call.options, 'search')) options.push('search')
+        if (hasOption(call.options, 'softDelete')) options.push('softDelete')
+        if (hasOption(call.options, 'acl')) options.push('acl')
+        if (hasOption(call.options, 'rateLimit')) options.push('rateLimit')
+        if (hasOption(call.options, 'pub')) options.push('pub')
+      }
+      const optStr = options.length ? ` ${dim(`[${options.join(', ')}]`)}` : ''
+      console.log(`  ${bold(t.table)} ${dim(`(${t.factory})`)}${optStr}`)
+      for (const f of t.fields) console.log(`    ${f.field.padEnd(20)} ${dim(f.type)}`)
+      console.log('')
+    }
+    let totalFields = 0
+    for (const t of tables) totalFields += t.fields.length
+    console.log(`${bold(String(tables.length))} tables with ${bold(String(totalFields))} fields\n`)
+  },
   endpointsForFactory = (call: FactoryCall): string[] => {
     const { factory, options: opts } = call
     if (factory === 'singletonCrud') return [...SINGLETON_BASE]
@@ -388,8 +510,6 @@ const schemaMarkers = ['makeOwned(', 'makeOrgScoped(', 'makeSingleton(', 'makeBa
     scan(root)
     return results
   },
-  // oxlint-disable-next-line complexity
-  // eslint-disable-next-line complexity
   printIndexReport = (convexDir: string, calls: FactoryCall[]) => {
     const schemaDef = findSchemaDefFile(convexDir),
       customIndexes = schemaDef ? extractCustomIndexes(schemaDef.content) : new Map<string, TableIndex[]>(),
@@ -588,8 +708,6 @@ const schemaMarkers = ['makeOwned(', 'makeOrgScoped(', 'makeSingleton(', 'makeBa
   HEALTH_MAX = 100,
   HEALTH_ERROR_PENALTY = 15,
   HEALTH_WARN_PENALTY = 5,
-  // oxlint-disable-next-line max-statements
-
   printHealthReport = (convexDir: string, schemaFile: { content: string; path: string }) => {
     const { calls } = extractFactoryCalls(convexDir),
       schemaIssues = checkSchemaConsistency(convexDir, schemaFile),
@@ -632,7 +750,8 @@ const schemaMarkers = ['makeOwned(', 'makeOrgScoped(', 'makeSingleton(', 'makeBa
     }
     if (!allIssues.length) console.log(`  ${green('\u2713 No issues found')}\n`)
     console.log(
-      `  ${dim('Run')} lazyconvex check --endpoints ${dim('for endpoint list')}\n` +
+      `  ${dim('Run')} lazyconvex check --schema ${dim('for schema preview')}\n` +
+        `  ${dim('Run')} lazyconvex check --endpoints ${dim('for endpoint list')}\n` +
         `  ${dim('Run')} lazyconvex check --indexes ${dim('for index analysis')}\n` +
         `  ${dim('Run')} lazyconvex check --access ${dim('for access matrix')}\n`
     )
@@ -665,6 +784,12 @@ const schemaMarkers = ['makeOwned(', 'makeOrgScoped(', 'makeSingleton(', 'makeBa
       return
     }
 
+    if (flags.has('--schema')) {
+      const { calls } = extractFactoryCalls(convexDir)
+      printSchemaPreview(schemaFile.content, calls)
+      return
+    }
+
     if (flags.has('--health')) {
       printHealthReport(convexDir, schemaFile)
       return
@@ -693,14 +818,17 @@ export {
   checkSchemaConsistency,
   endpointsForFactory,
   extractCustomIndexes,
+  extractSchemaFields,
   extractWhereFromOptions,
   FACTORY_DEFAULT_INDEXES,
   HEALTH_ERROR_PENALTY,
   HEALTH_MAX,
   HEALTH_WARN_PENALTY,
+  parseObjectFields,
   printAccessReport,
   printHealthReport,
   printIndexReport,
+  printSchemaPreview,
   scanWhereUsage
 }
-export type { AccessEntry, FactoryCall, TableIndex, WhereField }
+export type { AccessEntry, FactoryCall, SchemaField, SchemaTable, TableIndex, WhereField }

@@ -1,4 +1,6 @@
 #!/usr/bin/env bun
+/* eslint-disable max-statements, complexity */
+/* oxlint-disable eslint/max-statements, eslint/complexity */
 import type { ZodType } from 'zod/v4'
 
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs'
@@ -99,7 +101,6 @@ const parseArgs = (): { convex: string; mobileOutput: string; output: string; sc
     if (type === 'custom') return { isOptional: false, swiftType: 'String' }
     return null
   },
-  // eslint-disable-next-line complexity, max-statements
   resolveType = (def: ZodDef, modelName: string, fieldName: string): { isOptional: boolean; swiftType: string } => {
     const { type } = def
     if (type === 'optional' || type === 'nullable') {
@@ -203,7 +204,6 @@ const parseArgs = (): { convex: string; mobileOutput: string; output: string; sc
       unionDiscriminantEnums.add(typEnumName)
     }
   },
-  // eslint-disable-next-line max-statements
   emitUnionBlock = (fieldTypes: Map<string, { isOptional: boolean; swiftType: string }>, name: string) => {
     const block = [`public struct ${name}: Codable, Sendable {`],
       initParams: string[] = []
@@ -327,7 +327,6 @@ const parseArgs = (): { convex: string; mobileOutput: string; output: string; sc
       if (s) parseName(s, results)
     }
   },
-  // eslint-disable-next-line max-statements
   extractNames = (block: string): string[] => {
     const results: string[] = []
     let depth = 0,
@@ -377,7 +376,6 @@ const parseArgs = (): { convex: string; mobileOutput: string; output: string; sc
     }
     return { end: i, name }
   },
-  // eslint-disable-next-line max-statements
   extractAllBindings = (stmt: string): string[] => {
     const results: string[] = []
     let i = 0
@@ -521,7 +519,6 @@ interface ParsedCustomFn {
   source: string
 }
 
-// eslint-disable-next-line complexity, max-statements
 const splitTopLevel = (input: string, delimiter: string): string[] => {
     const parts: string[] = []
     let cur = '',
@@ -564,9 +561,6 @@ const splitTopLevel = (input: string, delimiter: string): string[] => {
     if (body === null) return null
     return body.trim()
   },
-  /* eslint-disable complexity */
-  // oxlint-disable-next-line eslint/complexity
-  // eslint-disable-next-line max-statements
   parseValidatorExpr = (
     rawExpr: string,
     ctx: { filePath: string; fnName: string; paramName: string }
@@ -639,7 +633,6 @@ const splitTopLevel = (input: string, delimiter: string): string[] => {
 
     throw new Error(`codegen-swift: unsupported validator '${expr}' at ${ctx.filePath} ${ctx.fnName}.${ctx.paramName}`)
   },
-  /* eslint-enable complexity */
   findTopLevelColon = (entry: string): number => {
     let depthBrace = 0,
       depthBracket = 0,
@@ -695,7 +688,6 @@ const splitTopLevel = (input: string, delimiter: string): string[] => {
     if (argsBlock === null) return []
     return parseSourceArgsBlock(argsBlock, { filePath, fnName })
   },
-  // eslint-disable-next-line complexity, max-statements
   parseCustomFnsFromFile = (filePath: string): { cacheCrudKey: null | string; fns: Record<string, ParsedCustomFn> } => {
     const content = readFileSync(filePath, 'utf8'),
       parsed: Record<string, ParsedCustomFn> = {}
@@ -995,7 +987,6 @@ emit(`${indent(1)}public let orgId: String`)
 emit('}')
 emit('')
 
-// eslint-disable-next-line max-statements
 const emitWhereStruct = (tableName: string, fields: Map<string, FieldEntry>, factoryType: string) => {
   const structName = `${pascalCase(tableName)}Where`
   emit(`public struct ${structName}: Sendable {`)
@@ -1064,7 +1055,6 @@ const SAFE_ARG_TYPES = new Set(['[Bool]', '[Double]', '[String]', 'Bool', 'Doubl
     const value = isEnumField(field.swiftType) ? `${name}.rawValue` : name
     return `${indent(2)}if let ${name} { args["${name}"] = ${value} }`
   },
-  // eslint-disable-next-line max-statements
   emitCreateWrapper = (modName: string, fields: Map<string, FieldEntry>, factoryType: string) => {
     const params: string[] = ['_ client: ConvexClientProtocol'],
       required: string[] = [],
@@ -1089,7 +1079,6 @@ const SAFE_ARG_TYPES = new Set(['[Bool]', '[Double]', '[String]', 'Bool', 'Doubl
     emit(`${indent(2)}try await client.mutation("${modName}:create", args: args)`)
     emit(`${indent(1)}}`)
   },
-  // eslint-disable-next-line max-statements
   emitUpdateWrapper = (modName: string, fields: Map<string, FieldEntry>, factoryType: string) => {
     const params: string[] = ['_ client: ConvexClientProtocol'],
       required: string[] = ['"id": id'],
@@ -1141,7 +1130,6 @@ const SAFE_ARG_TYPES = new Set(['[Bool]', '[Double]', '[String]', 'Bool', 'Doubl
     emit(`${indent(2)}try await client.query("${modName}:read", args: [${argParts.join(', ')}])`)
     emit(`${indent(1)}}`)
   },
-  // eslint-disable-next-line max-statements
   emitUpsertWrapper = (modName: string, fields: Map<string, FieldEntry>) => {
     const params: string[] = ['_ client: ConvexClientProtocol'],
       optional: string[] = []
@@ -1165,7 +1153,6 @@ const SAFE_ARG_TYPES = new Set(['[Bool]', '[Double]', '[String]', 'Bool', 'Doubl
     emit(`${indent(2)}try await client.query("${modName}:get", args: [:])`)
     emit(`${indent(1)}}`)
   },
-  // eslint-disable-next-line max-statements
   emitChildCreateWrapper = (modName: string, fields: Map<string, FieldEntry>) => {
     const params: string[] = ['_ client: ConvexClientProtocol'],
       required: string[] = [],
@@ -1188,7 +1175,6 @@ const SAFE_ARG_TYPES = new Set(['[Bool]', '[Double]', '[String]', 'Bool', 'Doubl
     emit(`${indent(2)}try await client.mutation("${modName}:create", args: args)`)
     emit(`${indent(1)}}`)
   },
-  // eslint-disable-next-line max-statements
   emitListArgs = (_modName: string, tableName: string, factoryType: string) => {
     const whereStructName = `${pascalCase(tableName)}Where`,
       params: string[] = []
@@ -1208,7 +1194,7 @@ const SAFE_ARG_TYPES = new Set(['[Bool]', '[Double]', '[String]', 'Bool', 'Doubl
     emit(`${indent(2)}return args`)
     emit(`${indent(1)}}`)
   },
-  // eslint-disable-next-line max-statements, @typescript-eslint/max-params
+  // eslint-disable-next-line @typescript-eslint/max-params
   emitListWrapper = (modName: string, tableName: string, structName: string, factoryType: string) => {
     const whereStructName = `${pascalCase(tableName)}Where`,
       params: string[] = ['_ client: ConvexClientProtocol'],
@@ -1229,7 +1215,6 @@ const SAFE_ARG_TYPES = new Set(['[Bool]', '[Double]', '[String]', 'Bool', 'Doubl
     emit(`${indent(2)}try await client.query("${modName}:list", args: listArgs(${callParams.join(', ')}))`)
     emit(`${indent(1)}}`)
   },
-  // eslint-disable-next-line max-statements
   emitSearchWrapper = (modName: string, structName: string, factoryType: string) => {
     const params: string[] = ['_ client: ConvexClientProtocol']
     if (factoryType === 'orgScoped') params.push('orgId: String')
@@ -1275,7 +1260,7 @@ const SAFE_ARG_TYPES = new Set(['[Bool]', '[Double]', '[String]', 'Bool', 'Doubl
     emit(`${indent(2)}try await client.mutation("${modName}:bulkRm", args: [${argParts.join(', ')}])`)
     emit(`${indent(1)}}`)
   },
-  // eslint-disable-next-line max-statements, @typescript-eslint/max-params, complexity
+  // eslint-disable-next-line @typescript-eslint/max-params
   emitCustomDesktopFn = (e: (s: string) => void, modName: string, fn: CustomFnDescriptor, fnName: string): void => {
     const params = [
         '_ client: ConvexClientProtocol',
@@ -1333,7 +1318,7 @@ const SAFE_ARG_TYPES = new Set(['[Bool]', '[Double]', '[String]', 'Bool', 'Doubl
     }
     e(`${indent(1)}}`)
   },
-  // eslint-disable-next-line max-statements, @typescript-eslint/max-params, complexity
+  // eslint-disable-next-line @typescript-eslint/max-params
   emitCustomMobileFn = (e: (s: string) => void, modName: string, fn: CustomFnDescriptor, fnName: string): void => {
     const params = fn.params.map(p => `${p.name}: ${p.type}${p.default === undefined ? '' : ` = ${p.default}`}`),
       sig = fn.returnType ? `-> ${fn.returnType} ` : ''
@@ -1433,7 +1418,6 @@ const SAFE_ARG_TYPES = new Set(['[Bool]', '[Double]', '[String]', 'Bool', 'Doubl
     }
     e(`${indent(1)}}`)
   },
-  // eslint-disable-next-line max-statements
   emitMobileSubscription = (e: (s: string) => void, sub: MobileSubscriptionDescriptor): void => {
     e(`${indent(1)}@preconcurrency`)
     e(`${indent(1)}public static func ${sub.methodName}(`)
@@ -1573,7 +1557,6 @@ const inferParsedReturnType = (parsed: ParsedCustomFn, fnName: string, tableName
     if (name === 'id') return 1
     return 2
   },
-  // eslint-disable-next-line max-statements
   buildDescriptorFromParsed = (
     ctx: { isMobile: boolean; tableName: string },
     fnName: string,
@@ -1901,7 +1884,6 @@ const inferParsedReturnType = (parsed: ParsedCustomFn, fnName: string, tableName
   hasAcl = (fnSet: Set<string>): boolean =>
     fnSet.has('addEditor') && fnSet.has('removeEditor') && fnSet.has('setEditors') && fnSet.has('editors'),
   hasMobileAcl = (fnSet: Set<string>): boolean => fnSet.has('addEditor') && fnSet.has('removeEditor'),
-  // eslint-disable-next-line max-statements
   mergeOrgSchemaCreateUpdate = (
     descs: Record<string, CustomFnDescriptor>,
     tableName: string
@@ -2171,7 +2153,6 @@ const inferParsedReturnType = (parsed: ParsedCustomFn, fnName: string, tableName
       merged = mergeParsedFnDescriptors({ auto, fnSet, isMobile: true, modName, tableName })
     return sortDescriptors(merged)
   },
-  // eslint-disable-next-line max-statements
   subscriptionSkipMethod = (fnName: string, resultType: string): string => {
     if (fnName === 'myOrgs') return 'subscribeOrgsWithRole'
     if (fnName === 'members') return 'subscribeOrgMembers'
@@ -2509,7 +2490,6 @@ if (MOBILE_OUTPUT_PATH) {
     me = (s: string) => {
       mLines.push(s)
     },
-    // eslint-disable-next-line max-statements
     emitMobileCreateWrapper = (modName: string, fields: Map<string, FieldEntry>, factoryType: string) => {
       const params: string[] = [],
         required: string[] = [],
@@ -2539,7 +2519,6 @@ if (MOBILE_OUTPUT_PATH) {
       me(`${indent(2)}try await ConvexService.shared.mutate("${modName}:create", args: args)`)
       me(`${indent(1)}}`)
     },
-    // eslint-disable-next-line max-statements
     emitMobileUpdateWrapper = (modName: string, fields: Map<string, FieldEntry>, factoryType: string) => {
       const params: string[] = [],
         required: string[] = ['"id": id'],
@@ -2582,7 +2561,6 @@ if (MOBILE_OUTPUT_PATH) {
       me(`${indent(2)}try await ConvexService.shared.mutate("${modName}:rm", args: [${argParts.join(', ')}])`)
       me(`${indent(1)}}`)
     },
-    // eslint-disable-next-line max-statements
     emitMobileUpsertWrapper = (modName: string, fields: Map<string, FieldEntry>) => {
       const params: string[] = [],
         optional: string[] = []

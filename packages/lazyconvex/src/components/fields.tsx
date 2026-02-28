@@ -924,5 +924,7 @@ const Calendar = dynamic(async () => import('@a/ui/calendar').then(m => ({ defau
     }
   }
 
+/** Exports form fields, context, and server error component. */
 export type { Api }
+
 export { fields, FormContext, ServerFieldError }

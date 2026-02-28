@@ -65,4 +65,17 @@ const isTestMode = () =>
     }
   }
 
-export { clearActiveOrgCookie, getActiveOrg, getToken, isAuthenticated, setActiveOrgCookie }
+/** Gets the Convex authentication token for the current user. */
+export { getToken }
+
+/** Checks if the user is authenticated with Convex. */
+export { isAuthenticated }
+
+/** Sets the active organization cookies with orgId and slug. */
+export { setActiveOrgCookie }
+
+/** Clears the active organization cookies from the browser. */
+export { clearActiveOrgCookie }
+
+/** Retrieves the active organization from cookies and validates it via query. */
+export { getActiveOrg }

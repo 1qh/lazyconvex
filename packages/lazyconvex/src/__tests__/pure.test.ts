@@ -48,11 +48,14 @@ import {
   checkSchemaConsistency,
   endpointsForFactory,
   extractCustomIndexes,
+  extractSchemaFields,
   extractWhereFromOptions,
   FACTORY_DEFAULT_INDEXES,
   HEALTH_ERROR_PENALTY,
   HEALTH_MAX,
-  HEALTH_WARN_PENALTY
+  HEALTH_WARN_PENALTY,
+  parseObjectFields,
+  printSchemaPreview
 } from '../check'
 import { isValidSwiftIdent, SWIFT_KEYWORDS, swiftEnumCase } from '../codegen-swift-utils'
 import { defineSteps } from '../components/step-form'
@@ -6696,5 +6699,232 @@ describe('rich error metadata (R11.2)', () => {
       expect(received?.retryAfter).toBe(20_000)
       expect(received?.limit).toEqual({ max: 5, remaining: 0, window: 30_000 })
     })
+  })
+})
+
+describe('parseObjectFields', () => {
+  test('parses simple fields from object block', () => {
+    const content = `
+    title: string(),
+    count: number(),
+    active: boolean(),
+  `,
+      fields = parseObjectFields(content, 0)
+    expect(fields).toEqual([
+      { field: 'title', type: 'string()' },
+      { field: 'count', type: 'number()' },
+      { field: 'active', type: 'boolean()' }
+    ])
+  })
+
+  test('strips trailing commas', () => {
+    const content = 'name: string(),',
+      fields = parseObjectFields(content, 0)
+    expect(fields).toEqual([{ field: 'name', type: 'string()' }])
+  })
+
+  test('simplifies nested parentheses', () => {
+    const content = 'title: string().min(1).max(100),',
+      fields = parseObjectFields(content, 0)
+    expect(fields[0]?.type).toBe('string().min().max()')
+  })
+
+  test('simplifies nested braces', () => {
+    const content = 'category: zenum(["tech", "life"]),',
+      fields = parseObjectFields(content, 0)
+    expect(fields[0]?.type).toContain('zenum')
+  })
+
+  test('skips comment lines', () => {
+    const content = `
+    // this is a comment
+    title: string(),
+  `,
+      fields = parseObjectFields(content, 0)
+    expect(fields).toEqual([{ field: 'title', type: 'string()' }])
+  })
+
+  test('skips blank lines', () => {
+    const content = `
+
+    title: string(),
+
+    count: number(),
+  `,
+      fields = parseObjectFields(content, 0)
+    expect(fields).toHaveLength(2)
+  })
+
+  test('returns empty for empty block', () => {
+    const fields = parseObjectFields('', 0)
+    expect(fields).toEqual([])
+  })
+
+  test('handles balanced brackets in content', () => {
+    const content = 'tags: array(string()),',
+      fields = parseObjectFields(content, 0)
+    expect(fields[0]?.field).toBe('tags')
+  })
+})
+
+describe('extractSchemaFields', () => {
+  test('extracts tables from makeOwned', () => {
+    const content = `const owned = makeOwned({
+  blog: object({
+    title: string(),
+    content: string(),
+  })
+})`,
+      tables = extractSchemaFields(content)
+    expect(tables).toHaveLength(1)
+    expect(tables[0]?.table).toBe('blog')
+    expect(tables[0]?.factory).toBe('crud')
+    expect(tables[0]?.fields).toHaveLength(2)
+    expect(tables[0]?.fields[0]).toEqual({ field: 'title', type: 'string()' })
+  })
+
+  test('extracts multiple tables from same wrapper', () => {
+    const content = `const owned = makeOwned({
+  blog: object({
+    title: string(),
+  }),
+  chat: object({
+    name: string(),
+    isPublic: boolean(),
+  })
+})`,
+      tables = extractSchemaFields(content)
+    expect(tables).toHaveLength(2)
+    const names = tables.map(t => t.table)
+    expect(names).toContain('blog')
+    expect(names).toContain('chat')
+  })
+
+  test('maps factories correctly', () => {
+    const tests: [string, string][] = [
+      ['makeOwned', 'crud'],
+      ['makeOrgScoped', 'orgCrud'],
+      ['makeSingleton', 'singletonCrud'],
+      ['makeBase', 'cacheCrud']
+    ]
+    for (const [wrapper, expected] of tests) {
+      const content = `const x = ${wrapper}({
+  item: object({
+    name: string(),
+  })
+})`,
+        tables = extractSchemaFields(content)
+      expect(tables[0]?.factory).toBe(expected)
+    }
+  })
+
+  test('returns empty for content without schema markers', () => {
+    const content = 'const x = { hello: "world" }',
+      tables = extractSchemaFields(content)
+    expect(tables).toEqual([])
+  })
+
+  test('handles child schemas with foreignKey and parent', () => {
+    const content = `const schemas = {
+  message: child({
+    foreignKey: 'chatId',
+    parent: 'chat',
+    schema: object({
+      text: string(),
+      sender: string(),
+    })
+  })
+}`,
+      tables = extractSchemaFields(content)
+    expect(tables).toHaveLength(1)
+    expect(tables[0]?.table).toBe('message')
+    expect(tables[0]?.factory).toBe('childCrud')
+  })
+
+  test('skips child without valid pattern', () => {
+    const content = 'const x = child({ schema: object({ a: string() }) })',
+      tables = extractSchemaFields(content)
+    expect(tables).toEqual([])
+  })
+})
+
+describe('printSchemaPreview', () => {
+  test('prints table info with factory type', () => {
+    const logs: string[] = [],
+      origLog = console.log
+    console.log = (...args: unknown[]) => {
+      logs.push(args.join(' '))
+    }
+    const content = `const owned = makeOwned({
+  blog: object({
+    title: string(),
+  })
+})`,
+      calls: FactoryCall[] = [{ factory: 'crud', file: 'blog.ts', options: '', table: 'blog' }]
+    printSchemaPreview(content, calls)
+    console.log = origLog
+    const output = logs.join('\n')
+    expect(output).toContain('blog')
+    expect(output).toContain('crud')
+    expect(output).toContain('title')
+  })
+
+  test('shows options when present', () => {
+    const logs: string[] = [],
+      origLog = console.log
+    console.log = (...args: unknown[]) => {
+      logs.push(args.join(' '))
+    }
+    const content = `const owned = makeOwned({
+  blog: object({
+    title: string(),
+  })
+})`,
+      calls: FactoryCall[] = [
+        { factory: 'crud', file: 'blog.ts', options: "{ search: 'title', softDelete: true }", table: 'blog' }
+      ]
+    printSchemaPreview(content, calls)
+    console.log = origLog
+    const output = logs.join('\n')
+    expect(output).toContain('search')
+    expect(output).toContain('softDelete')
+  })
+
+  test('shows no tables message for empty schema', () => {
+    const logs: string[] = [],
+      origLog = console.log
+    console.log = (...args: unknown[]) => {
+      logs.push(args.join(' '))
+    }
+    printSchemaPreview('const x = 1', [])
+    console.log = origLog
+    const output = logs.join('\n')
+    expect(output).toContain('No tables found')
+  })
+
+  test('shows total count summary', () => {
+    const logs: string[] = [],
+      origLog = console.log
+    console.log = (...args: unknown[]) => {
+      logs.push(args.join(' '))
+    }
+    const content = `const owned = makeOwned({
+  blog: object({
+    title: string(),
+    content: string(),
+  }),
+  chat: object({
+    name: string(),
+  })
+})`,
+      calls: FactoryCall[] = [
+        { factory: 'crud', file: 'blog.ts', options: '', table: 'blog' },
+        { factory: 'crud', file: 'chat.ts', options: '', table: 'chat' }
+      ]
+    printSchemaPreview(content, calls)
+    console.log = origLog
+    const output = logs.join('\n')
+    expect(output).toContain('2')
+    expect(output).toContain('3')
   })
 })
