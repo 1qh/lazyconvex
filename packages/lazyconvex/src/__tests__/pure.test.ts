@@ -12,7 +12,7 @@ import type { UseListOptions } from '../react/use-list'
 import type { MutateOptions } from '../react/use-mutate'
 import type { PresenceUser, UsePresenceOptions, UsePresenceResult } from '../react/use-presence'
 import type { UseSearchOptions, UseSearchResult } from '../react/use-search'
-import type { MutationFail, MutationOk, MutationResult } from '../server/helpers'
+import type { ConvexErrorData, MutationFail, MutationOk, MutationResult } from '../server/helpers'
 import type { OrgCrudOptions } from '../server/org-crud'
 import type {
   BaseSchema,
@@ -100,6 +100,7 @@ import {
   fail,
   generateToken,
   getErrorCode,
+  getErrorDetail,
   getErrorMessage,
   groupList,
   handleConvexError,
@@ -6500,6 +6501,200 @@ describe('typed error handling (R10.5)', () => {
       expect(failure.ok).toBe(false)
       expect((failure as MutationFail).error.code).toBe('VALIDATION_FAILED')
       expect((failure as MutationFail).error.fieldErrors).toEqual({ title: 'Required' })
+    })
+  })
+})
+
+describe('rich error metadata (R11.2)', () => {
+  describe('err() with Record<string, unknown> opts', () => {
+    test('err with string opts works unchanged', () => {
+      try {
+        err('NOT_FOUND', 'blog:read')
+      } catch (error) {
+        const d = extractErrorData(error)
+        expect(d).toBeDefined()
+        expect(d?.code).toBe('NOT_FOUND')
+        expect(d?.debug).toBe('blog:read')
+        expect(d?.table).toBe('blog')
+        expect(d?.op).toBe('read')
+      }
+    })
+
+    test('err with object opts spreads into error', () => {
+      try {
+        err('RATE_LIMITED', {
+          debug: 'blog:create',
+          limit: { max: 10, remaining: 0, window: 60_000 },
+          op: 'create',
+          retryAfter: 45_000,
+          table: 'blog'
+        })
+      } catch (error) {
+        const d = extractErrorData(error)
+        expect(d).toBeDefined()
+        expect(d?.code).toBe('RATE_LIMITED')
+        expect(d?.retryAfter).toBe(45_000)
+        expect(d?.limit).toEqual({ max: 10, remaining: 0, window: 60_000 })
+        expect(d?.table).toBe('blog')
+        expect(d?.op).toBe('create')
+        expect(d?.debug).toBe('blog:create')
+      }
+    })
+
+    test('err with { message } object works', () => {
+      try {
+        err('FORBIDDEN', { message: 'Access denied' })
+      } catch (error) {
+        const d = extractErrorData(error)
+        expect(d?.code).toBe('FORBIDDEN')
+        expect(d?.message).toBe('Access denied')
+      }
+    })
+
+    test('err with no opts throws code-only error', () => {
+      try {
+        err('NOT_AUTHENTICATED')
+      } catch (error) {
+        const d = extractErrorData(error)
+        expect(d?.code).toBe('NOT_AUTHENTICATED')
+        expect(d?.message).toBeUndefined()
+        expect(d?.retryAfter).toBeUndefined()
+        expect(d?.limit).toBeUndefined()
+      }
+    })
+  })
+
+  describe('extractErrorData with retryAfter and limit', () => {
+    test('extracts retryAfter from ConvexError', () => {
+      const e = new ConvexError({ code: 'RATE_LIMITED', retryAfter: 30_000 }),
+        d = extractErrorData(e)
+      expect(d?.retryAfter).toBe(30_000)
+    })
+
+    test('retryAfter undefined when not a number', () => {
+      const e = new ConvexError({ code: 'RATE_LIMITED', retryAfter: 'soon' }),
+        d = extractErrorData(e)
+      expect(d?.retryAfter).toBeUndefined()
+    })
+
+    test('extracts limit object from ConvexError', () => {
+      const limit = { max: 10, remaining: 0, window: 60_000 },
+        e = new ConvexError({ code: 'RATE_LIMITED', limit }),
+        d = extractErrorData(e)
+      expect(d?.limit).toEqual(limit)
+    })
+
+    test('limit undefined when not an object', () => {
+      const e = new ConvexError({ code: 'RATE_LIMITED', limit: 42 }),
+        d = extractErrorData(e)
+      expect(d?.limit).toBeUndefined()
+    })
+
+    test('limit undefined when null', () => {
+      const e = new ConvexError({ code: 'RATE_LIMITED', limit: null }),
+        d = extractErrorData(e)
+      expect(d?.limit).toBeUndefined()
+    })
+
+    test('both retryAfter and limit extracted together', () => {
+      const e = new ConvexError({
+          code: 'RATE_LIMITED',
+          limit: { max: 5, remaining: 0, window: 30_000 },
+          retryAfter: 15_000
+        }),
+        d = extractErrorData(e)
+      expect(d?.retryAfter).toBe(15_000)
+      expect(d?.limit).toEqual({ max: 5, remaining: 0, window: 30_000 })
+    })
+
+    test('non-rate-limit errors have no retryAfter or limit', () => {
+      const e = new ConvexError({ code: 'NOT_FOUND' }),
+        d = extractErrorData(e)
+      expect(d?.retryAfter).toBeUndefined()
+      expect(d?.limit).toBeUndefined()
+    })
+  })
+
+  describe('getErrorDetail with rate limit info', () => {
+    test('includes retry after in detail string', () => {
+      const e = new ConvexError({
+          code: 'RATE_LIMITED',
+          retryAfter: 45_000,
+          table: 'blog'
+        }),
+        detail = getErrorDetail(e)
+      expect(detail).toContain('blog')
+      expect(detail).toContain('retry after 45000ms')
+    })
+
+    test('no retry info when retryAfter absent', () => {
+      const e = new ConvexError({ code: 'RATE_LIMITED' }),
+        detail = getErrorDetail(e)
+      expect(detail).not.toContain('retry')
+    })
+
+    test('detail without table or retryAfter returns base message', () => {
+      const e = new ConvexError({ code: 'NOT_FOUND' }),
+        detail = getErrorDetail(e)
+      expect(detail).toBe('Not found')
+    })
+  })
+
+  describe('fail() with rich metadata', () => {
+    test('fail with retryAfter creates proper MutationFail', () => {
+      const result = fail('RATE_LIMITED', {
+        limit: { max: 10, remaining: 0, window: 60_000 },
+        retryAfter: 45_000,
+        table: 'blog'
+      })
+      expect(result.ok).toBe(false)
+      const f = result as MutationFail
+      expect(f.error.code).toBe('RATE_LIMITED')
+      expect(f.error.retryAfter).toBe(45_000)
+      expect(f.error.limit).toEqual({ max: 10, remaining: 0, window: 60_000 })
+      expect(f.error.table).toBe('blog')
+    })
+
+    test('fail without rich metadata still works', () => {
+      const result = fail('FORBIDDEN')
+      expect(result.ok).toBe(false)
+      const f = result as MutationFail
+      expect(f.error.code).toBe('FORBIDDEN')
+      expect(f.error.retryAfter).toBeUndefined()
+      expect(f.error.limit).toBeUndefined()
+    })
+  })
+
+  describe('matchError with rich metadata', () => {
+    test('rate limit handler receives retryAfter and limit', () => {
+      const e = new ConvexError({
+          code: 'RATE_LIMITED',
+          limit: { max: 10, remaining: 0, window: 60_000 },
+          retryAfter: 45_000
+        }),
+        result = matchError(e, {
+          RATE_LIMITED: d => ({ limit: d.limit, retryAfter: d.retryAfter })
+        })
+      expect(result).toEqual({
+        limit: { max: 10, remaining: 0, window: 60_000 },
+        retryAfter: 45_000
+      })
+    })
+
+    test('handleConvexError passes rich metadata to handler', () => {
+      const e = new ConvexError({
+        code: 'RATE_LIMITED',
+        limit: { max: 5, remaining: 0, window: 30_000 },
+        retryAfter: 20_000
+      })
+      let received: ConvexErrorData | undefined
+      handleConvexError(e, {
+        RATE_LIMITED: d => {
+          received = d
+        }
+      })
+      expect(received?.retryAfter).toBe(20_000)
+      expect(received?.limit).toEqual({ max: 5, remaining: 0, window: 30_000 })
     })
   })
 })

@@ -80,7 +80,7 @@ const TOKEN_BYTES = 24,
    * @param opts - Optional message string or object with message property
    * @returns Never — always throws
    */
-  err = (code: ErrorCode, opts?: string | { message: string }): never => {
+  err = (code: ErrorCode, opts?: Record<string, unknown> | string | { message: string }): never => {
     if (!opts) throw new ConvexError({ code })
     if (typeof opts !== 'string') throw new ConvexError({ code, ...opts })
     const sep = opts.indexOf(':')
@@ -275,7 +275,17 @@ const TOKEN_BYTES = 24,
       await db.patch(existing._id as string, { count: 1, windowStart: now })
       return
     }
-    if ((existing.count as number) >= config.max) return err('RATE_LIMITED', `${table}:create`)
+    if ((existing.count as number) >= config.max) {
+      const windowStart = existing.windowStart as number,
+        retryAfter = config.window - (now - windowStart)
+      return err('RATE_LIMITED', {
+        debug: `${table}:create`,
+        limit: { max: config.max, remaining: 0, window: config.window },
+        op: 'create',
+        retryAfter,
+        table
+      })
+    }
     await db.patch(existing._id as string, { count: (existing.count as number) + 1 })
   }
 
@@ -285,8 +295,10 @@ interface ConvexErrorData {
   debug?: string
   fieldErrors?: Record<string, string>
   fields?: string[]
+  limit?: { max: number; remaining: number; window: number }
   message?: string
   op?: string
+  retryAfter?: number
   table?: string
 }
 
@@ -326,8 +338,10 @@ const extractErrorData = (e: unknown): ConvexErrorData | undefined => {
       debug: typeof data.debug === 'string' ? data.debug : undefined,
       fieldErrors: isRecord(data.fieldErrors) ? (data.fieldErrors as Record<string, string>) : undefined,
       fields: Array.isArray(data.fields) ? (data.fields as string[]) : undefined,
+      limit: isRecord(data.limit) ? (data.limit as ConvexErrorData['limit']) : undefined,
       message: typeof data.message === 'string' ? data.message : undefined,
       op: typeof data.op === 'string' ? data.op : undefined,
+      retryAfter: typeof data.retryAfter === 'number' ? data.retryAfter : undefined,
       table: typeof data.table === 'string' ? data.table : undefined
     }
   },
@@ -357,7 +371,9 @@ const extractErrorData = (e: unknown): ConvexErrorData | undefined => {
     const d = extractErrorData(e)
     if (!d) return e instanceof Error ? e.message : 'Unknown error'
     const base = d.message ?? ERROR_MESSAGES[d.code]
-    return d.table ? `${base} [${d.table}${d.op ? `:${d.op}` : ''}]` : base
+    let detail = d.table ? `${base} [${d.table}${d.op ? `:${d.op}` : ''}]` : base
+    if (d.retryAfter !== undefined) detail += ` (retry after ${d.retryAfter}ms)`
+    return detail
   },
   /**
    * Dispatches a ConvexError to the matching handler by error code, or calls the `default` handler.
