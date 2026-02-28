@@ -1,15 +1,20 @@
 export { ownedCascade } from './crud'
 export { makeFileUpload } from './file'
-export type { ConvexErrorData, ErrorHandler } from './helpers'
+export type { ConvexErrorData, ErrorHandler, MutationFail, MutationOk, MutationResult } from './helpers'
 export {
   checkRateLimit,
   err,
   extractErrorData,
+  fail,
   getErrorCode,
   getErrorDetail,
   getErrorMessage,
   handleConvexError,
+  isErrorCode,
+  isMutationError,
   isRecord,
+  matchError,
+  ok,
   time
 } from './helpers'
 export { auditLog, composeMiddleware, inputSanitize, slowQueryWarn } from './middleware'

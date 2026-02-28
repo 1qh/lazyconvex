@@ -38,6 +38,7 @@
     "./eslint": "./src/eslint.ts",
     "./next": "./src/next/index.ts",
     "./test": "./src/server/test.ts",
+    "./test/discover": "./src/server/test-discover.ts",
     "./seed": "./src/seed.ts"
   },
   "bin": {

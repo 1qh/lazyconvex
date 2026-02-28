@@ -4,8 +4,6 @@
 import type { GenericDataModel, MutationBuilder, QueryBuilder } from 'convex/server'
 
 import { v } from 'convex/values'
-import { readdirSync } from 'node:fs'
-import { dirname, join } from 'node:path'
 
 import type { DbLike, Rec } from './types'
 
@@ -17,6 +15,11 @@ interface TestAuthConfig<DM extends GenericDataModel = GenericDataModel> {
   getAuthUserId: (ctx: unknown) => Promise<null | string>
   mutation: MutationBuilder<DM, 'public'>
   query: QueryBuilder<DM, 'public'>
+}
+
+interface TestUser {
+  email: string
+  name: string
 }
 
 const TEST_EMAIL = 'test@playwright.local',
@@ -811,44 +814,7 @@ const checkAclPermission = (doc: Rec, userId: string, membership: { isAdmin: boo
     }
     return result
   },
-  discoverModules = (
-    convexDir: string,
-    extras?: Record<string, () => Promise<unknown>>
-  ): Record<string, () => Promise<unknown>> => {
-    const modules: Record<string, () => Promise<unknown>> = {},
-      absConvex = join(process.cwd(), convexDir),
-      parentDir = dirname(absConvex),
-      scanDir = (dir: string, prefix: string) => {
-        for (const entry of readdirSync(dir, { withFileTypes: true }))
-          if (entry.isDirectory() && !entry.name.startsWith('_') && entry.name !== 'node_modules')
-            scanDir(join(dir, entry.name), `${prefix}${entry.name}/`)
-          else if (entry.name.endsWith('.ts') && !entry.name.includes('.test.')) {
-            const relKey = `./${prefix}${entry.name}`,
-              absPath = join(dir, entry.name)
-            modules[relKey] = async () => import(absPath)
-          }
-      }
-    scanDir(absConvex, '')
-    for (const entry of readdirSync(parentDir))
-      if (entry.endsWith('.ts') && !entry.endsWith('.test.ts') && !entry.endsWith('.config.ts')) {
-        const relKey = `../${entry}`,
-          absPath = join(parentDir, entry)
-        modules[relKey] = async () => import(absPath)
-      }
-    if (extras)
-      for (const k of Object.keys(extras)) {
-        const fn = extras[k]
-        if (fn) modules[k] = fn
-      }
-    return modules
-  }
-
-interface TestUser {
-  email: string
-  name: string
-}
-
-const DEFAULT_USERS: TestUser[] = [
+  DEFAULT_USERS: TestUser[] = [
     { email: 'test@example.com', name: 'Test User' },
     { email: 'other@example.com', name: 'Other User' },
     { email: 'editor@example.com', name: 'Editor User' }
@@ -882,4 +848,4 @@ const DEFAULT_USERS: TestUser[] = [
   }
 
 export type { OrgTestCrudConfig, TestAuthConfig, TestUser }
-export { createTestContext, discoverModules, getOrgMembership, isTestMode, makeOrgTestCrud, makeTestAuth, TEST_EMAIL }
+export { createTestContext, getOrgMembership, isTestMode, makeOrgTestCrud, makeTestAuth, TEST_EMAIL }

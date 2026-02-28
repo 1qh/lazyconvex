@@ -12,6 +12,7 @@ import type { UseListOptions } from '../react/use-list'
 import type { MutateOptions } from '../react/use-mutate'
 import type { PresenceUser, UsePresenceOptions, UsePresenceResult } from '../react/use-presence'
 import type { UseSearchOptions, UseSearchResult } from '../react/use-search'
+import type { MutationFail, MutationOk, MutationResult } from '../server/helpers'
 import type { OrgCrudOptions } from '../server/org-crud'
 import type {
   BaseSchema,
@@ -96,14 +97,19 @@ import {
   err,
   errValidation,
   extractErrorData,
+  fail,
   generateToken,
   getErrorCode,
   getErrorMessage,
   groupList,
   handleConvexError,
+  isErrorCode,
+  isMutationError,
   isRecord,
   makeUnique,
+  matchError,
   matchW,
+  ok,
   RUNTIME_FILTER_WARN_THRESHOLD,
   SEVEN_DAYS_MS,
   time,
@@ -6085,6 +6091,415 @@ describe('health check', () => {
 
     test('error penalty is higher than warn penalty', () => {
       expect(HEALTH_ERROR_PENALTY).toBeGreaterThan(HEALTH_WARN_PENALTY)
+    })
+  })
+})
+
+describe('typed error handling (R10.5)', () => {
+  describe('ok()', () => {
+    test('creates success result with value', () => {
+      const result = ok('hello')
+      expect(result.ok).toBe(true)
+      expect((result as MutationOk<string>).value).toBe('hello')
+    })
+
+    test('creates success result with object value', () => {
+      const result = ok({ id: '123', name: 'test' })
+      expect(result.ok).toBe(true)
+      const val = (result as MutationOk<{ id: string; name: string }>).value
+      expect(val.id).toBe('123')
+      expect(val.name).toBe('test')
+    })
+
+    test('creates success result with null', () => {
+      const result = ok(null)
+      expect(result.ok).toBe(true)
+      expect((result as MutationOk<null>).value).toBeNull()
+    })
+
+    test('creates success result with number', () => {
+      const result = ok(42)
+      expect(result.ok).toBe(true)
+      expect((result as MutationOk<number>).value).toBe(42)
+    })
+
+    test('creates success result with boolean false', () => {
+      const result = ok(false)
+      expect(result.ok).toBe(true)
+      expect((result as MutationOk<boolean>).value).toBe(false)
+    })
+
+    test('creates success result with array', () => {
+      const result = ok([1, 2, 3])
+      expect(result.ok).toBe(true)
+      expect((result as MutationOk<number[]>).value).toEqual([1, 2, 3])
+    })
+  })
+
+  describe('fail()', () => {
+    test('creates failure result with code only', () => {
+      const result = fail('NOT_FOUND')
+      expect(result.ok).toBe(false)
+      const { error } = result as MutationFail
+      expect(error.code).toBe('NOT_FOUND')
+      expect(error.message).toBe('Not found')
+    })
+
+    test('creates failure result with code and custom message', () => {
+      const result = fail('CONFLICT', { message: 'Stale data detected' })
+      expect(result.ok).toBe(false)
+      const { error } = result as MutationFail
+      expect(error.code).toBe('CONFLICT')
+      expect(error.message).toBe('Stale data detected')
+    })
+
+    test('creates failure result with fieldErrors', () => {
+      const result = fail('VALIDATION_FAILED', {
+        fieldErrors: { content: 'Required', title: 'Too short' },
+        fields: ['title', 'content']
+      })
+      expect(result.ok).toBe(false)
+      const { error } = result as MutationFail
+      expect(error.code).toBe('VALIDATION_FAILED')
+      expect(error.fieldErrors).toEqual({ content: 'Required', title: 'Too short' })
+      expect(error.fields).toEqual(['title', 'content'])
+    })
+
+    test('creates failure result with debug info', () => {
+      const result = fail('FORBIDDEN', { debug: 'user=abc org=xyz' })
+      expect(result.ok).toBe(false)
+      const { error } = result as MutationFail
+      expect(error.code).toBe('FORBIDDEN')
+      expect(error.debug).toBe('user=abc org=xyz')
+    })
+
+    test('creates failure result with table and op', () => {
+      const result = fail('NOT_FOUND', { op: 'update', table: 'blog' })
+      expect(result.ok).toBe(false)
+      const { error } = result as MutationFail
+      expect(error.table).toBe('blog')
+      expect(error.op).toBe('update')
+    })
+
+    test('default message comes from ERROR_MESSAGES', () => {
+      const result = fail('RATE_LIMITED')
+      expect(result.ok).toBe(false)
+      expect((result as MutationFail).error.message).toBe('Too many requests')
+    })
+
+    test('every ErrorCode produces a valid fail result', () => {
+      const codes: ErrorCode[] = [
+        'ALREADY_ORG_MEMBER',
+        'CANNOT_MODIFY_ADMIN',
+        'CANNOT_MODIFY_OWNER',
+        'CONFLICT',
+        'FORBIDDEN',
+        'NOT_AUTHENTICATED',
+        'NOT_AUTHORIZED',
+        'NOT_FOUND',
+        'RATE_LIMITED',
+        'UNAUTHORIZED',
+        'VALIDATION_FAILED'
+      ]
+      for (const code of codes) {
+        const result = fail(code)
+        expect(result.ok).toBe(false)
+        expect((result as MutationFail).error.code).toBe(code)
+        expect(typeof (result as MutationFail).error.message).toBe('string')
+      }
+    })
+  })
+
+  describe('MutationResult discriminated union', () => {
+    test('ok result has ok=true and value', () => {
+      const result: MutationResult<string> = ok('data')
+      expect(result.ok).toBe(true)
+      expect((result as MutationOk<string>).value).toBe('data')
+    })
+
+    test('fail result has ok=false and error', () => {
+      const result: MutationResult<string> = fail('NOT_FOUND')
+      expect(result.ok).toBe(false)
+      expect((result as MutationFail).error.code).toBe('NOT_FOUND')
+    })
+
+    test('ok result produces value key', () => {
+      const result = ok(42)
+      expect(result.ok).toBe(true)
+      expect((result as MutationOk<number>).value).toBe(42)
+    })
+
+    test('fail result produces error key', () => {
+      const result = fail('FORBIDDEN')
+      expect(result.ok).toBe(false)
+      expect((result as MutationFail).error.code).toBe('FORBIDDEN')
+    })
+
+    test('MutationResult type works with complex value types', () => {
+      const result: MutationResult<{ id: string; tags: string[] }> = ok({ id: '1', tags: ['a', 'b'] })
+      expect(result.ok).toBe(true)
+      const val = (result as MutationOk<{ id: string; tags: string[] }>).value
+      expect(val.id).toBe('1')
+      expect(val.tags).toEqual(['a', 'b'])
+    })
+
+    test('MutationOk type has correct shape', () => {
+      const r: MutationOk<number> = { ok: true, value: 99 }
+      expect(r.ok).toBe(true)
+      expect(r.value).toBe(99)
+    })
+
+    test('MutationFail type has correct shape', () => {
+      const r: MutationFail = { error: { code: 'NOT_FOUND' }, ok: false }
+      expect(r.ok).toBe(false)
+      expect(r.error.code).toBe('NOT_FOUND')
+    })
+  })
+
+  describe('isMutationError()', () => {
+    test('returns true for ConvexError with valid code', () => {
+      expect(isMutationError(new ConvexError({ code: 'NOT_FOUND' }))).toBe(true)
+    })
+
+    test('returns true for ConvexError with code and data', () => {
+      expect(isMutationError(new ConvexError({ code: 'CONFLICT', message: 'stale' }))).toBe(true)
+    })
+
+    test('returns false for plain Error', () => {
+      expect(isMutationError(new Error('nope'))).toBe(false)
+    })
+
+    test('returns false for string', () => {
+      expect(isMutationError('oops')).toBe(false)
+    })
+
+    test('returns false for null', () => {
+      expect(isMutationError(null)).toBe(false)
+    })
+
+    test('returns false for number', () => {
+      expect(isMutationError(42)).toBe(false)
+    })
+
+    test('returns false for ConvexError with invalid code', () => {
+      expect(isMutationError(new ConvexError({ code: 'INVALID_NOPE' }))).toBe(false)
+    })
+
+    test('returns false for ConvexError with non-string code', () => {
+      expect(isMutationError(new ConvexError({ code: 123 }))).toBe(false)
+    })
+
+    test('returns false for ConvexError with string data', () => {
+      expect(isMutationError(new ConvexError('just text'))).toBe(false)
+    })
+
+    test('returns true for every valid ErrorCode', () => {
+      const codes: ErrorCode[] = ['NOT_FOUND', 'FORBIDDEN', 'RATE_LIMITED', 'CONFLICT', 'VALIDATION_FAILED']
+      for (const code of codes) expect(isMutationError(new ConvexError({ code }))).toBe(true)
+    })
+  })
+
+  describe('isErrorCode()', () => {
+    test('returns true when code matches', () => {
+      const e = new ConvexError({ code: 'NOT_FOUND' })
+      expect(isErrorCode(e, 'NOT_FOUND')).toBe(true)
+    })
+
+    test('returns false when code does not match', () => {
+      const e = new ConvexError({ code: 'FORBIDDEN' })
+      expect(isErrorCode(e, 'NOT_FOUND')).toBe(false)
+    })
+
+    test('returns false for plain Error', () => {
+      expect(isErrorCode(new Error('x'), 'NOT_FOUND')).toBe(false)
+    })
+
+    test('returns false for null', () => {
+      expect(isErrorCode(null, 'NOT_FOUND')).toBe(false)
+    })
+
+    test('returns false for string', () => {
+      expect(isErrorCode('error', 'NOT_FOUND')).toBe(false)
+    })
+
+    test('returns false for ConvexError with different code', () => {
+      const e = new ConvexError({ code: 'RATE_LIMITED' })
+      expect(isErrorCode(e, 'CONFLICT')).toBe(false)
+    })
+
+    test('works with every ErrorCode value', () => {
+      const codes: ErrorCode[] = ['CONFLICT', 'FORBIDDEN', 'NOT_FOUND', 'RATE_LIMITED', 'UNAUTHORIZED']
+      for (const code of codes) {
+        const e = new ConvexError({ code })
+        expect(isErrorCode(e, code)).toBe(true)
+        expect(isErrorCode(e, 'ALREADY_ORG_MEMBER')).toBe(false)
+      }
+    })
+  })
+
+  describe('matchError()', () => {
+    test('matches specific error code', () => {
+      const e = new ConvexError({ code: 'NOT_FOUND' }),
+        result = matchError(e, {
+          NOT_FOUND: d => `found: ${d.code}`
+        })
+      expect(result).toBe('found: NOT_FOUND')
+    })
+
+    test('returns handler return value', () => {
+      const e = new ConvexError({ code: 'RATE_LIMITED', message: 'slow down' }),
+        result = matchError(e, {
+          RATE_LIMITED: d => ({ msg: d.message, retry: true })
+        })
+      expect(result).toEqual({ msg: 'slow down', retry: true })
+    })
+
+    test('calls _ fallback when no specific handler', () => {
+      const e = new ConvexError({ code: 'FORBIDDEN' }),
+        result = matchError(e, {
+          _: () => 'fallback',
+          NOT_FOUND: () => 'not found'
+        })
+      expect(result).toBe('fallback')
+    })
+
+    test('calls _ fallback for plain Error', () => {
+      const e = new Error('plain'),
+        result = matchError(e, {
+          _: rawErr => (rawErr as Error).message,
+          NOT_FOUND: () => 'not found'
+        })
+      expect(result).toBe('plain')
+    })
+
+    test('returns undefined when no match and no fallback', () => {
+      const e = new ConvexError({ code: 'FORBIDDEN' }),
+        result = matchError(e, {
+          NOT_FOUND: () => 'nope'
+        })
+      expect(result).toBeUndefined()
+    })
+
+    test('returns undefined for non-error with no fallback', () => {
+      const result = matchError(null, {
+        NOT_FOUND: () => 'nope'
+      })
+      expect(result).toBeUndefined()
+    })
+
+    test('specific handler takes precedence over fallback', () => {
+      const e = new ConvexError({ code: 'CONFLICT' }),
+        result = matchError(e, {
+          _: () => 'fallback',
+          CONFLICT: () => 'specific'
+        })
+      expect(result).toBe('specific')
+    })
+
+    test('handler receives full error data', () => {
+      const e = new ConvexError({
+          code: 'VALIDATION_FAILED',
+          fieldErrors: { title: 'required' },
+          fields: ['title'],
+          message: 'Invalid input'
+        }),
+        result = matchError(e, {
+          VALIDATION_FAILED: d => ({
+            code: d.code,
+            fieldErrors: d.fieldErrors,
+            fields: d.fields,
+            message: d.message
+          })
+        })
+      expect(result).toEqual({
+        code: 'VALIDATION_FAILED',
+        fieldErrors: { title: 'required' },
+        fields: ['title'],
+        message: 'Invalid input'
+      })
+    })
+
+    test('multiple handlers only calls matching one', () => {
+      const e = new ConvexError({ code: 'RATE_LIMITED' })
+      let notFoundCalled = false,
+        rateLimitedCalled = false
+      matchError(e, {
+        NOT_FOUND: () => {
+          notFoundCalled = true
+        },
+        RATE_LIMITED: () => {
+          rateLimitedCalled = true
+        }
+      })
+      expect(notFoundCalled).toBe(false)
+      expect(rateLimitedCalled).toBe(true)
+    })
+
+    test('returns typed result from handler', () => {
+      const e = new ConvexError({ code: 'NOT_FOUND' }),
+        result: number | undefined = matchError(e, {
+          NOT_FOUND: () => 42
+        })
+      expect(result).toBe(42)
+    })
+
+    test('_ receives original error for non-ConvexError', () => {
+      const original = new Error('boom'),
+        result = matchError(original, {
+          _: e => (e as Error).message
+        })
+      expect(result).toBe('boom')
+    })
+
+    test('_ receives original error for ConvexError without matching handler', () => {
+      const original = new ConvexError({ code: 'FORBIDDEN' }),
+        result = matchError(original, {
+          _: () => 'fallback',
+          NOT_FOUND: () => 'nope'
+        })
+      expect(result).toBe('fallback')
+    })
+  })
+
+  describe('integration: ok/fail with matchError', () => {
+    test('process MutationResult with matchError on error case', () => {
+      const result = fail('NOT_FOUND')
+      expect(result.ok).toBe(false)
+      const errorData = (result as MutationFail).error,
+        e = new ConvexError({ code: errorData.code, message: errorData.message } as Record<string, string | undefined>),
+        msg = matchError(e, {
+          _: () => 'Unknown error',
+          NOT_FOUND: d => `Item not found: ${d.message}`
+        })
+      expect(msg).toBe('Item not found: Not found')
+    })
+
+    test('ok result does not need error handling', () => {
+      const result = ok({ id: '123' })
+      expect(result.ok).toBe(true)
+    })
+
+    test('fail result can be used with isMutationError on ConvexError', () => {
+      const result = fail('CONFLICT', { message: 'Stale' })
+      expect(result.ok).toBe(false)
+      const errorData = (result as MutationFail).error,
+        thrown = new ConvexError({ code: errorData.code, message: errorData.message } as Record<
+          string,
+          string | undefined
+        >)
+      expect(isMutationError(thrown)).toBe(true)
+      expect(isErrorCode(thrown, 'CONFLICT')).toBe(true)
+    })
+
+    test('full mutation flow: create, fail, handle', () => {
+      const success = ok('created-hello')
+      expect(success.ok).toBe(true)
+      expect((success as MutationOk<string>).value).toBe('created-hello')
+
+      const failure = fail('VALIDATION_FAILED', { fieldErrors: { title: 'Required' }, fields: ['title'] })
+      expect(failure.ok).toBe(false)
+      expect((failure as MutationFail).error.code).toBe('VALIDATION_FAILED')
+      expect((failure as MutationFail).error.fieldErrors).toEqual({ title: 'Required' })
     })
   })
 })

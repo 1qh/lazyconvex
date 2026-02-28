@@ -272,6 +272,18 @@ type ErrorHandler = Partial<Record<ErrorCode, (data: ConvexErrorData) => void>> 
   default?: (error: unknown) => void
 }
 
+interface MutationFail {
+  error: ConvexErrorData
+  ok: false
+}
+
+interface MutationOk<T> {
+  ok: true
+  value: T
+}
+
+type MutationResult<T> = MutationFail | MutationOk<T>
+
 const extractErrorData = (e: unknown): ConvexErrorData | undefined => {
     if (!(e instanceof ConvexError)) return
     const { data } = e as { data?: unknown }
@@ -312,6 +324,27 @@ const extractErrorData = (e: unknown): ConvexErrorData | undefined => {
     }
     handlers.default?.(e)
   },
+  ok = <T>(value: T): MutationResult<T> => ({ ok: true, value }),
+  fail = (code: ErrorCode, detail?: Omit<ConvexErrorData, 'code'>): MutationResult<never> => ({
+    error: { code, message: ERROR_MESSAGES[code], ...detail },
+    ok: false
+  }),
+  isMutationError = (e: unknown): e is ConvexErrorData => extractErrorData(e) !== undefined,
+  isErrorCode = (e: unknown, code: ErrorCode): boolean => {
+    const d = extractErrorData(e)
+    return d?.code === code
+  },
+  matchError = <R>(
+    e: unknown,
+    handlers: Partial<Record<ErrorCode, (data: ConvexErrorData) => R>> & { _?: (error: unknown) => R }
+  ): R | undefined => {
+    const d = extractErrorData(e)
+    if (d) {
+      const handler = handlers[d.code]
+      if (handler) return handler(d)
+    }
+    return handlers._?.(e)
+  },
   makeUnique = ({
     field,
     index,
@@ -341,7 +374,7 @@ const extractErrorData = (e: unknown): ConvexErrorData | undefined => {
       })
     )
 
-export type { ConvexErrorData, ErrorHandler }
+export type { ConvexErrorData, ErrorHandler, MutationFail, MutationOk, MutationResult }
 export {
   addUrls,
   checkRateLimit,
@@ -353,6 +386,7 @@ export {
   err,
   errValidation,
   extractErrorData,
+  fail,
   generateToken,
   getErrorCode,
   getErrorDetail,
@@ -361,11 +395,15 @@ export {
   groupList,
   handleConvexError,
   isComparisonOp,
+  isErrorCode,
+  isMutationError,
   isRecord,
   log,
   makeUnique,
+  matchError,
   matchW,
   noFetcher,
+  ok,
   ownGet,
   pgOpts,
   pickFields,
