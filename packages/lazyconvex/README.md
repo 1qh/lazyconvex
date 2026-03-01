@@ -113,6 +113,40 @@ One line of config. 12 endpoints. Role-based access, editor ACL, soft delete wit
 | Interactive schema playground component | 0 |
 | JSDoc on all public exports | 0 |
 
+## Developer Tools
+
+### Type Error Messages
+
+Schema mismatches surface as clear compile-time errors:
+
+![Field type errors](docs/assets/field-errors.png)
+
+### Browser Devtools Panel
+
+Drop-in floating panel for inspecting errors, subscriptions, mutations, and cache — customizable position, tabs, and styling:
+
+![Devtools button in app](docs/assets/devtools-button.png)
+
+![Devtools panel expanded](docs/assets/devtools-panel.png)
+
+```tsx
+import { LazyConvexDevtools } from 'lazyconvex/react'
+
+<LazyConvexDevtools position='bottom-right' defaultTab='errors' />
+```
+
+### Schema Playground
+
+Interactive component for previewing how schemas map to generated endpoints:
+
+![Schema playground](docs/assets/schema-playground.png)
+
+```tsx
+import { SchemaPlayground } from 'lazyconvex/react'
+
+<SchemaPlayground className='my-8' />
+```
+
 ## Install
 
 ```bash
