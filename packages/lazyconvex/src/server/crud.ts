@@ -1,8 +1,7 @@
 // oxlint-disable promise/prefer-await-to-then
-/* eslint-disable no-await-in-loop, no-continue, max-statements, complexity */
+/* eslint-disable no-await-in-loop, max-statements, complexity, max-depth */
 // biome-ignore-all lint/suspicious/useAwait: x
 // biome-ignore-all lint/performance/noAwaitInLoops: x
-// biome-ignore-all lint/nursery/noContinue: x
 import type { ZodObject, ZodRawShape } from 'zod/v4'
 
 import { zid } from 'convex-helpers/server/zod4'
@@ -102,22 +101,24 @@ const hk = (c: CrudMCtx): HookCtx => ({ db: c.db, storage: c.storage, userId: c.
           e = e ? fb.and(e, x) : x
         }
         // biome-ignore lint/nursery/noForIn: x
-        for (const k in w) {
-          if (k === 'own') continue
-          const fv = w[k]
-          if (fv === undefined) continue
-          const field = fb.field(k)
-          if (isComparisonOp(fv)) {
-            if (fv.$gt !== undefined) and(fb.gt(field, fv.$gt))
-            if (fv.$gte !== undefined) and(fb.gte(field, fv.$gte))
-            if (fv.$lt !== undefined) and(fb.lt(field, fv.$lt))
-            if (fv.$lte !== undefined) and(fb.lte(field, fv.$lte))
-            if (fv.$between !== undefined) {
-              and(fb.gte(field, fv.$between[0]))
-              and(fb.lte(field, fv.$between[1]))
+        for (const k in w)
+          if (k !== 'own') {
+            const fv = w[k]
+            if (fv !== undefined) {
+              const field = fb.field(k)
+              if (isComparisonOp(fv)) {
+                if (fv.$gt !== undefined) and(fb.gt(field, fv.$gt))
+                if (fv.$gte !== undefined) and(fb.gte(field, fv.$gte))
+                if (fv.$lt !== undefined) and(fb.lt(field, fv.$lt))
+                if (fv.$lte !== undefined) and(fb.lte(field, fv.$lte))
+                if (fv.$between !== undefined) {
+                  and(fb.gte(field, fv.$between[0]))
+                  and(fb.lte(field, fv.$between[1]))
+                }
+              } else and(fb.eq(field, fv))
             }
-          } else and(fb.eq(field, fv))
-        }
+          }
+
         if (w.own) and(vid ? fb.eq(fb.field('userId'), vid) : fb.eq(true, false))
         return e
       },

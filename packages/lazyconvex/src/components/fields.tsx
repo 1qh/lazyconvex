@@ -2,7 +2,6 @@
 /* eslint-disable max-statements, @typescript-eslint/no-unsafe-assignment */
 // biome-ignore-all lint/performance/noImgElement: x
 // biome-ignore-all lint/performance/noAwaitInLoops: x
-// biome-ignore-all lint/nursery/noContinue: x
 // biome-ignore-all lint/suspicious/noExplicitAny: x
 'use client'
 import type { AnyFieldApi } from '@tanstack/react-form'

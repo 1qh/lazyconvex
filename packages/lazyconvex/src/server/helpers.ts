@@ -1,6 +1,5 @@
-/* eslint-disable no-await-in-loop, no-continue, max-statements */
+/* eslint-disable no-await-in-loop, max-statements, max-depth */
 // biome-ignore-all lint/performance/noAwaitInLoops: x
-// biome-ignore-all lint/nursery/noContinue: x
 import type { RegisteredQuery } from 'convex/server'
 import type { ZodRawShape } from 'zod/v4'
 
@@ -137,23 +136,23 @@ const TOKEN_BYTES = 24,
     const del = new Set<FID>()
     for (const f of fileFields) {
       const prev = doc[f]
-      if (prev === null) continue
-      const pArr = Array.isArray(prev) ? prev : [prev]
-      if (!next) {
-        for (const p of pArr) {
-          const id = toId(p)
-          if (id) del.add(id)
+      if (prev !== null) {
+        const pArr = Array.isArray(prev) ? prev : [prev]
+        if (!next)
+          for (const p of pArr) {
+            const id = toId(p)
+            if (id) del.add(id)
+          }
+        else if (Object.hasOwn(next, f)) {
+          const nv = next[f],
+            keep = new Set(Array.isArray(nv) ? nv : nv ? [nv] : [])
+          for (const p of pArr)
+            if (!keep.has(p as FID)) {
+              const id = toId(p)
+              if (id) del.add(id)
+            }
         }
-        continue
       }
-      if (!Object.hasOwn(next, f)) continue
-      const nv = next[f],
-        keep = new Set(Array.isArray(nv) ? nv : nv ? [nv] : [])
-      for (const p of pArr)
-        if (!keep.has(p as FID)) {
-          const id = toId(p)
-          if (id) del.add(id)
-        }
     }
     if (del.size) {
       const results = await Promise.allSettled([...del].map(async id => storage.delete(id)))

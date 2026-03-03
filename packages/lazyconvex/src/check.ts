@@ -3,7 +3,6 @@
 /* oxlint-disable eslint/max-statements, eslint/complexity, max-depth */
 /** biome-ignore-all lint/style/noProcessEnv: cli */
 /** biome-ignore-all lint/performance/noAwaitInLoops: sequential */
-/** biome-ignore-all lint/nursery/noContinue: cli directory scanning */
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { basename, dirname, join } from 'node:path'
 

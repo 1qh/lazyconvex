@@ -1,6 +1,5 @@
-/* eslint-disable no-await-in-loop, no-continue, max-statements, @typescript-eslint/no-unnecessary-condition */
+/* eslint-disable no-await-in-loop, max-statements, @typescript-eslint/no-unnecessary-condition */
 // biome-ignore-all lint/performance/noAwaitInLoops: x
-// biome-ignore-all lint/nursery/noContinue: x
 import type { ZodObject, ZodRawShape } from 'zod/v4'
 
 import { zid } from 'convex-helpers/server/zod4'
@@ -311,11 +310,12 @@ const getEditors = (doc: Rec): string[] => (doc.editors as string[] | undefined)
           const results: Rec[] = []
           for (const id of ids) {
             const doc = await c.db.get(id)
-            if (doc?.orgId !== orgId) continue
-            const now = time()
-            await cleanFiles({ doc, fileFields: fileFs, next: data, storage: c.storage })
-            await dbPatch(c.db, id, { ...data, ...now })
-            results.push({ ...doc, ...data, ...now })
+            if (doc?.orgId === orgId) {
+              const now = time()
+              await cleanFiles({ doc, fileFields: fileFs, next: data, storage: c.storage })
+              await dbPatch(c.db, id, { ...data, ...now })
+              results.push({ ...doc, ...data, ...now })
+            }
           }
           return results
         })
@@ -329,14 +329,15 @@ const getEditors = (doc: Rec): string[] => (doc.editors as string[] | undefined)
           let deleted = 0
           for (const id of ids) {
             const doc = await c.db.get(id)
-            if (doc?.orgId !== orgId) continue
-            if (softDel) await dbPatch(c.db, id, { deletedAt: Date.now() })
-            else {
-              await cascadeDelete(c.db, id)
-              await dbDelete(c.db, id)
-              await cleanFiles({ doc, fileFields: fileFs, storage: c.storage })
+            if (doc?.orgId === orgId) {
+              if (softDel) await dbPatch(c.db, id, { deletedAt: Date.now() })
+              else {
+                await cascadeDelete(c.db, id)
+                await dbDelete(c.db, id)
+                await cleanFiles({ doc, fileFields: fileFs, storage: c.storage })
+              }
+              deleted += 1
             }
-            deleted += 1
           }
           return deleted
         })

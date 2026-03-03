@@ -1,6 +1,5 @@
-/* eslint-disable complexity, no-await-in-loop, no-continue, max-statements */
+/* eslint-disable complexity, no-await-in-loop, max-statements */
 // biome-ignore-all lint/performance/noAwaitInLoops: x
-// biome-ignore-all lint/nursery/noContinue: x
 import type { ZodObject, ZodRawShape } from 'zod/v4'
 
 import { zid } from 'convex-helpers/server/zod4'
@@ -179,13 +178,13 @@ const chk = (ctx: UserCtx): HookCtx => ({
           let deleted = 0
           for (const id of ids) {
             const doc = await ctx.db.get(id)
-            if (!doc) continue
-            if (!(await verifyParentOwnership(ctx, getFK(doc)))) continue
-            if (hooks?.beforeDelete) await hooks.beforeDelete(chk(ctx), { doc, id })
-            await dbDelete(ctx.db, id)
-            await cleanFiles({ doc, fileFields: fileFs, storage: ctx.storage })
-            if (hooks?.afterDelete) await hooks.afterDelete(chk(ctx), { doc, id })
-            deleted += 1
+            if (doc && (await verifyParentOwnership(ctx, getFK(doc)))) {
+              if (hooks?.beforeDelete) await hooks.beforeDelete(chk(ctx), { doc, id })
+              await dbDelete(ctx.db, id)
+              await cleanFiles({ doc, fileFields: fileFs, storage: ctx.storage })
+              if (hooks?.afterDelete) await hooks.afterDelete(chk(ctx), { doc, id })
+              deleted += 1
+            }
           }
           return deleted
         })
@@ -198,15 +197,15 @@ const chk = (ctx: UserCtx): HookCtx => ({
           const results: Rec[] = []
           for (const id of ids) {
             const doc = await ctx.db.get(id)
-            if (!doc) continue
-            if (!(await verifyParentOwnership(ctx, getFK(doc)))) continue
-            let patch = partial.parse(pickFields(data, schemaKeys)) as Rec
-            if (hooks?.beforeUpdate) patch = await hooks.beforeUpdate(chk(ctx), { id, patch, prev: doc })
-            const now = time()
-            await cleanFiles({ doc, fileFields: fileFs, next: patch, storage: ctx.storage })
-            await dbPatch(ctx.db, id, { ...patch, ...now })
-            if (hooks?.afterUpdate) await hooks.afterUpdate(chk(ctx), { id, patch, prev: doc })
-            results.push({ ...doc, ...patch, ...now })
+            if (doc && (await verifyParentOwnership(ctx, getFK(doc)))) {
+              let patch = partial.parse(pickFields(data, schemaKeys)) as Rec
+              if (hooks?.beforeUpdate) patch = await hooks.beforeUpdate(chk(ctx), { id, patch, prev: doc })
+              const now = time()
+              await cleanFiles({ doc, fileFields: fileFs, next: patch, storage: ctx.storage })
+              await dbPatch(ctx.db, id, { ...patch, ...now })
+              if (hooks?.afterUpdate) await hooks.afterUpdate(chk(ctx), { id, patch, prev: doc })
+              results.push({ ...doc, ...patch, ...now })
+            }
           }
           return results
         })

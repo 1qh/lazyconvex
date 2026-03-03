@@ -76,7 +76,7 @@ Run `bun fix` to auto-fix and verify all linters pass (zero errors, warnings all
 
 - `style/noProcessEnv` - env validation files
 - `performance/noAwaitInLoops` - sequential async operations
-- `nursery/noContinue`, `nursery/noForIn` - intentional control flow
+- `nursery/noForIn` - intentional control flow
 - `performance/noImgElement` - external images
 - `suspicious/noExplicitAny` - unavoidable generic boundaries
 
