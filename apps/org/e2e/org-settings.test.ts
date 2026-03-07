@@ -1,11 +1,10 @@
 // biome-ignore-all lint/performance/useTopLevelRegex: test file
-/* eslint-disable max-statements, jest/no-conditional-in-test */
+/* eslint-disable jest/no-conditional-in-test */
+import { addTestOrgMember, createTestOrg, createTestUser, ensureTestUser, makeOrgTestUtils } from '@a/e2e/org-helpers'
 import { expect, test } from '@playwright/test'
 
-import { addTestOrgMember, createTestOrg, createTestUser, ensureTestUser, makeOrgTestUtils } from '@a/e2e/org-helpers'
-
-const testPrefix = `e2e-org-settings-${Date.now()}`
-const { cleanupOrgTestData, cleanupTestUsers, generateSlug } = makeOrgTestUtils(testPrefix)
+const testPrefix = `e2e-org-settings-${Date.now()}`,
+  { cleanupOrgTestData, cleanupTestUsers, generateSlug } = makeOrgTestUtils(testPrefix)
 
 test.describe
   .serial('Settings Page UI', () => {
@@ -13,12 +12,12 @@ test.describe
 
     test.beforeAll(async () => {
       await ensureTestUser()
-      const slug = generateSlug('settings-ui')
-      const created = await createTestOrg(slug, 'Settings UI Test Org')
+      const slug = generateSlug('settings-ui'),
+        created = await createTestOrg(slug, 'Settings UI Test Org')
       testOrgId = created.orgId
 
-      const adminEmail = `${testPrefix}-settings-admin@test.local`
-      const adminUserId = (await createTestUser(adminEmail, 'Settings Admin')) ?? ''
+      const adminEmail = `${testPrefix}-settings-admin@test.local`,
+        adminUserId = (await createTestUser(adminEmail, 'Settings Admin')) ?? ''
       await addTestOrgMember(testOrgId, adminUserId, true)
     })
 
@@ -59,13 +58,12 @@ test.describe
 
 test.describe
   .serial('Transfer Ownership UI', () => {
-    let testOrgId: string
-    let adminUserId: string
+    let testOrgId: string, adminUserId: string
 
     test.beforeAll(async () => {
       await ensureTestUser()
-      const slug = generateSlug('transfer-ui')
-      const created = await createTestOrg(slug, 'Transfer UI Test Org')
+      const slug = generateSlug('transfer-ui'),
+        created = await createTestOrg(slug, 'Transfer UI Test Org')
       testOrgId = created.orgId
 
       const adminEmail = `${testPrefix}-transfer-admin@test.local`
@@ -102,7 +100,7 @@ test.describe
         const adminOption = page.getByText('Transfer Admin')
         if (await adminOption.isVisible().catch(() => false)) {
           await adminOption.click()
-          page.on('dialog', d => d.accept())
+          page.on('dialog', async d => d.accept())
           const transferButton = page.getByRole('button', { name: /^Transfer$/iu })
           await transferButton.click()
           await expect(transferButton).not.toBeVisible({ timeout: 5000 })
@@ -118,12 +116,12 @@ test.describe
 
     test.beforeAll(async () => {
       await ensureTestUser()
-      const slug = generateSlug('leave-ui')
-      const created = await createTestOrg(slug, 'Leave UI Test Org')
+      const slug = generateSlug('leave-ui'),
+        created = await createTestOrg(slug, 'Leave UI Test Org')
       testOrgId = created.orgId
 
-      const memberEmail = `${testPrefix}-leave-member@test.local`
-      const memberUserId = (await createTestUser(memberEmail, 'Leave Member')) ?? ''
+      const memberEmail = `${testPrefix}-leave-member@test.local`,
+        memberUserId = (await createTestUser(memberEmail, 'Leave Member')) ?? ''
       await addTestOrgMember(testOrgId, memberUserId, false)
     })
 
@@ -134,8 +132,8 @@ test.describe
 
     test('leave button NOT visible for owner on settings', async ({ page }) => {
       await page.goto('/settings')
-      const leaveButton = page.getByRole('button', { name: /leave organization/iu })
-      const isVisible = await leaveButton.isVisible().catch(() => false)
+      const leaveButton = page.getByRole('button', { name: /leave organization/iu }),
+        isVisible = await leaveButton.isVisible().catch(() => false)
       expect(isVisible).toBe(false)
     })
   })

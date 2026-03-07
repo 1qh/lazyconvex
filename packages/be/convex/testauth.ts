@@ -1,4 +1,4 @@
-/* eslint-disable no-await-in-loop, max-statements */
+/* eslint-disable no-await-in-loop */
 /** biome-ignore-all lint/performance/noAwaitInLoops: sequential deletes */
 import { getAuthUserId } from '@convex-dev/auth/server'
 import { v } from 'convex/values'
@@ -86,7 +86,7 @@ const testAuth = makeTestAuth({
     args: {},
     handler: async ctx => {
       if (!isTestMode()) return { count: 0, done: true }
-      const u = await ctx.db
+      const u = ctx.db
         .query('users')
         .filter(q => q.eq(q.field('email'), TEST_EMAIL))
         .first()

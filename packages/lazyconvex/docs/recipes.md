@@ -1,6 +1,7 @@
 # Recipes
 
-7 real-world composition patterns. Each recipe shows schema → backend → frontend.
+7 real-world composition patterns.
+Each recipe shows schema → backend → frontend.
 
 ## Recipe 1: Blog with Auth + File Upload + Pagination + Search
 
@@ -27,10 +28,16 @@ const owned = makeOwned({
 
 ```tsx
 export const {
-  bulkRm, bulkUpdate, create,
+  bulkRm,
+  bulkUpdate,
+  create,
   pub: { list, read, search },
-  rm, update
-} = crud('blog', owned.blog, { rateLimit: { max: 10, window: 60_000 }, search: 'content' })
+  rm,
+  update
+} = crud('blog', owned.blog, {
+  rateLimit: { max: 10, window: 60_000 },
+  search: 'content'
+})
 ```
 
 ### Frontend
@@ -40,18 +47,22 @@ import { useList } from 'lazyconvex/react'
 import { Form, useForm } from 'lazyconvex/components'
 
 const BlogPage = () => {
-  const { items, loadMore, status } = useList(api.blog.list, { where: { published: true } })
+  const { items, loadMore, status } = useList(api.blog.list, {
+    where: { published: true }
+  })
   const searched = useList(api.blog.search, { query: 'react hooks' })
 
   return (
     <ul>
       {items.map(b => (
         <li key={b._id}>
-          {b.coverImageUrl && <img src={b.coverImageUrl} alt='' />}
+          {b.coverImageUrl && <img src={b.coverImageUrl} alt="" />}
           <h2>{b.title}</h2>
         </li>
       ))}
-      {status === 'CanLoadMore' && <button onClick={loadMore}>Load more</button>}
+      {status === 'CanLoadMore' && (
+        <button onClick={loadMore}>Load more</button>
+      )}
     </ul>
   )
 }
@@ -59,20 +70,26 @@ const BlogPage = () => {
 const CreateBlog = () => {
   const form = useForm({
     schema: owned.blog,
-    onSubmit: async d => { await create(d); return d }
+    onSubmit: async d => {
+      await create(d)
+      return d
+    }
   })
 
   return (
-    <Form form={form} render={({ Text, Choose, Toggle, File, Submit }) => (
-      <>
-        <Text name='title' />
-        <Text name='content' multiline />
-        <Choose name='category' />
-        <Toggle name='published' />
-        <File name='coverImage' accept='image/*' />
-        <Submit>Publish</Submit>
-      </>
-    )} />
+    <Form
+      form={form}
+      render={({ Text, Choose, Toggle, File, Submit }) => (
+        <>
+          <Text name="title" />
+          <Text name="content" multiline />
+          <Choose name="category" />
+          <Toggle name="published" />
+          <File name="coverImage" accept="image/*" />
+          <Submit>Publish</Submit>
+        </>
+      )}
+    />
   )
 }
 ```
@@ -81,7 +98,8 @@ const CreateBlog = () => {
 
 ## Recipe 2: Org CRUD + ACL + Cascade Delete
 
-**Features:** org multi-tenancy · per-item ACL · soft delete · cascade · permission guard
+**Features:** org multi-tenancy · per-item ACL · soft delete · cascade · permission
+guard
 
 ### Schema
 
@@ -112,15 +130,30 @@ const orgScoped = makeOrgScoped({
 import { orgCascade } from 'lazyconvex/server'
 
 export const {
-  addEditor, bulkRm, create, editors, list, read,
-  removeEditor, rm, setEditors, update
+  addEditor,
+  bulkRm,
+  create,
+  editors,
+  list,
+  read,
+  removeEditor,
+  rm,
+  setEditors,
+  update
 } = orgCrud('project', orgScoped.project, {
   acl: true,
-  cascade: orgCascade(orgScoped.task, { foreignKey: 'projectId', table: 'task' })
+  cascade: orgCascade(orgScoped.task, {
+    foreignKey: 'projectId',
+    table: 'task'
+  })
 })
 
 export const {
-  create: createTask, list: listTasks, rm: rmTask, update: updateTask, restore
+  create: createTask,
+  list: listTasks,
+  rm: rmTask,
+  update: updateTask,
+  restore
 } = orgCrud('task', orgScoped.task, {
   aclFrom: { field: 'projectId', table: 'project' },
   softDelete: true
@@ -135,7 +168,9 @@ import { EditorsSection, PermissionGuard } from 'lazyconvex/components'
 
 const ProjectPage = ({ projectId }: { projectId: Id<'project'> }) => {
   const project = useOrgQuery(api.project.read, { id: projectId })
-  const tasks = useOrgQuery(api.task.list, { paginationOpts: { cursor: null, numItems: 50 } })
+  const tasks = useOrgQuery(api.task.list, {
+    paginationOpts: { cursor: null, numItems: 50 }
+  })
   const remove = useOrgMutation(api.project.rm)
 
   return (
@@ -145,7 +180,9 @@ const ProjectPage = ({ projectId }: { projectId: Id<'project'> }) => {
       </PermissionGuard>
       <EditorsSection docId={projectId} api={api.project} />
       <ul>
-        {tasks?.page.map(t => <li key={t._id}>{t.title}</li>)}
+        {tasks?.page.map(t => (
+          <li key={t._id}>{t.title}</li>
+        ))}
       </ul>
     </>
   )
@@ -163,10 +200,9 @@ const ProjectPage = ({ projectId }: { projectId: Id<'project'> }) => {
 ```tsx
 import { z } from 'zod/v4'
 
-export const {
-    create, list, read, rm, update
-  } = crud('blog', owned.blog, { rateLimit: { max: 10, window: 60_000 } }),
-
+export const { create, list, read, rm, update } = crud('blog', owned.blog, {
+    rateLimit: { max: 10, window: 60_000 }
+  }),
   stats = pq({
     args: { category: z.string().optional() },
     handler: async (c, { category }) => {
@@ -181,15 +217,16 @@ export const {
       return { total, published, draft: total - published }
     }
   }),
-
   bySlug = pq({
     args: { slug: z.string() },
     handler: async (c, { slug }) => {
-      const doc = await c.db.query('blog').withIndex('by_slug', q => q.eq('slug', slug)).unique()
+      const doc = await c.db
+        .query('blog')
+        .withIndex('by_slug', q => q.eq('slug', slug))
+        .unique()
       return doc ? (await c.withAuthor([doc]))[0] : null
     }
   }),
-
   archive = m({
     args: { id: z.string() },
     handler: async (c, { id }) => c.patch(id, { published: false })
@@ -208,9 +245,13 @@ const Dashboard = () => {
 
   return (
     <>
-      <p>{stats?.published} published / {stats?.draft} drafts</p>
+      <p>
+        {stats?.published} published / {stats?.draft} drafts
+      </p>
       <ul>
-        {items.map(b => <li key={b._id}>{b.title}</li>)}
+        {items.map(b => (
+          <li key={b._id}>{b.title}</li>
+        ))}
       </ul>
     </>
   )
@@ -229,7 +270,7 @@ const Dashboard = () => {
 import { presenceTable } from 'lazyconvex/server'
 
 export default defineSchema({
-  ...presenceTable(),
+  ...presenceTable()
 })
 ```
 
@@ -239,7 +280,8 @@ export default defineSchema({
 import { makePresence } from 'lazyconvex/server'
 
 export const { heartbeat, list: listPresence } = makePresence({
-  mutation, query
+  mutation,
+  query
 })
 ```
 
@@ -255,7 +297,10 @@ const CollaborativeEditor = ({ docId }: { docId: string }) => {
   })
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    updatePresence({ cursor: { x: e.clientX, y: e.clientY }, status: 'editing' })
+    updatePresence({
+      cursor: { x: e.clientX, y: e.clientY },
+      status: 'editing'
+    })
   }
 
   return (
@@ -263,7 +308,7 @@ const CollaborativeEditor = ({ docId }: { docId: string }) => {
       {others.map(p => (
         <div
           key={p.id}
-          className='absolute size-4 rounded-full bg-blue-500'
+          className="absolute size-4 rounded-full bg-blue-500"
           style={{ left: p.data.cursor.x, top: p.data.cursor.y }}
         />
       ))}
@@ -291,7 +336,9 @@ const profileStep = object({
 
 const orgStep = object({
   name: string().min(2),
-  slug: string().min(2).regex(/^[a-z0-9-]+$/)
+  slug: string()
+    .min(2)
+    .regex(/^[a-z0-9-]+$/)
 })
 
 const preferencesStep = object({
@@ -305,7 +352,12 @@ const preferencesStep = object({
 ```tsx
 export const { upsert } = singletonCrud('profile', singleton.profile)
 
-export const { create: createOrg } = orgFns({ mutation, query, internalMutation, internalQuery })
+export const { create: createOrg } = orgFns({
+  mutation,
+  query,
+  internalMutation,
+  internalQuery
+})
 ```
 
 ### Frontend
@@ -326,32 +378,44 @@ const Onboarding = () => {
 
   const stepper = useStepper({
     onSubmit: async d => {
-      await upsert({ displayName: d.profile.displayName, avatar: d.profile.avatar })
+      await upsert({
+        displayName: d.profile.displayName,
+        avatar: d.profile.avatar
+      })
       await createOrg({ name: d.org.name, slug: d.org.slug })
     },
     onSuccess: () => router.push('/dashboard')
   })
 
   return (
-    <StepForm stepper={stepper} submitLabel='Complete'>
-      <StepForm.Step id='profile' render={({ Text, File }) => (
-        <>
-          <Text name='displayName' />
-          <File name='avatar' accept='image/*' />
-        </>
-      )} />
-      <StepForm.Step id='org' render={({ Text }) => (
-        <>
-          <Text name='name' />
-          <Text name='slug' />
-        </>
-      )} />
-      <StepForm.Step id='preferences' render={({ Choose }) => (
-        <>
-          <Choose name='theme' />
-          <Choose name='language' />
-        </>
-      )} />
+    <StepForm stepper={stepper} submitLabel="Complete">
+      <StepForm.Step
+        id="profile"
+        render={({ Text, File }) => (
+          <>
+            <Text name="displayName" />
+            <File name="avatar" accept="image/*" />
+          </>
+        )}
+      />
+      <StepForm.Step
+        id="org"
+        render={({ Text }) => (
+          <>
+            <Text name="name" />
+            <Text name="slug" />
+          </>
+        )}
+      />
+      <StepForm.Step
+        id="preferences"
+        render={({ Choose }) => (
+          <>
+            <Choose name="theme" />
+            <Choose name="language" />
+          </>
+        )}
+      />
     </StepForm>
   )
 }
@@ -389,7 +453,9 @@ export const { all, get, load, refresh, invalidate, purge } = cacheCrud({
   key: 'tmdb_id',
   ttl: 86400,
   fetcher: async (_, tmdbId) => {
-    const res = await fetch(`https://api.themoviedb.org/3/movie/${tmdbId}?api_key=${process.env.TMDB_KEY}`)
+    const res = await fetch(
+      `https://api.themoviedb.org/3/movie/${tmdbId}?api_key=${process.env.TMDB_KEY}`
+    )
     const { id, title, overview, poster_path, vote_average } = await res.json()
     return { tmdb_id: id, title, overview, poster_path, vote_average }
   },
@@ -465,19 +531,25 @@ const ProfilePage = () => {
   const form = useForm({
     schema: singleton.profile,
     values: profile ? pickValues(singleton.profile, profile) : undefined,
-    onSubmit: async d => { await upsert(d); return d }
+    onSubmit: async d => {
+      await upsert(d)
+      return d
+    }
   })
 
   return (
-    <Form form={form} render={({ Text, File, Choose, Submit }) => (
-      <>
-        <Text name='displayName' />
-        <Text name='bio' multiline />
-        <File name='avatar' accept='image/*' />
-        <Choose name='theme' />
-        <Submit>Save</Submit>
-      </>
-    )} />
+    <Form
+      form={form}
+      render={({ Text, File, Choose, Submit }) => (
+        <>
+          <Text name="displayName" />
+          <Text name="bio" multiline />
+          <File name="avatar" accept="image/*" />
+          <Choose name="theme" />
+          <Submit>Save</Submit>
+        </>
+      )}
+    />
   )
 }
 ```

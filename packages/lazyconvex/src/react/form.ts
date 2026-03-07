@@ -1,4 +1,4 @@
-/* eslint-disable react-hooks/rules-of-hooks, max-statements */
+/* eslint-disable react-hooks/rules-of-hooks */
 // biome-ignore-all lint/correctness/useHookAtTopLevel: watch hook is called inside component render context
 'use client'
 import type { StandardSchemaV1 } from '@tanstack/form-core'

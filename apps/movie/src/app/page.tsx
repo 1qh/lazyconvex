@@ -15,7 +15,6 @@ const TMDB_IMG = 'https://image.tmdb.org/t/p/w200',
   MovieCard = ({ movie }: { movie: SearchResult }) => (
     <div className='flex gap-3 rounded-lg border p-3' data-testid='movie-card'>
       {movie.poster_path ? (
-        // eslint-disable-next-line @next/next/no-img-element
         <img
           alt={movie.title}
           className='h-32 w-20 shrink-0 rounded-sm object-cover'
@@ -67,7 +66,7 @@ const TMDB_IMG = 'https://image.tmdb.org/t/p/w200',
             value={query}
           />
         </form>
-        {results.length ? (
+        {results.length > 0 ? (
           <div data-testid='movie-results'>
             {results.map(m => (
               <MovieCard key={m.tmdb_id} movie={m} />

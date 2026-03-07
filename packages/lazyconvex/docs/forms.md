@@ -1,10 +1,13 @@
 # Building Forms with lazyconvex
 
-This tutorial walks through building a blog post editor, starting simple and adding features incrementally. Each section builds on the previous one.
+This tutorial walks through building a blog post editor, starting simple and adding
+features incrementally.
+Each section builds on the previous one.
 
 ## 1. A basic create form
 
-You have a blog schema and a `crud('blog', owned.blog)` call. Let's build a form to create posts.
+You have a blog schema and a `crud('blog', owned.blog)` call.
+Let’s build a form to create posts.
 
 ```tsx
 import { Form, useForm } from 'lazyconvex/components'
@@ -16,46 +19,58 @@ const CreatePost = () => {
   const create = useMutation(api.blog.create)
   const form = useForm({
     schema: owned.blog,
-    onSubmit: async d => { await create({ ...d, published: false }); return d }
+    onSubmit: async d => {
+      await create({ ...d, published: false })
+      return d
+    }
   })
 
   return (
-    <Form form={form} render={({ Text, Choose, Toggle, Submit }) => (
-      <>
-        <Text name='title' label='Title' />
-        <Text name='content' label='Content' multiline />
-        <Choose name='category' label='Category' />
-        <Toggle name='published' label='Published' />
-        <Submit>Create</Submit>
-      </>
-    )} />
+    <Form
+      form={form}
+      render={({ Text, Choose, Toggle, Submit }) => (
+        <>
+          <Text name="title" label="Title" />
+          <Text name="content" label="Content" multiline />
+          <Choose name="category" label="Category" />
+          <Toggle name="published" label="Published" />
+          <Submit>Create</Submit>
+        </>
+      )}
+    />
   )
 }
 ```
 
-What's happening:
+What’s happening:
+
 - `useForm` takes your Zod schema and generates typed field props
 - `name='title'` is checked at compile time — `name='titl'` is a type error
 - `Choose` auto-generates options from the Zod enum
-- `Toggle` knows `published` is a boolean field — using `<Text name='published' />` would be a type error
+- `Toggle` knows `published` is a boolean field — using `<Text name='published' />`
+  would be a type error
 - Zod validation runs on submit — `title.min(1)` enforces non-empty
 
 ![Field type errors](assets/field-errors.png)
 
 ## 2. Add file upload
 
-Your schema has `coverImage: cvFile().nullable().optional()`. The `File` field handles upload automatically:
+Your schema has `coverImage: cvFile().nullable().optional()`. The `File` field handles
+upload automatically:
 
 ```tsx
-<Form form={form} render={({ Text, Choose, File, Submit }) => (
-  <>
-    <Text name='title' label='Title' />
-    <Text name='content' label='Content' multiline />
-    <Choose name='category' label='Category' />
-    <File name='coverImage' label='Cover Image' accept='image/*' />
-    <Submit>Create</Submit>
-  </>
-)} />
+<Form
+  form={form}
+  render={({ Text, Choose, File, Submit }) => (
+    <>
+      <Text name="title" label="Title" />
+      <Text name="content" label="Content" multiline />
+      <Choose name="category" label="Category" />
+      <File name="coverImage" label="Cover Image" accept="image/*" />
+      <Submit>Create</Submit>
+    </>
+  )}
+/>
 ```
 
 - `<File name='coverImage' />` compiles because `coverImage` is a `cvFile()` field
@@ -81,21 +96,26 @@ const EditPost = ({ post }: { post: Doc<'blog'> }) => {
   })
 
   return (
-    <Form form={form} render={({ Text, Choose, File, Submit }) => (
-      <>
-        <Text name='title' label='Title' />
-        <Text name='content' label='Content' multiline />
-        <Choose name='category' label='Category' />
-        <File name='coverImage' label='Cover Image' accept='image/*' />
-        <Submit>Save</Submit>
-      </>
-    )} />
+    <Form
+      form={form}
+      render={({ Text, Choose, File, Submit }) => (
+        <>
+          <Text name="title" label="Title" />
+          <Text name="content" label="Content" multiline />
+          <Choose name="category" label="Category" />
+          <File name="coverImage" label="Cover Image" accept="image/*" />
+          <Submit>Save</Submit>
+        </>
+      )}
+    />
   )
 }
 ```
 
-- `pickValues` extracts schema-matching fields from the doc (ignores `_id`, `_creationTime`, `userId`)
-- `transform` adds the `id` field before submitting — the schema doesn't have `id` but the mutation needs it
+- `pickValues` extracts schema-matching fields from the doc (ignores `_id`,
+  `_creationTime`, `userId`)
+- `transform` adds the `id` field before submitting — the schema doesn’t have `id` but
+  the mutation needs it
 - Empty optional strings auto-coerce to `undefined`
 
 ## 4. Add conflict detection
@@ -112,7 +132,9 @@ const form = useFormMutation({
 })
 ```
 
-When the server detects a stale `expectedUpdatedAt`, a `ConflictDialog` appears automatically with three options:
+When the server detects a stale `expectedUpdatedAt`, a `ConflictDialog` appears
+automatically with three options:
+
 - **Cancel** — discard your changes
 - **Reload** — fetch the latest version
 - **Overwrite** — force your changes through
@@ -135,11 +157,10 @@ Add a save indicator:
 
 ```tsx
 import { AutoSaveIndicator } from 'lazyconvex/components'
-
-<AutoSaveIndicator lastSaved={form.lastSaved} />
+;<AutoSaveIndicator lastSaved={form.lastSaved} />
 ```
 
-This shows "Saved 5s ago" that updates in real-time.
+This shows “Saved 5s ago” that updates in real-time.
 
 ## 6. Add async validation
 
@@ -199,8 +220,10 @@ const stepper = useStepper({
 ```
 
 Each step has:
+
 - Its own Zod schema and independent validation
-- Type-isolated fields — `name='displayName'` compiles on the profile step but errors on the org step
+- Type-isolated fields — `name='displayName'` compiles on the profile step but errors on
+  the org step
 - Navigation guard — warns on unsaved changes
 - Clickable step indicators (previous steps only)
 
@@ -215,68 +238,77 @@ const { execute, isPending } = useOptimisticMutation({
   mutation: api.blog.rm,
   onOptimistic: () => onOptimisticRemove?.(),
   onRollback: () => toast.error('Failed to delete'),
-  onSuccess: () => toast.success('Deleted'),
+  onSuccess: () => toast.success('Deleted')
 })
 ```
 
-The item disappears immediately. If the server rejects, it reappears with an error toast.
+The item disappears immediately.
+If the server rejects, it reappears with an error toast.
 
 ## Available field components
 
-| Component | Zod types | Renders |
-|-----------|-----------|---------|
-| `Text` | `string()`, `string().email()` | Input or textarea (`multiline`) |
-| `Num` | `number()` | Number input |
-| `Choose` | `enum()` | Select dropdown |
-| `Toggle` | `boolean()` | Checkbox or switch |
-| `File` | `cvFile()` | File picker with upload |
-| `Files` | `cvFiles()` | Multi-file picker |
-| `Arr` | `array(string())` | Tag input |
-| `Datepick` | `date()` | Date picker |
-| `Combobox` | `string()` with options | Searchable dropdown |
-| `Submit` | — | Submit button with loading state |
+| Component  | Zod types                      | Renders                          |
+| ---------- | ------------------------------ | -------------------------------- |
+| `Text`     | `string()`, `string().email()` | Input or textarea (`multiline`)  |
+| `Num`      | `number()`                     | Number input                     |
+| `Choose`   | `enum()`                       | Select dropdown                  |
+| `Toggle`   | `boolean()`                    | Checkbox or switch               |
+| `File`     | `cvFile()`                     | File picker with upload          |
+| `Files`    | `cvFiles()`                    | Multi-file picker                |
+| `Arr`      | `array(string())`              | Tag input                        |
+| `Datepick` | `date()`                       | Date picker                      |
+| `Combobox` | `string()` with options        | Searchable dropdown              |
+| `Submit`   | —                              | Submit button with loading state |
 
 All components accept `label`, `placeholder`, `disabled`, and `className` props.
 
 ## 9. Error handling
 
-**Validation errors** — Zod validation runs on submit. Field-level errors appear automatically:
+**Validation errors** — Zod validation runs on submit.
+Field-level errors appear automatically:
 
 ```tsx
 const form = useForm({
   schema: owned.blog,
-  onSubmit: async d => { await create(d); return d }
+  onSubmit: async d => {
+    await create(d)
+    return d
+  }
 })
 ```
 
-When `title.min(1)` fails, the `<Text name='title' />` field shows "Required" inline — no manual error wiring needed.
+When `title.min(1)` fails, the `<Text name='title' />` field shows “Required” inline —
+no manual error wiring needed.
 
 **Mutation errors** — `useMutate` and `useFormMutation` show error toasts by default:
 
 ```tsx
 const form = useFormMutation({
   mutation: api.blog.create,
-  schema: owned.blog,
+  schema: owned.blog
 })
 ```
 
-If the mutation throws, a toast appears automatically. Customize or disable:
+If the mutation throws, a toast appears automatically.
+Customize or disable:
 
 ```tsx
 const form = useFormMutation({
   mutation: api.blog.create,
   schema: owned.blog,
-  onError: e => toast.error(`Failed: ${e.message}`),
+  onError: e => toast.error(`Failed: ${e.message}`)
 })
 
 const form = useFormMutation({
   mutation: api.blog.create,
   schema: owned.blog,
-  onError: false,
+  onError: false
 })
 ```
 
-**Rate limit errors** — When `RATE_LIMITED` is returned, the default error toast shows "Too many requests". For custom UX:
+**Rate limit errors** — When `RATE_LIMITED` is returned, the default error toast shows
+“Too many requests”.
+For custom UX:
 
 ```tsx
 import { handleConvexError } from 'lazyconvex/server'
@@ -284,11 +316,12 @@ import { handleConvexError } from 'lazyconvex/server'
 const form = useFormMutation({
   mutation: api.blog.create,
   schema: owned.blog,
-  onError: e => handleConvexError(e, {
-    RATE_LIMITED: () => toast.error('Slow down — try again in a minute'),
-    CONFLICT: () => toast.error('Someone else edited this'),
-    default: () => toast.error('Something went wrong'),
-  }),
+  onError: e =>
+    handleConvexError(e, {
+      RATE_LIMITED: () => toast.error('Slow down — try again in a minute'),
+      CONFLICT: () => toast.error('Someone else edited this'),
+      default: () => toast.error('Something went wrong')
+    })
 })
 ```
 
@@ -296,8 +329,7 @@ const form = useFormMutation({
 
 ```tsx
 import { ConvexErrorBoundary } from 'lazyconvex/components'
-
-<ConvexErrorBoundary>
+;<ConvexErrorBoundary>
   <BlogEditor />
 </ConvexErrorBoundary>
 ```

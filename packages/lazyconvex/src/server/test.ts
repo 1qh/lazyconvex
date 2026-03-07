@@ -1,6 +1,6 @@
 /** biome-ignore-all lint/complexity/useMaxParams: test helpers */
 /** biome-ignore-all lint/performance/noAwaitInLoops: sequential deletes */
-/* eslint-disable no-await-in-loop, max-depth, max-statements, @typescript-eslint/max-params, @typescript-eslint/no-unnecessary-condition, @typescript-eslint/prefer-nullish-coalescing */
+/* eslint-disable no-await-in-loop, @typescript-eslint/max-params, @typescript-eslint/prefer-nullish-coalescing */
 import type { GenericDataModel, MutationBuilder, QueryBuilder } from 'convex/server'
 
 import { v } from 'convex/values'
@@ -53,10 +53,12 @@ const TEST_EMAIL = 'test@playwright.local',
         const c = ctx as { auth: { getUserIdentity: () => Promise<unknown> }; db: DbLike },
           identity = await c.auth.getUserIdentity()
         if (identity === null) {
-          const u = await c.db
-            .query('users')
-            .filter(flt(q => q.eq(q.field('email'), TEST_EMAIL)))
-            .first()
+          const u = await Promise.resolve(
+            c.db
+              .query('users')
+              .filter(flt(q => q.eq(q.field('email'), TEST_EMAIL)))
+              .first()
+          )
           return u?._id as null | string
         }
         return ((identity as Rec).subject as string).split('|')[0] ?? null
@@ -65,10 +67,12 @@ const TEST_EMAIL = 'test@playwright.local',
         args: {},
         handler: async (ctx: { db: DbLike }) => {
           if (!isTestMode()) return null
-          const u = await ctx.db
-            .query('users')
-            .filter(flt(q => q.eq(q.field('email'), TEST_EMAIL)))
-            .first()
+          const u = await Promise.resolve(
+            ctx.db
+              .query('users')
+              .filter(flt(q => q.eq(q.field('email'), TEST_EMAIL)))
+              .first()
+          )
           if (u) return u._id
           return ctx.db.insert('users', {
             email: TEST_EMAIL,
@@ -81,10 +85,12 @@ const TEST_EMAIL = 'test@playwright.local',
         args: {},
         handler: async (ctx: { db: DbLike }) => {
           if (!isTestMode()) return null
-          const u = await ctx.db
-            .query('users')
-            .filter(flt(q => q.eq(q.field('email'), TEST_EMAIL)))
-            .first()
+          const u = await Promise.resolve(
+            ctx.db
+              .query('users')
+              .filter(flt(q => q.eq(q.field('email'), TEST_EMAIL)))
+              .first()
+          )
           return u?._id ?? null
         }
       }),
@@ -92,10 +98,12 @@ const TEST_EMAIL = 'test@playwright.local',
         args: { email: v.string(), name: v.string() },
         handler: async (ctx: { db: DbLike }, { email, name }: { email: string; name: string }) => {
           if (!isTestMode()) return null
-          const existing = await ctx.db
-            .query('users')
-            .filter(flt(q => q.eq(q.field('email'), email)))
-            .first()
+          const existing = await Promise.resolve(
+            ctx.db
+              .query('users')
+              .filter(flt(q => q.eq(q.field('email'), email)))
+              .first()
+          )
           if (existing) return existing._id
           return ctx.db.insert('users', { email, emailVerificationTime: Date.now(), name })
         }
@@ -104,10 +112,12 @@ const TEST_EMAIL = 'test@playwright.local',
         args: { email: v.string() },
         handler: async (ctx: { db: DbLike }, { email }: { email: string }) => {
           if (!isTestMode()) return null
-          const u = await ctx.db
-            .query('users')
-            .filter(flt(q => q.eq(q.field('email'), email)))
-            .first()
+          const u = await Promise.resolve(
+            ctx.db
+              .query('users')
+              .filter(flt(q => q.eq(q.field('email'), email)))
+              .first()
+          )
           return u?._id ?? null
         }
       }),
@@ -839,10 +849,12 @@ const checkAclPermission = (doc: Rec, userId: string, membership: { isAdmin: boo
       ids: string[] = []
     for (const u of userList) {
       const id = (await ctx.run(async (c: { db: DbLike }) => {
-        const existing = await c.db
-          .query('users')
-          .filter(flt(q => q.eq(q.field('email'), u.email)))
-          .first()
+        const existing = await Promise.resolve(
+          c.db
+            .query('users')
+            .filter(flt(q => q.eq(q.field('email'), u.email)))
+            .first()
+        )
         if (existing) return existing._id as string
         return c.db.insert('users', { ...u, emailVerificationTime: Date.now() }) as unknown as string
       })) as string

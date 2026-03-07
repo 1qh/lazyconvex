@@ -1,4 +1,3 @@
-/* eslint-disable max-statements, max-depth */
 /* oxlint-disable eslint/max-statements, eslint/complexity, max-depth */
 interface FactoryCall {
   factory: string

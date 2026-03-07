@@ -103,7 +103,6 @@ test.describe
       await expect(profilePage.getAvatarPreview()).toBeVisible({ timeout: 10_000 })
     })
 
-    // eslint-disable-next-line max-statements
     test('can replace avatar with new image', async ({ profilePage }) => {
       await expect(profilePage.getAvatarPreview()).toBeVisible({ timeout: 10_000 })
       const oldSrc = await profilePage.getAvatarPreview().getAttribute('src')

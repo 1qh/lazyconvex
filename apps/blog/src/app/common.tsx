@@ -209,7 +209,6 @@ const Delete = ({ id, onOptimisticRemove }: { id: Blog['_id']; onOptimisticRemov
       />
       <Link className='mt-1 block' data-testid='blog-card-link' href={`/${_id}`}>
         {coverImageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
           <img
             alt={title}
             className='my-1 w-full rounded-lg object-cover'
@@ -230,7 +229,7 @@ const Delete = ({ id, onOptimisticRemove }: { id: Blog['_id']; onOptimisticRemov
     </div>
   ),
   List = ({ blogs, onRemove }: { blogs: Blog[]; onRemove?: (id: Blog['_id']) => void }) =>
-    blogs.length ? (
+    blogs.length > 0 ? (
       <div data-testid='blog-list'>
         {blogs.map(b => (
           <Card key={b._id} onOptimisticRemove={onRemove ? () => onRemove(b._id) : undefined} {...b} />

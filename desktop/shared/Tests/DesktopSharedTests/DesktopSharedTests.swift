@@ -2,7 +2,6 @@
 import Foundation
 import Testing
 
-@Suite("ConvexClient")
 struct ConvexClientTests {
     @Test("Init stores deployment URL")
     func initStoresURL() {
@@ -18,7 +17,6 @@ struct ConvexClientTests {
     }
 }
 
-@Suite("AuthClient")
 struct AuthClientTests {
     private let service = "dev.lazyconvex.test.\(ProcessInfo.processInfo.globallyUniqueString)"
 
@@ -45,7 +43,6 @@ struct AuthClientTests {
     }
 }
 
-@Suite("ConvexSubscription")
 struct ConvexSubscriptionTests {
     @Test("Init and stop without start")
     func initAndStop() {
@@ -93,7 +90,6 @@ struct ConvexSubscriptionTests {
     }
 }
 
-@Suite("FileClient")
 struct FileClientTests {
     @Test("Init with ConvexClient")
     func initWithClient() {

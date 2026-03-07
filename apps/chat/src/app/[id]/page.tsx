@@ -23,7 +23,6 @@ const tryFetch = async <T,>(fn: () => Promise<T>): Promise<null | T> => {
       parts: m.parts as UIMessage['parts'],
       role: m.role
     })),
-  // eslint-disable-next-line max-statements
   Page = async ({ params }: { params: Promise<{ id: string }> }) => {
     await connection()
     const { id } = await params,

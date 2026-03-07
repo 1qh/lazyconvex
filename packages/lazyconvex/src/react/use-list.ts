@@ -82,7 +82,6 @@ const classifyPending = (pending: PendingMutation[]) => {
       subIdRef.current = trackSubscription(queryName, queryArgs as Record<string, unknown>)
       const id = subIdRef.current
       return () => untrackSubscription(id)
-      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
     useEffect(() => {

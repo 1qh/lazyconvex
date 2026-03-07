@@ -15,7 +15,7 @@ const corsHeaders = {
 }
 
 http.route({
-  handler: httpAction(async () => new Response(null, { headers: corsHeaders, status: 204 })), // eslint-disable-line @typescript-eslint/require-await
+  handler: httpAction(async () => new Response(null, { headers: corsHeaders, status: 204 })),
   method: 'OPTIONS',
   path: '/api/auth/signin'
 })

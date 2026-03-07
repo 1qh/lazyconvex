@@ -84,8 +84,8 @@ test.describe
     })
 
     test('edit form shows current values', async ({ blogPage, page }) => {
-      const title = `Pre-filled Blog ${Date.now()}`
-      const content = 'Pre-filled content'
+      const title = `Pre-filled Blog ${Date.now()}`,
+        content = 'Pre-filled content'
       await blogPage.createBlog(title, content)
 
       await page.locator('[href*="/edit"]').first().click()

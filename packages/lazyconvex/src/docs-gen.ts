@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-/* eslint-disable no-console, max-statements */
+
 /** biome-ignore-all lint/style/noProcessEnv: cli */
 /** biome-ignore-all lint/performance/noAwaitInLoops: sequential */
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
@@ -263,7 +263,7 @@ const dim = (s: string) => `\u001B[2m${s}\u001B[0m`,
         if (fm.groups?.field) keys.push(fm.groups.field)
         fm = fieldPat.exec(ifaceMatch[1])
       }
-      if (keys.length) return `{ ${keys.join(', ')} }`
+      if (keys.length > 0) return `{ ${keys.join(', ')} }`
     }
     return ''
   },
@@ -285,7 +285,7 @@ const dim = (s: string) => `\u001B[2m${s}\u001B[0m`,
     if (!existsSync(indexPath)) return 0
     const indexContent = readFileSync(indexPath, 'utf8'),
       reExports = resolveReExports(indexContent)
-    if (!reExports.length) return 0
+    if (reExports.length === 0) return 0
     lines.push(`## ${ep.label}`, '')
     lines.push('| Export | Kind | Description | Signature |')
     lines.push('|--------|------|-------------|-----------|')

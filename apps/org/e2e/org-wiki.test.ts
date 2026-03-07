@@ -1,30 +1,28 @@
 // biome-ignore-all lint/performance/useTopLevelRegex: test file
 // oxlint-disable no-await-in-loop
-/* eslint-disable max-statements */
+
 import type { Page } from '@playwright/test'
 
+import { api, createTestOrg, ensureTestUser, makeOrgTestUtils, tc } from '@a/e2e/org-helpers'
 import { expect, test } from '@playwright/test'
 
-import { api, createTestOrg, ensureTestUser, makeOrgTestUtils, tc } from '@a/e2e/org-helpers'
-
-const testPrefix = `e2e-org-wiki-${Date.now()}`
-const { cleanupOrgTestData, cleanupTestUsers, generateSlug } = makeOrgTestUtils(testPrefix)
-
-const gotoWikiEdit = async (page: Page, id: string) => {
-  await page.goto(`/wiki/${id}/edit`)
-  const heading = page.getByText('Edit wiki page')
-  if (await heading.isVisible().catch(() => false)) return
-  if (
-    await page
-      .getByText('404')
-      .isVisible()
-      .catch(() => false)
-  ) {
-    await page.waitForLoadState('load')
+const testPrefix = `e2e-org-wiki-${Date.now()}`,
+  { cleanupOrgTestData, cleanupTestUsers, generateSlug } = makeOrgTestUtils(testPrefix),
+  gotoWikiEdit = async (page: Page, id: string) => {
     await page.goto(`/wiki/${id}/edit`)
+    const heading = page.getByText('Edit wiki page')
+    if (await heading.isVisible().catch(() => false)) return
+    if (
+      await page
+        .getByText('404')
+        .isVisible()
+        .catch(() => false)
+    ) {
+      await page.waitForLoadState('load')
+      await page.goto(`/wiki/${id}/edit`)
+    }
+    await expect(heading).toBeVisible({ timeout: 10_000 })
   }
-  await expect(heading).toBeVisible({ timeout: 10_000 })
-}
 
 test.describe
   .serial('Wiki Page UI', () => {
@@ -37,17 +35,17 @@ test.describe
       ;({ orgId } = await createTestOrg(slug, 'Wiki UI Test Org'))
 
       const id1 = await tc.mutation(api.wiki.create, {
-        orgId,
-        slug: `${testPrefix}-page-1`,
-        status: 'published',
-        title: 'Wiki Page 1'
-      })
-      const id2 = await tc.mutation(api.wiki.create, {
-        orgId,
-        slug: `${testPrefix}-page-2`,
-        status: 'published',
-        title: 'Wiki Page 2'
-      })
+          orgId,
+          slug: `${testPrefix}-page-1`,
+          status: 'published',
+          title: 'Wiki Page 1'
+        }),
+        id2 = await tc.mutation(api.wiki.create, {
+          orgId,
+          slug: `${testPrefix}-page-2`,
+          status: 'published',
+          title: 'Wiki Page 2'
+        })
       wikiIds.push(id1, id2)
     })
 
@@ -73,13 +71,12 @@ test.describe
 
 test.describe
   .serial('Wiki Soft Delete & Restore (API)', () => {
-    let testOrgId: string
-    let wikiId: string
+    let testOrgId: string, wikiId: string
 
     test.beforeAll(async () => {
       await ensureTestUser()
-      const slug = generateSlug('wiki-sd')
-      const created = await createTestOrg(slug, 'Wiki SoftDelete Test Org')
+      const slug = generateSlug('wiki-sd'),
+        created = await createTestOrg(slug, 'Wiki SoftDelete Test Org')
       testOrgId = created.orgId
     })
 
@@ -100,10 +97,10 @@ test.describe
 
     test('wiki appears in all query', async () => {
       const { page: wikis } = await tc.query(api.wiki.list, {
-        orgId: testOrgId,
-        paginationOpts: { cursor: null, numItems: 100 }
-      })
-      const found = wikis.find((w: { _id: string }) => w._id === wikiId)
+          orgId: testOrgId,
+          paginationOpts: { cursor: null, numItems: 100 }
+        }),
+        found = wikis.find((w: { _id: string }) => w._id === wikiId)
       expect(found).toBeDefined()
       expect(found?.title).toBe('SoftDelete Test Wiki')
     })
@@ -125,10 +122,10 @@ test.describe
 
     test('soft-deleted wiki is excluded from all query', async () => {
       const { page: wikis } = await tc.query(api.wiki.list, {
-        orgId: testOrgId,
-        paginationOpts: { cursor: null, numItems: 100 }
-      })
-      const found = wikis.find((w: { _id: string }) => w._id === wikiId)
+          orgId: testOrgId,
+          paginationOpts: { cursor: null, numItems: 100 }
+        }),
+        found = wikis.find((w: { _id: string }) => w._id === wikiId)
       expect(found).toBeUndefined()
     })
 
@@ -155,10 +152,10 @@ test.describe
 
     test('restored wiki reappears in all query', async () => {
       const { page: wikis } = await tc.query(api.wiki.list, {
-        orgId: testOrgId,
-        paginationOpts: { cursor: null, numItems: 100 }
-      })
-      const found = wikis.find((w: { _id: string }) => w._id === wikiId)
+          orgId: testOrgId,
+          paginationOpts: { cursor: null, numItems: 100 }
+        }),
+        found = wikis.find((w: { _id: string }) => w._id === wikiId)
       expect(found).toBeDefined()
       expect(found?.title).toBe('SoftDelete Test Wiki')
     })
@@ -174,15 +171,12 @@ test.describe
 
 test.describe
   .serial('Wiki Soft Delete - Multiple Items (API)', () => {
-    let testOrgId: string
-    let wiki1Id: string
-    let wiki2Id: string
-    let wiki3Id: string
+    let testOrgId: string, wiki1Id: string, wiki2Id: string, wiki3Id: string
 
     test.beforeAll(async () => {
       await ensureTestUser()
-      const slug = generateSlug('wiki-sd-multi')
-      const created = await createTestOrg(slug, 'Wiki SoftDelete Multi Org')
+      const slug = generateSlug('wiki-sd-multi'),
+        created = await createTestOrg(slug, 'Wiki SoftDelete Multi Org')
       testOrgId = created.orgId
 
       wiki1Id = await tc.mutation(api.wiki.create, {
@@ -257,9 +251,9 @@ test.describe
     })
 
     test('all three wikis still readable via read', async () => {
-      const w1 = await tc.query(api.wiki.read, { id: wiki1Id, orgId: testOrgId })
-      const w2 = await tc.query(api.wiki.read, { id: wiki2Id, orgId: testOrgId })
-      const w3 = await tc.query(api.wiki.read, { id: wiki3Id, orgId: testOrgId })
+      const w1 = await tc.query(api.wiki.read, { id: wiki1Id, orgId: testOrgId }),
+        w2 = await tc.query(api.wiki.read, { id: wiki2Id, orgId: testOrgId }),
+        w3 = await tc.query(api.wiki.read, { id: wiki3Id, orgId: testOrgId })
       expect(w1.deletedAt).toBeDefined()
       expect(w2.deletedAt).toBeDefined()
       expect(w3.deletedAt).toBeDefined()
@@ -286,8 +280,7 @@ test.describe
 
 test.describe
   .serial('Wiki Auto-Save', () => {
-    let orgId: string
-    let wikiId: string
+    let orgId: string, wikiId: string
 
     test.beforeAll(async () => {
       await ensureTestUser()
@@ -350,23 +343,23 @@ test.describe
       ;({ orgId } = await createTestOrg(orgSlug, 'Wiki Undo Toast Org'))
 
       const id1 = await tc.mutation(api.wiki.create, {
-        orgId,
-        slug: `${testPrefix}-undo-1`,
-        status: 'published',
-        title: 'Undo Wiki 1'
-      })
-      const id2 = await tc.mutation(api.wiki.create, {
-        orgId,
-        slug: `${testPrefix}-undo-2`,
-        status: 'published',
-        title: 'Undo Wiki 2'
-      })
-      const id3 = await tc.mutation(api.wiki.create, {
-        orgId,
-        slug: `${testPrefix}-undo-3`,
-        status: 'published',
-        title: 'Undo Wiki 3'
-      })
+          orgId,
+          slug: `${testPrefix}-undo-1`,
+          status: 'published',
+          title: 'Undo Wiki 1'
+        }),
+        id2 = await tc.mutation(api.wiki.create, {
+          orgId,
+          slug: `${testPrefix}-undo-2`,
+          status: 'published',
+          title: 'Undo Wiki 2'
+        }),
+        id3 = await tc.mutation(api.wiki.create, {
+          orgId,
+          slug: `${testPrefix}-undo-3`,
+          status: 'published',
+          title: 'Undo Wiki 3'
+        })
       wikiIds.push(id1, id2, id3)
     })
 
@@ -375,27 +368,25 @@ test.describe
       await cleanupTestUsers()
     })
 
-    const wikiRestore = (api.wiki as typeof api.wiki & { restore: typeof api.wiki.rm }).restore
-
-    const restoreAllViaBackend = async () => {
-      for (const id of wikiIds)
-        try {
-          await tc.mutation(wikiRestore, { id, orgId })
-        } catch {
-          // oxlint-disable-next-line no-empty
+    const wikiRestore = (api.wiki as typeof api.wiki & { restore: typeof api.wiki.rm }).restore,
+      restoreAllViaBackend = async () => {
+        for (const id of wikiIds)
+          try {
+            await tc.mutation(wikiRestore, { id, orgId })
+          } catch {
+            // oxlint-disable-next-line no-empty
+          }
+      },
+      gotoWikiListAndWait = async (pg: Page) => {
+        await pg.goto('/wiki')
+        const firstCard = pg.getByText('Undo Wiki 1').first(),
+          visible = await firstCard.isVisible().catch(() => false)
+        if (!visible) {
+          await pg.waitForTimeout(2000)
+          await pg.reload()
         }
-    }
-
-    const gotoWikiListAndWait = async (pg: Page) => {
-      await pg.goto('/wiki')
-      const firstCard = pg.getByText('Undo Wiki 1').first()
-      const visible = await firstCard.isVisible().catch(() => false)
-      if (!visible) {
-        await pg.waitForTimeout(2000)
-        await pg.reload()
+        await expect(firstCard).toBeVisible({ timeout: 10_000 })
       }
-      await expect(firstCard).toBeVisible({ timeout: 10_000 })
-    }
 
     test('wiki list page loads with items', async ({ page }) => {
       await restoreAllViaBackend()

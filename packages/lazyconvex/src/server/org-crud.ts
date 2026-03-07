@@ -1,4 +1,4 @@
-/* eslint-disable no-await-in-loop, max-statements, @typescript-eslint/no-unnecessary-condition */
+/* eslint-disable no-await-in-loop */
 // biome-ignore-all lint/performance/noAwaitInLoops: x
 import type { ZodObject, ZodRawShape } from 'zod/v4'
 

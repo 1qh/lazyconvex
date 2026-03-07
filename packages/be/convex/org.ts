@@ -58,10 +58,12 @@ export const getOrCreate = mutation({
     if (!uid) throw new ConvexError({ code: 'NOT_AUTHENTICATED' })
     const user = await ctx.db.get(uid as never)
     if (!user) throw new ConvexError({ code: 'USER_NOT_FOUND' })
-    const existing = await ctx.db
-      .query('org')
-      .withIndex('by_user', o => o.eq('userId', uid as never))
-      .first()
+    const existing = await Promise.resolve(
+      ctx.db
+        .query('org')
+        .withIndex('by_user', o => o.eq('userId', uid as never))
+        .first()
+    )
     if (existing) return { created: false, orgId: existing._id }
     const name =
         (user as unknown as { email?: string; name?: string }).name ??

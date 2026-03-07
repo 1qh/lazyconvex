@@ -187,7 +187,7 @@ const unsupportedTypes = new Set(['pipe', 'transform']),
   checkSchema = (schemas: Record<string, ZodObject<ZodRawShape>>) => {
     const res: CheckSchemaOutput[] = []
     for (const [table, schema] of Object.entries(schemas)) scanSchema(schema, table, res)
-    if (res.length) {
+    if (res.length > 0) {
       for (const f of res) process.stderr.write(`${f.path}: unsupported zod type "${f.zodType}"\n`)
       process.exitCode = 1
     }

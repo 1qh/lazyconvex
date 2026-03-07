@@ -2,7 +2,6 @@
 import Foundation
 import Testing
 
-@Suite
 struct ModelsTests {
     @Test
     func movieDecodesFromJSON() throws {
@@ -183,7 +182,6 @@ struct ModelsTests {
     }
 }
 
-@Suite
 struct ErrorTests {
     @Test
     func convexErrorCases() {
@@ -202,7 +200,6 @@ struct ErrorTests {
     }
 }
 
-@Suite
 struct HTTPTests {
     @Test
     func extractOAuthCodeFromValidURL() throws {
@@ -241,7 +238,6 @@ struct HTTPTests {
     }
 }
 
-@Suite
 struct FormatTests {
     @Test
     func formatTimestampReturnsNonEmpty() {

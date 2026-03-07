@@ -18,7 +18,7 @@ class BlogPage extends BasePage {
   public async clearSearch(): Promise<void> {
     await this.getSearchInput().clear()
   }
-  // eslint-disable-next-line max-statements
+
   public async createBlog(
     title: string,
     content: string,
@@ -44,6 +44,9 @@ class BlogPage extends BasePage {
   }
   public getAttachmentsInput(): Locator {
     return this.$('blog-attachments', 'input[type="file"]')
+  }
+  public getAutoSaveIndicator(): Locator {
+    return this.$('auto-save-indicator')
   }
   public getBlogCards(): Locator {
     return this.$$('blog-card')
@@ -80,9 +83,6 @@ class BlogPage extends BasePage {
   }
   public getDeleteTrigger(): Locator {
     return this.$('delete-blog-trigger').first()
-  }
-  public getAutoSaveIndicator(): Locator {
-    return this.$('auto-save-indicator')
   }
   public getEmptyState(): Locator {
     return this.$('empty-state')

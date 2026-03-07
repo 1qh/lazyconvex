@@ -1,4 +1,3 @@
-/* eslint-disable max-statements */
 import type { OrgRole } from 'lazyconvex'
 
 import { api } from '@a/be'

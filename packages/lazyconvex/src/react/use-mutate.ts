@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-return, max-statements */
 'use client'
 
 import type { FunctionReference, FunctionReturnType, OptionalRestArgs } from 'convex/server'

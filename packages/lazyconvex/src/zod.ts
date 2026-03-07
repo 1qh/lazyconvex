@@ -1,4 +1,3 @@
-/* eslint-disable max-statements */
 import type { core, output, ZodObject, ZodRawShape, ZodType } from 'zod/v4'
 
 type CvMeta = 'file' | 'files'
@@ -99,7 +98,7 @@ const WRAPPERS: ReadonlySet<DefType> = new Set<DefType>([
     if (isStringType(type)) {
       if (base && 'options' in base) {
         const opts = (base as { options: readonly string[] }).options
-        if (opts.length) return opts[0]
+        if (opts.length > 0) return opts[0]
       }
       return ''
     }

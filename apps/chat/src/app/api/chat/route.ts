@@ -1,4 +1,4 @@
-/* eslint-disable max-statements, no-await-in-loop */
+/* eslint-disable no-await-in-loop */
 // biome-ignore-all lint/performance/noAwaitInLoops: x
 import type { Id } from '@a/be/model'
 import type { UIMessage } from 'ai'

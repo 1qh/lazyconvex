@@ -1,4 +1,3 @@
-/* eslint-disable max-statements, @typescript-eslint/no-unnecessary-condition */
 import type { GenericId } from 'convex/values'
 
 import { zid } from 'convex-helpers/server/zod4'

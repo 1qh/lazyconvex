@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-/* eslint-disable no-console, max-statements, @typescript-eslint/no-unused-vars */
+
 /** biome-ignore-all lint/style/noProcessEnv: cli */
 
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'

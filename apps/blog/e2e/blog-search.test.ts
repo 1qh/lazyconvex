@@ -32,8 +32,8 @@ test.describe
     })
 
     test('filters blogs by content with tags present', async ({ blogPage }) => {
-      const uniqueContent = `content${Date.now()}`
-      const uniqueTitle = `Tagged post ${Date.now()}`
+      const uniqueContent = `content${Date.now()}`,
+        uniqueTitle = `Tagged post ${Date.now()}`
       await blogPage.createBlog(uniqueTitle, `Content with ${uniqueContent}`, { tags: ['tagged'] })
 
       await blogPage.search(uniqueContent)

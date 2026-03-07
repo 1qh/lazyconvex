@@ -1,5 +1,5 @@
 /* oxlint-disable promise/prefer-await-to-then */
-/* eslint-disable complexity, @typescript-eslint/no-unnecessary-condition */
+/* eslint-disable complexity */
 'use client'
 
 import { api } from '@a/be'

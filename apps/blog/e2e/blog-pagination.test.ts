@@ -25,13 +25,12 @@ test.describe
         .first()
         .waitFor({ timeout: 10_000 })
 
-      const exhausted = blogPage.getPaginationExhausted()
-      const loadMore = blogPage.getLoadMoreTrigger()
-      const loadingMore = blogPage.getLoadingMore()
-
-      const exhaustedVisible = await exhausted.isVisible().catch(() => false)
-      const loadMoreVisible = await loadMore.isVisible().catch(() => false)
-      const loadingVisible = await loadingMore.isVisible().catch(() => false)
+      const exhausted = blogPage.getPaginationExhausted(),
+        loadMore = blogPage.getLoadMoreTrigger(),
+        loadingMore = blogPage.getLoadingMore(),
+        exhaustedVisible = await exhausted.isVisible().catch(() => false),
+        loadMoreVisible = await loadMore.isVisible().catch(() => false),
+        loadingVisible = await loadingMore.isVisible().catch(() => false)
 
       // eslint-disable-next-line jest/no-conditional-in-test
       expect(exhaustedVisible || loadMoreVisible || loadingVisible).toBe(true)

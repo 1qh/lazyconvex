@@ -25,7 +25,6 @@ class OnboardingPage extends BasePage {
     await slugInput.fill(data.slug)
   }
 
-  // eslint-disable-next-line max-statements
   public async fillPreferences(data: { notifications?: boolean; theme?: string }): Promise<void> {
     if (data.theme !== undefined) {
       await this.getThemeSelect().click()
@@ -50,16 +49,16 @@ class OnboardingPage extends BasePage {
     }
   }
 
+  public getAvatarInput(): Locator {
+    return this.page.locator('[data-testid="avatar"] input[type="file"]')
+  }
+
   public getBioTextarea(): Locator {
     return this.page.getByLabel('Bio')
   }
 
   public getDisplayNameInput(): Locator {
     return this.page.getByLabel('Display Name')
-  }
-
-  public getAvatarInput(): Locator {
-    return this.page.locator('[data-testid="avatar"] input[type="file"]')
   }
 
   public getErrorAlert(): Locator {
@@ -80,10 +79,6 @@ class OnboardingPage extends BasePage {
 
   public getNotificationsToggle(): Locator {
     return this.page.getByRole('switch')
-  }
-
-  public getThemeSelect(): Locator {
-    return this.page.getByRole('combobox')
   }
 
   public getOrgAvatarInput(): Locator {
@@ -112,6 +107,10 @@ class OnboardingPage extends BasePage {
 
   public getSubmitButton(): Locator {
     return this.$('step-submit')
+  }
+
+  public getThemeSelect(): Locator {
+    return this.page.getByRole('combobox')
   }
 
   public getToast(text: string): Locator {

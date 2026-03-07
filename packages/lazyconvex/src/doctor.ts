@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-/* eslint-disable no-console, max-statements, complexity */
+/* eslint-disable complexity */
 /* oxlint-disable eslint/max-statements, eslint/complexity */
 /** biome-ignore-all lint/style/noProcessEnv: cli */
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
@@ -94,9 +94,9 @@ const bold = (s: string) => `\u001B[1m${s}\u001B[0m`,
       if (RATE_LIMIT_FACTORIES.has(c.factory)) relevant.push(c)
       else skipped.push(c)
 
-    if (!relevant.length) {
+    if (relevant.length === 0) {
       const details = ['No crud/orgCrud factories found']
-      if (skipped.length)
+      if (skipped.length > 0)
         details.push(`${skipped.map(c => `${c.table} (${c.factory})`).join(', ')} \u2014 typically optional`)
       return { details, status: 'pass', title: 'Rate Limiting' }
     }
@@ -107,10 +107,10 @@ const bold = (s: string) => `\u001B[1m${s}\u001B[0m`,
       else withoutRL.push(`${c.table} (${c.factory})`)
 
     const details = [`${withRL.length}/${relevant.length} write factories have rateLimit`]
-    if (withoutRL.length) for (const name of withoutRL) details.push(`${name} missing rateLimit`)
-    if (skipped.length)
+    if (withoutRL.length > 0) for (const name of withoutRL) details.push(`${name} missing rateLimit`)
+    if (skipped.length > 0)
       details.push(`${skipped.map(c => `${c.table} (${c.factory})`).join(', ')} \u2014 typically optional`)
-    return { details, status: withoutRL.length ? 'warn' : 'pass', title: 'Rate Limiting' }
+    return { details, status: withoutRL.length > 0 ? 'warn' : 'pass', title: 'Rate Limiting' }
   },
   checkEslintContent = (content?: string): CheckResult => {
     if (content === undefined)
@@ -172,9 +172,9 @@ const bold = (s: string) => `\u001B[1m${s}\u001B[0m`,
       schemaIssues = checkSchemaConsistency(convexDir, schemaFile),
       schemaErrors = schemaIssues.filter(i => i.level === 'error'),
       schemaWarns = schemaIssues.filter(i => i.level === 'warn')
-    if (schemaErrors.length)
+    if (schemaErrors.length > 0)
       results.push({ details: schemaErrors.map(e => e.message), status: 'fail', title: 'Schema Consistency' })
-    else if (schemaWarns.length)
+    else if (schemaWarns.length > 0)
       results.push({
         details: [`${tables.length} tables, ${calls.length} factories, ${schemaWarns.length} warning(s)`],
         status: 'warn',
@@ -196,7 +196,7 @@ const bold = (s: string) => `\u001B[1m${s}\u001B[0m`,
     })
 
     const indexIssues = checkIndexCoverage(convexDir, calls)
-    if (indexIssues.length)
+    if (indexIssues.length > 0)
       results.push({
         details: [`${indexIssues.length} unindexed where clause(s)`, ...indexIssues.map(i => i.message)],
         status: 'warn',

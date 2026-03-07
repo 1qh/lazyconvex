@@ -1,4 +1,4 @@
-/* eslint-disable max-statements, @typescript-eslint/no-use-before-define */
+/* eslint-disable @typescript-eslint/no-use-before-define */
 import type { output, ZodObject, ZodRawShape, ZodType } from 'zod/v4'
 
 import { cvFileKindOf, isArrayType, isBooleanType, isNumberType, isOptionalField, isStringType, unwrapZod } from './zod'

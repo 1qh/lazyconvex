@@ -1,6 +1,7 @@
 # Native Apps
 
-lazyconvex includes a Swift codegen CLI and 8 native apps (4 mobile + 4 desktop) that consume the same Convex backend as the web demos.
+lazyconvex includes a Swift codegen CLI and 8 native apps (4 mobile + 4 desktop) that
+consume the same Convex backend as the web demos.
 
 ## Swift Codegen
 
@@ -14,11 +15,14 @@ bunx lazyconvex codegen-swift --schema packages/be/t.ts --convex packages/be/con
 
 Output includes:
 
-- **Structs** matching all fields from Zod schemas (`Blog`, `Chat`, `Wiki`, `Movie`, etc.)
+- **Structs** matching all fields from Zod schemas (`Blog`, `Chat`, `Wiki`, `Movie`,
+  etc.)
 - **Enums** for Zod enum fields (`BlogCategory`, `WikiStatus`, `TaskItemPriority`, etc.)
-- **API constants** for every exported Convex function (`BlogAPI.list`, `OrgAPI.create`, etc.)
+- **API constants** for every exported Convex function (`BlogAPI.list`, `OrgAPI.create`,
+  etc.)
 - **Where structs** for typed filtering (`BlogWhere`, `WikiWhere`, etc.)
-- **Desktop wrappers** (Generated.swift) — typed CRUD, search, list with `ConvexClientProtocol`:
+- **Desktop wrappers** (Generated.swift) — typed CRUD, search, list with
+  `ConvexClientProtocol`:
 
 ```swift
 try await BlogAPI.create(client, category: .tech, content: "Hello", published: true, title: "Post")
@@ -26,7 +30,8 @@ try await WikiAPI.update(client, orgId: orgId, id: wikiId, status: .published)
 let profile: BlogProfile? = try await BlogProfileAPI.get(client)
 ```
 
-- **Mobile wrappers** (MobileAPI.swift) — typed mutations, actions, and subscriptions for Skip cross-platform apps:
+- **Mobile wrappers** (MobileAPI.swift) — typed mutations, actions, and subscriptions
+  for Skip cross-platform apps:
 
 ```swift
 try await MessageAPI.create(chatId: chatID, parts: [MessagePart(type: .text, text: text)], role: "user")
@@ -34,7 +39,9 @@ let results = try await MovieAPI.search(query: "inception")
 let subID = BlogAPI.subscribePaginated(onUpdate: { result in ... }, onError: { error in ... })
 ```
 
-Zero raw `ConvexService.shared` calls or `[String: Any]` dictionaries in consumer code. All platform branching (`#if !SKIP`) for Convex calls is hidden inside generated wrappers.
+Zero raw `ConvexService.shared` calls or `[String: Any]` dictionaries in consumer code.
+All platform branching (`#if !SKIP`) for Convex calls is hidden inside generated
+wrappers.
 
 A typo in a field name or wrong enum value is a Swift compile error.
 
@@ -58,23 +65,24 @@ Conform your Convex client to this protocol and the typed wrappers work automati
 
 4 cross-platform apps (iOS + Android) using [Skip](https://skip.tools):
 
-| App | Features |
-|-----|----------|
-| Movie | Search + detail, TMDB cache, no auth |
-| Blog | Auth + CRUD + file upload + pagination + search + profile |
-| Chat | Child CRUD + AI + public/private |
-| Org | Multi-tenancy + ACL + soft delete + bulk ops + invites + onboarding |
+| App   | Features                                                            |
+| ----- | ------------------------------------------------------------------- |
+| Movie | Search + detail, TMDB cache, no auth                                |
+| Blog  | Auth + CRUD + file upload + pagination + search + profile           |
+| Chat  | Child CRUD + AI + public/private                                    |
+| Org   | Multi-tenancy + ACL + soft delete + bulk ops + invites + onboarding |
 
 ## Desktop Apps (SwiftCrossUI)
 
-4 native macOS apps using [SwiftCrossUI](https://github.com/stackotter/swift-cross-ui) with 223 E2E tests:
+4 native macOS apps using [SwiftCrossUI](https://github.com/stackotter/swift-cross-ui)
+with 223 E2E tests:
 
-| App | E2E Tests |
-|-----|-----------|
-| Movie | 26 |
-| Blog | 65 |
-| Chat | 48 |
-| Org | 84 |
+| App   | E2E Tests |
+| ----- | --------- |
+| Movie | 26        |
+| Blog  | 65        |
+| Chat  | 48        |
+| Org   | 84        |
 
 ## Architecture
 
@@ -85,7 +93,8 @@ mobile/               4 Skip cross-platform apps (iOS + Android)
 packages/lazyconvex/  Codegen CLI (codegen-swift.ts)
 ```
 
-All native apps share the same generated `Generated.swift` via SPM dependencies and symlinks.
+All native apps share the same generated `Generated.swift` via SPM dependencies and
+symlinks.
 
 ## Step-by-Step: Adding Swift Support
 
@@ -121,7 +130,8 @@ error: extra argument 'oldField' in call
 error: missing argument for parameter 'newField' in call
 ```
 
-Schema changes surface as compile errors in both TypeScript and Swift. No runtime crashes from stale API calls.
+Schema changes surface as compile errors in both TypeScript and Swift.
+No runtime crashes from stale API calls.
 
 Add codegen to your CI pipeline or as a pre-commit hook:
 
@@ -132,11 +142,11 @@ git diff --exit-code Generated.swift || echo "Generated.swift is out of date —
 
 ## Troubleshooting
 
-| Symptom | Cause | Fix |
-|---------|-------|-----|
-| `No such module 'ConvexCore'` | SPM dependency not resolved | Run `swift package resolve` |
-| Codegen produces empty file | Schema file path wrong | Verify `--schema` points to the file exporting `makeOwned()` etc. |
-| Enum case mismatch | Zod enum values changed | Re-run codegen and fix Swift call sites |
-| `Decodable` conformance error | New field added without optional | Make new fields optional in Zod schema or provide defaults |
-| `#if DESKTOP` code not compiling | Missing Swift flag | Add `-DDESKTOP` to your Swift build flags |
-| Mobile subscription not cleaning up | Missing `cancelSubscription` call | Use `cancelSubscription(&subscriptionID)` in cleanup |
+| Symptom                             | Cause                             | Fix                                                               |
+| ----------------------------------- | --------------------------------- | ----------------------------------------------------------------- |
+| `No such module 'ConvexCore'`       | SPM dependency not resolved       | Run `swift package resolve`                                       |
+| Codegen produces empty file         | Schema file path wrong            | Verify `--schema` points to the file exporting `makeOwned()` etc. |
+| Enum case mismatch                  | Zod enum values changed           | Re-run codegen and fix Swift call sites                           |
+| `Decodable` conformance error       | New field added without optional  | Make new fields optional in Zod schema or provide defaults        |
+| `#if DESKTOP` code not compiling    | Missing Swift flag                | Add `-DDESKTOP` to your Swift build flags                         |
+| Mobile subscription not cleaning up | Missing `cancelSubscription` call | Use `cancelSubscription(&subscriptionID)` in cleanup              |

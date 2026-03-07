@@ -1,4 +1,4 @@
-/* eslint-disable max-statements, complexity, react-hooks/refs */
+/* eslint-disable complexity, react-hooks/refs */
 // biome-ignore-all lint/correctness/useHookAtTopLevel: hooks called in component render context
 'use client'
 import type { Stepper as CoreStepper, Step } from '@stepperize/core'

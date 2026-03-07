@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-/* eslint-disable no-console, max-statements, complexity */
+/* eslint-disable complexity */
 /* oxlint-disable eslint/max-statements, eslint/complexity, max-depth */
 /** biome-ignore-all lint/style/noProcessEnv: cli */
 /** biome-ignore-all lint/performance/noAwaitInLoops: sequential */
@@ -142,7 +142,7 @@ const schemaMarkers = ['makeOwned(', 'makeOrgScoped(', 'makeSingleton(', 'makeBa
   printSchemaPreview = (content: string, calls: FactoryCall[]) => {
     const tables = extractSchemaFields(content)
     console.log(bold('Schema Preview\n'))
-    if (!tables.length) {
+    if (tables.length === 0) {
       console.log(dim('  No tables found in schema file.\n'))
       return
     }
@@ -156,7 +156,7 @@ const schemaMarkers = ['makeOwned(', 'makeOrgScoped(', 'makeSingleton(', 'makeBa
         if (hasOption(call.options, 'rateLimit')) options.push('rateLimit')
         if (hasOption(call.options, 'pub')) options.push('pub')
       }
-      const optStr = options.length ? ` ${dim(`[${options.join(', ')}]`)}` : ''
+      const optStr = options.length > 0 ? ` ${dim(`[${options.join(', ')}]`)}` : ''
       console.log(`  ${bold(t.table)} ${dim(`(${t.factory})`)}${optStr}`)
       for (const f of t.fields) console.log(`    ${f.field.padEnd(20)} ${dim(f.type)}`)
       console.log('')
@@ -236,7 +236,7 @@ const schemaMarkers = ['makeOwned(', 'makeOrgScoped(', 'makeSingleton(', 'makeBa
           message: `${call.factory}('${call.table}') in ${call.file} — table name doesn't match filename`
         })
 
-    if (!issues.length) {
+    if (issues.length === 0) {
       console.log(green('\u2713 All checks passed\n'))
       return
     }
@@ -249,10 +249,10 @@ const schemaMarkers = ['makeOwned(', 'makeOrgScoped(', 'makeSingleton(', 'makeBa
       console.log(`${yellow('\u26A0')} ${issue.file ? `${dim(issue.file)} ` : ''}${issue.message}`)
 
     console.log(
-      `\n${errors.length ? red(`${errors.length} error(s)`) : ''}${errors.length && warnings.length ? ', ' : ''}${warnings.length ? yellow(`${warnings.length} warning(s)`) : ''}\n`
+      `\n${errors.length > 0 ? red(`${errors.length} error(s)`) : ''}${errors.length > 0 && warnings.length > 0 ? ', ' : ''}${warnings.length > 0 ? yellow(`${warnings.length} warning(s)`) : ''}\n`
     )
 
-    if (errors.length) process.exit(1)
+    if (errors.length > 0) process.exit(1)
   },
   FACTORY_DEFAULT_INDEXES: Record<string, TableIndex[]> = {
     cacheCrud: [],
@@ -403,7 +403,7 @@ const schemaMarkers = ['makeOwned(', 'makeOrgScoped(', 'makeSingleton(', 'makeBa
     }
     for (const call of calls) {
       const wFields = extractWhereFromOptions(call.options)
-      if (wFields.length) {
+      if (wFields.length > 0) {
         const set = whereByTable.get(call.table) ?? new Set()
         for (const f of wFields) set.add(f)
         whereByTable.set(call.table, set)
@@ -424,7 +424,7 @@ const schemaMarkers = ['makeOwned(', 'makeOrgScoped(', 'makeSingleton(', 'makeBa
         const symbol = idx.type === 'search' ? dim('\uD83D\uDD0D') : green('\u2713')
         console.log(`    ${symbol} ${idx.name} ${dim(`[${idx.fields.join(', ')}]`)} ${dim(`(${idx.type})`)}`)
       }
-      if (!allIndexes.length) console.log(`    ${dim('(no indexes)')}`)
+      if (allIndexes.length === 0) console.log(`    ${dim('(no indexes)')}`)
       const tableWhereFields = whereByTable.get(call.table)
       if (tableWhereFields)
         for (const field of tableWhereFields)
@@ -440,7 +440,7 @@ const schemaMarkers = ['makeOwned(', 'makeOrgScoped(', 'makeSingleton(', 'makeBa
       console.log('')
     }
     console.log(`${bold(String(totalIndexes))} indexes across ${bold(String(calls.length))} tables\n`)
-    if (issues.length) {
+    if (issues.length > 0) {
       console.log(bold('Performance Suggestions\n'))
       for (const issue of issues)
         console.log(`  ${yellow('\u26A0')} ${issue.file ? `${dim(issue.file)} ` : ''}${issue.message}`)
@@ -560,7 +560,7 @@ const schemaMarkers = ['makeOwned(', 'makeOrgScoped(', 'makeSingleton(', 'makeBa
     }
     for (const call of calls) {
       const wFields = extractWhereFromOptions(call.options)
-      if (wFields.length) {
+      if (wFields.length > 0) {
         const set = whereByTable.get(call.table) ?? new Set()
         for (const f of wFields) set.add(f)
         whereByTable.set(call.table, set)
@@ -615,19 +615,19 @@ const schemaMarkers = ['makeOwned(', 'makeOrgScoped(', 'makeSingleton(', 'makeBa
     console.log(`  ${dim('Endpoints:')}   ${totalEndpoints}`)
     console.log(`  ${dim('Indexes:')}     ${totalIndexes}`)
     console.log(`  ${dim('Access:')}      ${[...accessLevels].join(', ')}\n`)
-    if (errors.length) {
+    if (errors.length > 0) {
       console.log(`  ${red('Errors')} ${dim(`(-${HEALTH_ERROR_PENALTY} pts each)`)}\n`)
       for (const issue of errors)
         console.log(`    ${red('\u2717')} ${issue.file ? `${dim(issue.file)} ` : ''}${issue.message}`)
       console.log('')
     }
-    if (warnings.length) {
+    if (warnings.length > 0) {
       console.log(`  ${yellow('Warnings')} ${dim(`(-${HEALTH_WARN_PENALTY} pts each)`)}\n`)
       for (const issue of warnings)
         console.log(`    ${yellow('\u26A0')} ${issue.file ? `${dim(issue.file)} ` : ''}${issue.message}`)
       console.log('')
     }
-    if (!allIssues.length) console.log(`  ${green('\u2713 No issues found')}\n`)
+    if (allIssues.length === 0) console.log(`  ${green('\u2713 No issues found')}\n`)
     console.log(
       `  ${dim('Run')} lazyconvex check --schema ${dim('for schema preview')}\n` +
         `  ${dim('Run')} lazyconvex check --endpoints ${dim('for endpoint list')}\n` +

@@ -1,13 +1,12 @@
 // biome-ignore-all lint/performance/useTopLevelRegex: test file
-/* eslint-disable max-statements */
-import path from 'node:path'
 
 import { api, ensureTestUser, makeOrgTestUtils, tc } from '@a/e2e/org-helpers'
+import path from 'node:path'
 
 import { expect, test } from './fixtures'
 
-const testPrefix = `e2e-onboard-${Date.now()}`
-const { cleanupOrgTestData, generateSlug } = makeOrgTestUtils(testPrefix)
+const testPrefix = `e2e-onboard-${Date.now()}`,
+  { cleanupOrgTestData, generateSlug } = makeOrgTestUtils(testPrefix)
 
 test.describe
   .serial('Onboarding - Step Navigation', () => {
@@ -287,8 +286,8 @@ test.describe
       expect(profile?.displayName).toBe('Happy User')
       expect(profile?.bio).toBe('Hello world')
 
-      const orgs = await tc.query(api.org.myOrgs, {})
-      const found = orgs.find((o: { org: { name: string } }) => o.org.name === 'Happy Org')
+      const orgs = await tc.query(api.org.myOrgs, {}),
+        found = orgs.find((o: { org: { name: string } }) => o.org.name === 'Happy Org')
       expect(found).toBeDefined()
     })
 

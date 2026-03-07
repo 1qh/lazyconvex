@@ -1,4 +1,4 @@
-/* eslint-disable complexity, no-await-in-loop, max-statements */
+/* eslint-disable complexity, no-await-in-loop */
 // biome-ignore-all lint/performance/noAwaitInLoops: x
 import type { ZodObject, ZodRawShape } from 'zod/v4'
 

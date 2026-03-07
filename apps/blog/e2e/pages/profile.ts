@@ -4,7 +4,6 @@ import type { Locator } from '@playwright/test'
 import BasePage from '@a/e2e/base-page'
 
 class ProfilePage extends BasePage {
-  // eslint-disable-next-line max-statements
   public async fillProfile(data: { bio?: string; displayName?: string; theme?: string }): Promise<void> {
     if (data.displayName !== undefined) {
       const input = this.getDisplayNameInput()
@@ -29,11 +28,6 @@ class ProfilePage extends BasePage {
 
   public getAvatarInput(): Locator {
     return this.$('profile-avatar', 'input[type="file"]')
-  }
-
-  public async uploadAvatar(filePath: string): Promise<void> {
-    const [fileChooser] = await Promise.all([this.page.waitForEvent('filechooser'), this.getAvatarDropzone().click()])
-    await fileChooser.setFiles(filePath)
   }
 
   public getAvatarPreview(): Locator {
@@ -80,6 +74,10 @@ class ProfilePage extends BasePage {
     return this.$('profile-theme', 'button')
   }
 
+  public getToast(text: string): Locator {
+    return this.page.getByText(text)
+  }
+
   public async goto(): Promise<void> {
     await this.page.goto('/profile')
     await this.page.locator('[data-testid="profile-page"]').waitFor()
@@ -93,8 +91,9 @@ class ProfilePage extends BasePage {
     await this.getSubmitButton().click()
   }
 
-  public getToast(text: string): Locator {
-    return this.page.getByText(text)
+  public async uploadAvatar(filePath: string): Promise<void> {
+    const [fileChooser] = await Promise.all([this.page.waitForEvent('filechooser'), this.getAvatarDropzone().click()])
+    await fileChooser.setFiles(filePath)
   }
 }
 

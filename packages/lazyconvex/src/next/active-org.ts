@@ -18,7 +18,6 @@ const isTestMode = () =>
     if (!url) return null
     const client = new ConvexHttpClient(url)
     try {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
       return await client.query(query, args)
     } catch {
       return null
@@ -54,9 +53,8 @@ const isTestMode = () =>
       orgId = cookieStore.get(ACTIVE_ORG_COOKIE)?.value
     if (!orgId) return null
     try {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
       if (token) return await fetchQuery(query, { orgId }, { token })
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+
       return await directQuery(query, { orgId })
     } catch {
       cookieStore.delete(ACTIVE_ORG_COOKIE)

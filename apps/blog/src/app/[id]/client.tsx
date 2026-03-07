@@ -27,7 +27,6 @@ const Client = ({ preloaded }: { preloaded: Preloaded<typeof api.blog.read> }) =
     <div data-testid='blog-detail-page'>
       <Author {...b} />
       {b.coverImageUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
         <img
           alt=''
           className='mt-3 w-full rounded-lg object-cover'

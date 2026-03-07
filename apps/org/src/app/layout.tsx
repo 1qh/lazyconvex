@@ -38,7 +38,6 @@ const queryOrDirect = async <T,>(
   query: FunctionReference<'query'>,
   args: Record<string, unknown>
 ): Promise<null | T> => {
-  // eslint-disable-next-line lazyconvex/require-connection
   if (token) return fetchQuery(query, args, { token }) as Promise<T>
   return getTestClient().query(query, args) as Promise<T>
 }
@@ -47,7 +46,6 @@ type OrgContext =
   | { kind: 'ok'; membership: MembershipResult; org: Doc<'org'> }
   | { kind: 'redirect'; orgId: string; slug: string; to: string }
 
-/* eslint-disable max-statements */
 const resolveOrgContext = async (pathname: string): Promise<OrgContext> => {
     await connection()
     if (!(await isAuthenticated())) redirect('/login')

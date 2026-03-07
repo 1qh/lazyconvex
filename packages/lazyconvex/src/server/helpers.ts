@@ -1,4 +1,4 @@
-/* eslint-disable no-await-in-loop, max-statements, max-depth */
+/* eslint-disable no-await-in-loop */
 // biome-ignore-all lint/performance/noAwaitInLoops: x
 import type { RegisteredQuery } from 'convex/server'
 import type { ZodRawShape } from 'zod/v4'
@@ -28,7 +28,7 @@ import { ERROR_MESSAGES } from './types'
 const TOKEN_BYTES = 24,
   TOKEN_RADIX = 36,
   TOKEN_LENGTH = 32,
-  SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000, // eslint-disable-line @typescript-eslint/no-magic-numbers
+  SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000,
   generateToken = () => {
     const bytes = new Uint8Array(TOKEN_BYTES)
     crypto.getRandomValues(bytes)
@@ -38,7 +38,6 @@ const TOKEN_BYTES = 24,
   },
   RUNTIME_FILTER_WARN_THRESHOLD = 1000,
   log = (level: 'debug' | 'error' | 'info' | 'warn', msg: string, data?: Record<string, unknown>) => {
-    // eslint-disable-next-line no-console
     console[level](JSON.stringify({ level, msg, ts: Date.now(), ...data }))
   },
   // eslint-disable-next-line @typescript-eslint/max-params
@@ -132,7 +131,7 @@ const TOKEN_BYTES = 24,
     storage: StorageLike
   }) => {
     const { doc, fileFields, next, storage } = opts
-    if (!fileFields.length) return
+    if (fileFields.length === 0) return
     const del = new Set<FID>()
     for (const f of fileFields) {
       const prev = doc[f]
@@ -154,7 +153,7 @@ const TOKEN_BYTES = 24,
         }
       }
     }
-    if (del.size) {
+    if (del.size > 0) {
       const results = await Promise.allSettled([...del].map(async id => storage.delete(id)))
       for (const r of results)
         if (r.status === 'rejected') log('warn', 'file:cleanup_failed', { reason: String(r.reason) })
@@ -169,7 +168,7 @@ const TOKEN_BYTES = 24,
     fileFields: string[]
     storage: StorageLike
   }): Promise<WithUrls<D>> => {
-    if (!fileFields.length) return doc as WithUrls<D>
+    if (fileFields.length === 0) return doc as WithUrls<D>
     const o = { ...doc } as Record<string, unknown>,
       getUrl = async (x: unknown) => {
         const id = toId(x)
@@ -211,7 +210,7 @@ const TOKEN_BYTES = 24,
     vid?: null | string
   ) => {
     const gs = groupList(w)
-    if (!gs.length) return true
+    if (gs.length === 0) return true
     for (const g of gs) {
       const ok = Object.entries(g).every(
         ([k, vl]: [string, unknown]) => k === 'own' || vl === undefined || matchField(doc[k], vl)
@@ -243,7 +242,7 @@ const TOKEN_BYTES = 24,
       code,
       fieldErrors,
       fields,
-      message: fields.length ? `Invalid: ${fields.join(', ')}` : 'Validation failed'
+      message: fields.length > 0 ? `Invalid: ${fields.join(', ')}` : 'Validation failed'
     })
   },
   dbInsert = async (db: DbLike, table: string, data: Record<string, unknown>) => db.insert(table, data),
@@ -258,13 +257,15 @@ const TOKEN_BYTES = 24,
   checkRateLimit = async (db: DbLike, opts: { config: RateLimitConfig; key: string; table: string }) => {
     const { config, key, table } = opts,
       now = Date.now(),
-      existing = await db
-        .query('rateLimit')
-        .withIndex(
-          'by_table_key',
-          idx(q => q.eq('table', table).eq('key', key))
-        )
-        .first()
+      existing = await Promise.resolve(
+        db
+          .query('rateLimit')
+          .withIndex(
+            'by_table_key',
+            idx(q => q.eq('table', table).eq('key', key))
+          )
+          .first()
+      )
     if (!existing) {
       await db.insert('rateLimit', { count: 1, key, table, windowStart: now })
       return
@@ -467,14 +468,16 @@ const extractErrorData = (e: unknown): ConvexErrorData | undefined => {
         args: { exclude: zid(table).optional(), value: string() },
         handler: typed(async (c: QueryCtxLike, { exclude, value }: { exclude?: string; value: string }) => {
           const q = c.db.query(table),
-            existing = index
-              ? await q
-                  .withIndex(
-                    index,
-                    idx(i => i.eq(field, value))
-                  )
-                  .first()
-              : await q.filter(flt(f => f.eq(f.field(field), value))).first()
+            existing = await Promise.resolve(
+              index
+                ? q
+                    .withIndex(
+                      index,
+                      idx(i => i.eq(field, value))
+                    )
+                    .first()
+                : q.filter(flt(f => f.eq(f.field(field), value))).first()
+            )
           return !(existing as null | Record<string, unknown>) || (existing as Record<string, unknown>)._id === exclude
         })
       })

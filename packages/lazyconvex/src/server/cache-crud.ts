@@ -66,7 +66,7 @@ const chk = (c: DbCtx) => ({ db: c.db }),
       get = b.query({
         args: typed(kArgs),
         handler: typed(async (c: DbCtx, a: Rec) => {
-          const d = await c.db.query(table).withIndex(indexName, byK(a[key])).first()
+          const d = await Promise.resolve(c.db.query(table).withIndex(indexName, byK(a[key])).first())
           if (!d) return null
           if (valid(d)) return { ...d, cacheHit: true, stale: false }
           return swr ? { ...d, cacheHit: true, stale: true } : null
@@ -95,7 +95,7 @@ const chk = (c: DbCtx) => ({ db: c.db }),
         )
       }),
       upsert = async (c: DbCtx, data: Rec) => {
-        const ex = await c.db.query(table).withIndex(indexName, byK(data[key])).first(),
+        const ex = await Promise.resolve(c.db.query(table).withIndex(indexName, byK(data[key])).first()),
           wt = { ...data, ...time() }
         if (ex) {
           await dbPatch(c.db, ex._id as string, wt)
@@ -158,7 +158,7 @@ const chk = (c: DbCtx) => ({ db: c.db }),
       invalidate = b.mutation({
         args: typed(kArgs),
         handler: typed(async (c: DbCtx, a: Rec) => {
-          const d = await c.db.query(table).withIndex(indexName, byK(a[key])).first()
+          const d = await Promise.resolve(c.db.query(table).withIndex(indexName, byK(a[key])).first())
           if (d) await dbDelete(c.db, d._id as string)
           return d
         })

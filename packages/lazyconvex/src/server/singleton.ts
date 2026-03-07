@@ -1,4 +1,4 @@
-/* eslint-disable max-statements, @typescript-eslint/non-nullable-type-assertion-style */
+/* eslint-disable @typescript-eslint/non-nullable-type-assertion-style */
 import type { ZodObject, ZodRawShape } from 'zod/v4'
 
 import { number } from 'zod/v4'

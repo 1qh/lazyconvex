@@ -226,7 +226,7 @@ const extractCacheCrudProps = (
 type CallNode = BaseNode & { arguments: BaseNode[]; callee: BaseNode }
 
 const checkCacheCrud = (node: CallNode, context: EslintContext): void => {
-  if (node.arguments.length < 1) return
+  if (node.arguments.length === 0) return
   const [arg] = node.arguments
   if (arg?.type !== 'ObjectExpression') return
   const { schemaName, tableName, tableNode } = extractCacheCrudProps(
@@ -290,7 +290,7 @@ const isInsideTryBlock = (ancestors: BaseNode[]): boolean => {
 }
 
 const getCacheCrudTable = (node: CallNode): string | undefined => {
-  if (node.arguments.length < 1) return
+  if (node.arguments.length === 0) return
   const [arg] = node.arguments
   if (arg?.type !== 'ObjectExpression') return
   const obj = arg as BaseNode & { properties: (BaseNode & { key: BaseNode; value: BaseNode })[] }
@@ -534,7 +534,7 @@ const noDuplicateCrud = {
     CallExpression: (node: CallNode) => {
       const callee = getIdentName(node.callee)
       if (!(callee && (crudFactories.has(callee) || callee === 'cacheCrud'))) return
-      if (node.arguments.length < 1) return
+      if (node.arguments.length === 0) return
       const [first] = node.arguments
       if (!first) return
       const tableName = callee === 'cacheCrud' ? getCacheCrudTable(node) : getLiteralString(first)
@@ -640,7 +640,7 @@ const requireRateLimit = {
 }
 
 const getHandlerBody = (node: CallNode): BaseNode[] | undefined => {
-  if (node.arguments.length < 1) return
+  if (node.arguments.length === 0) return
   const [arg] = node.arguments
   if (arg?.type !== 'ObjectExpression') return
   const obj = arg as BaseNode & { properties: (BaseNode & { key: BaseNode; value: BaseNode })[] }

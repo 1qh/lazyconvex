@@ -1,5 +1,5 @@
 // oxlint-disable promise/prefer-await-to-then
-/* eslint-disable max-statements, @typescript-eslint/no-unsafe-assignment */
+
 // biome-ignore-all lint/performance/noImgElement: x
 // biome-ignore-all lint/performance/noAwaitInLoops: x
 // biome-ignore-all lint/suspicious/noExplicitAny: x
@@ -144,7 +144,7 @@ const CAMEL_RE = /(?<lower>[a-z\d])(?<upper>[A-Z])/gu,
                     aria-invalid={inv}
                     className={cn(
                       'peer ml-1 w-0 flex-1 outline-none placeholder:text-muted-foreground placeholder:capitalize',
-                      tags.length ? 'placeholder:opacity-0' : 'pl-1',
+                      tags.length > 0 ? 'placeholder:opacity-0' : 'pl-1',
                       inputClassName
                     )}
                     disabled={disabled}
@@ -168,12 +168,12 @@ const CAMEL_RE = /(?<lower>[a-z\d])(?<upper>[A-Z])/gu,
 
                         f.handleChange([...new Set([...tags, v])])
                         e.currentTarget.value = ''
-                      } else if (e.key === 'Backspace' && tags.length && !value.trim()) {
+                      } else if (e.key === 'Backspace' && tags.length > 0 && !value.trim()) {
                         e.preventDefault()
                         f.removeValue(tags.length - 1)
                       }
                     }}
-                    placeholder={tags.length ? undefined : placeholder}
+                    placeholder={tags.length > 0 ? undefined : placeholder}
                   />
                 </div>
                 {inv ? <FieldError errors={f.state.meta.errors} id={errorId} /> : null}
@@ -574,7 +574,7 @@ const CAMEL_RE = /(?<lower>[a-z\d])(?<upper>[A-Z])/gu,
                     aria-invalid={inv}
                     id={f.name}
                     onBlur={f.handleBlur}>
-                    <SelectValue placeholder={selected.length ? `${selected.length} selected` : placeholder} />
+                    <SelectValue placeholder={selected.length > 0 ? `${selected.length} selected` : placeholder} />
                   </SelectTrigger>
                   <SelectContent>
                     {options.map(o => (
@@ -584,7 +584,7 @@ const CAMEL_RE = /(?<lower>[a-z\d])(?<upper>[A-Z])/gu,
                     ))}
                   </SelectContent>
                 </Select>
-                {selected.length ? (
+                {selected.length > 0 ? (
                   <div className='flex flex-wrap gap-1'>
                     {selected.map(v => {
                       const opt = options.find(o => o.value === v)
@@ -655,7 +655,7 @@ const CAMEL_RE = /(?<lower>[a-z\d])(?<upper>[A-Z])/gu,
     Rating: ({
       'data-testid': testId,
       label,
-      max = 5, // eslint-disable-line @typescript-eslint/no-magic-numbers
+      max = 5,
       name,
       ...props
     }: Omit<ComponentProps<typeof Field>, 'children'> & {
@@ -765,7 +765,7 @@ const CAMEL_RE = /(?<lower>[a-z\d])(?<upper>[A-Z])/gu,
       )
     },
     Text: ({
-      asyncDebounceMs = 300, // eslint-disable-line @typescript-eslint/no-magic-numbers
+      asyncDebounceMs = 300,
       asyncValidate,
       'data-testid': testId,
       label,
@@ -794,7 +794,6 @@ const CAMEL_RE = /(?<lower>[a-z\d])(?<upper>[A-Z])/gu,
             asyncValidate
               ? {
                   onChangeAsync: async ({ value }: { value: string }) => {
-                    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
                     const error = await asyncValidate(value ?? '')
                     return error
                   }

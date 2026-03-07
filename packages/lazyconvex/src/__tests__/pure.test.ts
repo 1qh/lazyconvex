@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/naming-convention, @typescript-eslint/no-magic-numbers, max-statements */
+/* eslint-disable @typescript-eslint/naming-convention */
 import type { GenericTableInfo, RegisteredQuery } from 'convex/server'
 
 import { describe, expect, test } from 'bun:test'
@@ -1216,7 +1216,6 @@ describe('branded schema error messages (SchemaTypeError)', () => {
   })
 })
 
-/* eslint-disable @typescript-eslint/require-await */
 // oxlint-disable promise/prefer-await-to-then
 const failStorage = () => ({
   delete: async () => {
@@ -1307,13 +1306,9 @@ describe('defineSteps type safety', () => {
   })
 
   test('StepForm.Step accepts valid step IDs', () => {
-    // eslint-disable-next-line new-cap
     const _p = StepForm.Step({ id: 'profile', render: () => null }),
-      // eslint-disable-next-line new-cap
       _o = StepForm.Step({ id: 'org', render: () => null }),
-      // eslint-disable-next-line new-cap
       _a = StepForm.Step({ id: 'appearance', render: () => null }),
-      // eslint-disable-next-line new-cap
       _pr = StepForm.Step({ id: 'preferences', render: () => null })
     expect(_p).toBeNull()
     expect(_o).toBeNull()
@@ -1323,24 +1318,22 @@ describe('defineSteps type safety', () => {
 
   test('StepForm.Step rejects misspelled step ID', () => {
     // @ts-expect-error — 'proifle' is not a valid step ID
-    // eslint-disable-next-line new-cap
+
     const r = StepForm.Step({ id: 'proifle', render: () => null })
     expect(r).toBeNull()
   })
 
   test('StepForm.Step rejects unknown step ID', () => {
     // @ts-expect-error — 'nonexistent' is not a valid step ID
-    // eslint-disable-next-line new-cap
+
     const r = StepForm.Step({ id: 'nonexistent', render: () => null })
     expect(r).toBeNull()
   })
 
   test('profile step render receives displayName field', () => {
-    // eslint-disable-next-line new-cap
     const r = StepForm.Step({
       id: 'profile',
       render: f => {
-        // eslint-disable-next-line new-cap
         f.Text({ label: 'Name', name: 'displayName' })
         return null
       }
@@ -1349,12 +1342,11 @@ describe('defineSteps type safety', () => {
   })
 
   test('profile step render rejects org field name', () => {
-    // eslint-disable-next-line new-cap
     const r = StepForm.Step({
       id: 'profile',
       render: f => {
         // @ts-expect-error — 'slug' does not exist in profileSchema
-        // eslint-disable-next-line new-cap
+
         f.Text({ label: 'Slug', name: 'slug' })
         return null
       }
@@ -1363,11 +1355,9 @@ describe('defineSteps type safety', () => {
   })
 
   test('org step render accepts name field', () => {
-    // eslint-disable-next-line new-cap
     const r = StepForm.Step({
       id: 'org',
       render: f => {
-        // eslint-disable-next-line new-cap
         f.Text({ label: 'Name', name: 'name' })
         return null
       }
@@ -1376,12 +1366,11 @@ describe('defineSteps type safety', () => {
   })
 
   test('org step render rejects profile field name', () => {
-    // eslint-disable-next-line new-cap
     const r = StepForm.Step({
       id: 'org',
       render: f => {
         // @ts-expect-error — 'displayName' does not exist in orgSchema
-        // eslint-disable-next-line new-cap
+
         f.Text({ label: 'Name', name: 'displayName' })
         return null
       }
@@ -1390,11 +1379,9 @@ describe('defineSteps type safety', () => {
   })
 
   test('appearance step render accepts orgAvatar field', () => {
-    // eslint-disable-next-line new-cap
     const r = StepForm.Step({
       id: 'appearance',
       render: f => {
-        // eslint-disable-next-line new-cap
         f.Text({ label: 'Avatar', name: 'orgAvatar' })
         return null
       }
@@ -1403,12 +1390,11 @@ describe('defineSteps type safety', () => {
   })
 
   test('appearance step render rejects org field name', () => {
-    // eslint-disable-next-line new-cap
     const r = StepForm.Step({
       id: 'appearance',
       render: f => {
         // @ts-expect-error — 'name' does not exist in appearanceSchema
-        // eslint-disable-next-line new-cap
+
         f.Text({ label: 'Name', name: 'name' })
         return null
       }
@@ -1417,11 +1403,9 @@ describe('defineSteps type safety', () => {
   })
 
   test('preferences step render accepts theme field', () => {
-    // eslint-disable-next-line new-cap
     const r = StepForm.Step({
       id: 'preferences',
       render: f => {
-        // eslint-disable-next-line new-cap
         f.Choose({ label: 'Theme', name: 'theme' })
         return null
       }
@@ -1430,12 +1414,11 @@ describe('defineSteps type safety', () => {
   })
 
   test('preferences step render rejects profile field', () => {
-    // eslint-disable-next-line new-cap
     const r = StepForm.Step({
       id: 'preferences',
       render: f => {
         // @ts-expect-error — 'displayName' does not exist in preferencesSchema
-        // eslint-disable-next-line new-cap
+
         f.Text({ label: 'Name', name: 'displayName' })
         return null
       }
@@ -1444,12 +1427,11 @@ describe('defineSteps type safety', () => {
   })
 
   test('profile step render rejects misspelled field', () => {
-    // eslint-disable-next-line new-cap
     const r = StepForm.Step({
       id: 'profile',
       render: f => {
         // @ts-expect-error — 'displyName' is misspelled
-        // eslint-disable-next-line new-cap
+
         f.Text({ label: 'Name', name: 'displyName' })
         return null
       }
@@ -1519,20 +1501,16 @@ describe('defineSteps type safety', () => {
     const stepA = object({ name: string().min(1) }),
       stepB = object({ name: string().max(100) }),
       overlap = defineSteps({ id: 'a', label: 'A', schema: stepA }, { id: 'b', label: 'B', schema: stepB }),
-      // eslint-disable-next-line new-cap
       ra = overlap.StepForm.Step({
         id: 'a',
         render: f => {
-          // eslint-disable-next-line new-cap
           f.Text({ label: 'N', name: 'name' })
           return null
         }
       }),
-      // eslint-disable-next-line new-cap
       rb = overlap.StepForm.Step({
         id: 'b',
         render: f => {
-          // eslint-disable-next-line new-cap
           f.Text({ label: 'N', name: 'name' })
           return null
         }
@@ -1642,7 +1620,6 @@ describe('bridge functions', () => {
 })
 
 const BASE36_PATTERN = /^[\da-z]+$/u,
-  /* eslint-disable no-console */
   captureWarns = () => {
     const warns: string[] = [],
       origWarn = console.warn

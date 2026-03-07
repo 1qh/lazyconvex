@@ -1,4 +1,4 @@
-import { expect, test as baseTest } from '@a/e2e/base-test'
+import { test as baseTest, expect } from '@a/e2e/base-test'
 
 import OnboardingPage from './pages/onboarding'
 

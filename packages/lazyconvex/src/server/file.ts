@@ -55,8 +55,8 @@ const DEFAULT_ALLOWED_TYPES = new Set([
     'text/csv',
     'text/plain'
   ]),
-  DEFAULT_MAX_FILE_SIZE = 10 * BYTES_PER_MB, // eslint-disable-line @typescript-eslint/no-magic-numbers
-  CHUNK_SIZE = 5 * BYTES_PER_MB, // eslint-disable-line @typescript-eslint/no-magic-numbers
+  DEFAULT_MAX_FILE_SIZE = 10 * BYTES_PER_MB,
+  CHUNK_SIZE = 5 * BYTES_PER_MB,
   RATE_LIMIT_WINDOW = 60 * 1000,
   MAX_UPLOADS_PER_WINDOW = 10,
   cvErr = (code: ErrorCode, message?: string) => new ConvexError(message ? { code, message } : { code }),
@@ -97,13 +97,15 @@ const DEFAULT_ALLOWED_TYPES = new Set([
       },
       checkRateLimit = async (db: DbLike, userId: string) => {
         const now = Date.now(),
-          existing = await db
-            .query('uploadRateLimit')
-            .withIndex(
-              'by_user',
-              idx(q => q.eq('userId', userId))
-            )
-            .first()
+          existing = await Promise.resolve(
+            db
+              .query('uploadRateLimit')
+              .withIndex(
+                'by_user',
+                idx(q => q.eq('userId', userId))
+              )
+              .first()
+          )
         if (!existing) {
           await db.insert('uploadRateLimit', { count: 1, userId, windowStart: now })
           return

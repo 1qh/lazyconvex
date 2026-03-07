@@ -1,5 +1,5 @@
 // oxlint-disable unicorn/prefer-add-event-listener
-/* eslint-disable no-await-in-loop, max-statements */
+/* eslint-disable no-await-in-loop */
 /** biome-ignore-all lint/performance/noAwaitInLoops: retry logic */
 'use client'
 

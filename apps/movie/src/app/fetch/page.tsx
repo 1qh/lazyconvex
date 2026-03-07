@@ -1,4 +1,3 @@
-/* eslint-disable @next/next/no-img-element */
 // biome-ignore-all lint/correctness/useImageSize: x
 'use client'
 import { api } from '@a/be'

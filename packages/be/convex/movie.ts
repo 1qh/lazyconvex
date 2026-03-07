@@ -29,7 +29,7 @@ export const search = action({
     args: { query: v.string() },
     handler: async (_, { query }) => {
       const res = await withRetry(async () => tmdb('/search/movie', { query }).json<{ results: TmdbMovie[] }>())
-      return res.results.map(({ id, ...rest }) => ({ ...rest, tmdb_id: id }))
+      return res.results.map(({ id, ...rest }) => Object.assign(rest, { tmdb_id: id }))
     }
   }),
   { all, checkRL, create, get, getInternal, invalidate, list, load, purge, read, refresh, rm, set, update } = c

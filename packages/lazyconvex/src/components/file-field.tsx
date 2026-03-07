@@ -1,5 +1,5 @@
 // oxlint-disable promise/prefer-await-to-then, next/no-img-element
-/* eslint-disable @typescript-eslint/no-unsafe-assignment, no-await-in-loop, complexity */
+/* eslint-disable no-await-in-loop, complexity */
 // biome-ignore-all lint/performance/noImgElement: x
 // biome-ignore-all lint/performance/noAwaitInLoops: x
 // biome-ignore-all lint/suspicious/noExplicitAny: x
@@ -106,10 +106,9 @@ const FileApiContext = createContext<FileApi | null>(null),
   }) => {
     const { upload: uploadRef } = useFileApi(),
       raw = f.state.value,
-      // eslint-disable-next-line react-hooks/preserve-manual-memoization
       vals = useMemo(() => (multiple ? ((raw ?? []) as string[]) : raw ? [raw as string] : []), [multiple, raw]),
       inv = f.state.meta.isTouched && !f.state.meta.isValid,
-      canAdd = multiple ? !max || vals.length < max : !vals.length,
+      canAdd = multiple ? !max || vals.length < max : vals.length === 0,
       { isUploading, progress, reset, upload } = useUpload(uploadRef),
       errorId = `${f.name}-error`,
       onDrop = useCallback(
@@ -123,7 +122,6 @@ const FileApiContext = createContext<FileApi | null>(null),
             else if (res.code === 'ABORTED') toast.error(`${file.name}: Upload canceled`)
             else if (res.code === 'NETWORK') toast.error(`${file.name}: Network error`)
             else if (res.code === 'INVALID_RESPONSE') toast.error(`${file.name}: Invalid response`)
-            // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
             else if (res.code === 'URL') toast.error(`${file.name}: Failed to start upload`)
           }
           if (multiple) f.handleChange([...vals, ...ids])
@@ -136,7 +134,7 @@ const FileApiContext = createContext<FileApi | null>(null),
         disabled: disabled ?? (isUploading || !canAdd),
         maxSize,
         multiple: Boolean(multiple),
-        // eslint-disable-next-line @typescript-eslint/strict-void-return, @typescript-eslint/no-misused-promises
+        // eslint-disable-next-line @typescript-eslint/strict-void-return
         onDrop,
         onDropRejected: r => {
           const code = r[0]?.errors[0]?.code
@@ -179,7 +177,7 @@ const FileApiContext = createContext<FileApi | null>(null),
                 onKeyDown={e => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault()
-                    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+
                     inputRef.current?.click()
                   }
                 }}
@@ -210,7 +208,7 @@ const FileApiContext = createContext<FileApi | null>(null),
             onKeyDown={e => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault()
-                // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+
                 inputRef.current?.click()
               }
             }}

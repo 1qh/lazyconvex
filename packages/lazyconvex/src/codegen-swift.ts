@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-/* eslint-disable max-statements, complexity */
+/* eslint-disable complexity */
 /* oxlint-disable eslint/max-statements, eslint/complexity */
 import type { ZodType } from 'zod/v4'
 
@@ -37,10 +37,19 @@ const parseArgs = (): { convex: string; mobileOutput: string; output: string; sc
       r = { convex: '', mobileOutput: '', output: '', schema: '' }
     for (let i = 0; i < args.length; i += 1) {
       const arg = args[i] ?? ''
-      if (arg === '--schema' && args[i + 1]) r.schema = args[(i += 1)] ?? ''
-      else if (arg === '--convex' && args[i + 1]) r.convex = args[(i += 1)] ?? ''
-      else if (arg === '--output' && args[i + 1]) r.output = args[(i += 1)] ?? ''
-      else if (arg === '--mobile-output' && args[i + 1]) r.mobileOutput = args[(i += 1)] ?? ''
+      if (arg === '--schema' && args[i + 1]) {
+        i += 1
+        r.schema = args[i] ?? ''
+      } else if (arg === '--convex' && args[i + 1]) {
+        i += 1
+        r.convex = args[i] ?? ''
+      } else if (arg === '--output' && args[i + 1]) {
+        i += 1
+        r.output = args[i] ?? ''
+      } else if (arg === '--mobile-output' && args[i + 1]) {
+        i += 1
+        r.mobileOutput = args[i] ?? ''
+      }
     }
     if (!(r.schema && r.convex && r.output)) {
       process.stderr.write(
@@ -385,7 +394,7 @@ const parseArgs = (): { convex: string; mobileOutput: string; output: string; sc
         if (block) {
           const afterClose = i + block.length + 2,
             afterBlock = stmt.slice(afterClose).trimStart()
-          // eslint-disable-next-line max-depth
+
           if (afterBlock.startsWith('=')) for (const name of extractNames(block)) results.push(name)
 
           i = afterClose

@@ -126,13 +126,11 @@ const IMAGE_TYPES = new Set(['image/gif', 'image/jpeg', 'image/png', 'image/svg+
         return NextResponse.json({ error: error instanceof Error ? error.message : 'Processing failed' }, { status: 500 })
       }
     },
-  /* eslint-disable @typescript-eslint/require-await */
   makeImageRoute = async ({ convexUrl, fileInfoQuery = 'file:info' }: ImageRouteConfig) => {
     const getClient = () => new ConvexHttpClient(convexUrl),
       opts = { getClient, queryRef: fileInfoQuery }
     return { GET: makeGet(opts), POST: makePost(opts) }
   }
-/* eslint-enable @typescript-eslint/require-await */
 
 /** Creates a Next.js route handler for image processing with GET and POST methods. */
 export { makeImageRoute }

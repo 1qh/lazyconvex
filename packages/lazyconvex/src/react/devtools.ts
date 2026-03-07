@@ -209,7 +209,7 @@ const notify = () => {
         push: pushError,
         subscriptions: [...subStore.values()]
       }),
-      // eslint-disable-next-line react-hooks/exhaustive-deps
+
       [errorStore.length, mutationStore.length, subStore.size, cacheStore.size]
     )
   }

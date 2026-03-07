@@ -36,16 +36,18 @@ bunx lazyconvex init
 
 This generates four files:
 
-| File | Purpose |
-|------|---------|
-| `convex/t.ts` | Zod schemas wrapped with `makeOwned` |
+| File               | Purpose                                 |
+| ------------------ | --------------------------------------- |
+| `convex/t.ts`      | Zod schemas wrapped with `makeOwned`    |
 | `convex/schema.ts` | `defineSchema` with table registrations |
-| `convex/lazy.ts` | `setup()` call that creates factories |
-| `convex/blog.ts` | CRUD endpoints from one `crud()` call |
+| `convex/lazy.ts`   | `setup()` call that creates factories   |
+| `convex/blog.ts`   | CRUD endpoints from one `crud()` call   |
 
 ## 5. Set up auth
 
-Follow the [Convex Auth guide](https://docs.convex.dev/auth) to configure authentication. lazyconvex requires `@convex-dev/auth` — every factory enforces auth by default.
+Follow the [Convex Auth guide](https://docs.convex.dev/auth) to configure
+authentication. lazyconvex requires `@convex-dev/auth` — every factory enforces auth by
+default.
 
 ## 6. Start developing
 
@@ -72,7 +74,9 @@ const BlogList = () => {
       {items.map(b => (
         <li key={b._id}>{b.title}</li>
       ))}
-      {status === 'CanLoadMore' && <button onClick={loadMore}>Load more</button>}
+      {status === 'CanLoadMore' && (
+        <button onClick={loadMore}>Load more</button>
+      )}
     </ul>
   )
 }
@@ -89,7 +93,16 @@ import { api } from '../convex/_generated/api'
 const CreateBlog = () => {
   const create = useMutation(api.blog.create)
   return (
-    <button onClick={() => create({ title: 'Hello', content: 'World', category: 'tech', published: true })}>
+    <button
+      onClick={() =>
+        create({
+          title: 'Hello',
+          content: 'World',
+          category: 'tech',
+          published: true
+        })
+      }
+    >
       New post
     </button>
   )
@@ -108,11 +121,11 @@ const BlogForm = () => {
   const form = useFormMutation(api.blog.create, owned.blog)
   return (
     <Form {...form}>
-      <Text name='title' />
-      <Text name='content' />
-      <Choose name='category' />
-      <Toggle name='published' />
-      <button type='submit'>Create</button>
+      <Text name="title" />
+      <Text name="content" />
+      <Choose name="category" />
+      <Toggle name="published" />
+      <button type="submit">Create</button>
     </Form>
   )
 }
@@ -130,7 +143,7 @@ From that single `crud('blog', owned.blog)` call:
 
 ## Next steps
 
-- [Custom queries](./custom-queries.md) — escape hatches when CRUD isn't enough
+- [Custom queries](./custom-queries.md) — escape hatches when CRUD isn’t enough
 - [Organizations](./organizations.md) — multi-tenant apps with `orgCrud`
 - [Schema evolution](./schema-evolution.md) — safe field changes in production
 - [Forms](./forms.md) — typesafe form components

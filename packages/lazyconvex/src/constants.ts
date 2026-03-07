@@ -3,7 +3,7 @@ const ACTIVE_ORG_COOKIE = 'activeOrgId',
   BULK_MAX = 100,
   BYTES_PER_KB = 1024,
   BYTES_PER_MB = BYTES_PER_KB * BYTES_PER_KB,
-  ONE_YEAR_SECONDS = 60 * 60 * 24 * 365, // eslint-disable-line @typescript-eslint/no-magic-numbers
+  ONE_YEAR_SECONDS = 60 * 60 * 24 * 365,
   UNDO_MS = 5000,
   sleep = async (ms: number) =>
     // oxlint-disable-next-line promise/avoid-new

@@ -6,9 +6,8 @@ import type { FunctionArgs, FunctionReference, FunctionReturnType } from 'convex
 import { ConvexHttpClient } from 'convex/browser'
 import { anyApi } from 'convex/server'
 
-const api = anyApi as unknown as typeof BeApi
-
-const getClient = () => new ConvexHttpClient(process.env.CONVEX_URL ?? process.env.NEXT_PUBLIC_CONVEX_URL ?? ''),
+const api = anyApi as unknown as typeof BeApi,
+  getClient = () => new ConvexHttpClient(process.env.CONVEX_URL ?? process.env.NEXT_PUBLIC_CONVEX_URL ?? ''),
   ref = (mod: string, fn: string) => {
     const r = (anyApi as Record<string, Record<string, FunctionReference<'action' | 'mutation' | 'query'>>>)[mod]?.[fn]
     if (!r) throw new Error(`API not found: ${mod}:${fn}`)
@@ -37,17 +36,21 @@ const getClient = () => new ConvexHttpClient(process.env.CONVEX_URL ?? process.e
     return [parts[0] ?? '', parts[1] ?? '']
   },
   raw = {
-    action: <T>(name: string, args: Record<string, unknown>) => {
+    action: async <T>(name: string, args: Record<string, unknown>) => {
       const [mod, fn] = splitName(name)
-      return expectError<T>(() => getClient().action(ref(mod, fn) as FunctionReference<'action'>, args) as Promise<T>)
+      return expectError<T>(
+        async () => getClient().action(ref(mod, fn) as FunctionReference<'action'>, args) as Promise<T>
+      )
     },
-    mutation: <T>(name: string, args: Record<string, unknown>) => {
+    mutation: async <T>(name: string, args: Record<string, unknown>) => {
       const [mod, fn] = splitName(name)
-      return expectError<T>(() => getClient().mutation(ref(mod, fn) as FunctionReference<'mutation'>, args) as Promise<T>)
+      return expectError<T>(
+        async () => getClient().mutation(ref(mod, fn) as FunctionReference<'mutation'>, args) as Promise<T>
+      )
     },
-    query: <T>(name: string, args: Record<string, unknown>) => {
+    query: async <T>(name: string, args: Record<string, unknown>) => {
       const [mod, fn] = splitName(name)
-      return expectError<T>(() => getClient().query(ref(mod, fn) as FunctionReference<'query'>, args) as Promise<T>)
+      return expectError<T>(async () => getClient().query(ref(mod, fn) as FunctionReference<'query'>, args) as Promise<T>)
     }
   },
   tc = {
@@ -91,8 +94,8 @@ const getClient = () => new ConvexHttpClient(process.env.CONVEX_URL ?? process.e
   }),
   setupOrg = (testPrefix: string, orgName: string, orgSlugSuffix: string) => {
     const utils = makeOrgTestUtils(testPrefix)
-    let orgId = ''
-    let orgSlug = ''
+    let orgId = '',
+      orgSlug = ''
     return {
       ...utils,
       afterAll: async () => {

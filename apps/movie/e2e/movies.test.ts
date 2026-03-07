@@ -68,8 +68,8 @@ test.describe
     test('shows cache miss on first fetch', async ({ moviePage }) => {
       const randomId = 550 + Math.floor(Math.random() * 1000)
       await moviePage.fetchMovie(randomId)
-      const detail = moviePage.getMovieDetail()
-      const fetchError = moviePage.getMovieError()
+      const detail = moviePage.getMovieDetail(),
+        fetchError = moviePage.getMovieError()
       await expect(detail.or(fetchError)).toBeVisible({ timeout: 15_000 })
     })
 

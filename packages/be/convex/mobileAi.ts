@@ -19,7 +19,7 @@ const geocodeCity = async (city: string): Promise<null | { latitude: number; lon
   },
   getWeather = tool({
     description: 'Get the current weather at a location.',
-    // eslint-disable-next-line max-statements
+
     execute: async input => {
       let lat: number, lon: number
       if (input.city) {

@@ -1,5 +1,5 @@
 // oxlint-disable promise/prefer-await-to-then
-/* eslint-disable no-await-in-loop, max-statements, complexity, max-depth */
+/* eslint-disable no-await-in-loop, complexity */
 // biome-ignore-all lint/suspicious/useAwait: x
 // biome-ignore-all lint/performance/noAwaitInLoops: x
 import type { ZodObject, ZodRawShape } from 'zod/v4'
@@ -139,7 +139,7 @@ const hk = (c: CrudMCtx): HookCtx => ({ db: c.db, storage: c.storage, userId: c.
         // oxlint-disable-next-line unicorn/no-useless-undefined
         if (opt?.softDelete) qry = qry.filter((fb: FilterLike) => fb.eq(fb.field('deletedAt'), undefined))
         const gs = groupList(w)
-        if (!gs.length) return qry
+        if (gs.length === 0) return qry
         return qry.filter((f: FilterLike) => {
           let e: unknown = null
           for (const g of gs) {

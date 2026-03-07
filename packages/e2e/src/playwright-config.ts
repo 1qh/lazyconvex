@@ -7,7 +7,6 @@ interface PlaywrightOptions {
 
 const createPlaywrightConfig = ({ port, webServerUrl }: PlaywrightOptions) => {
   const baseURL = `http://localhost:${port}`,
-    // eslint-disable-next-line no-restricted-properties
     isCI = Boolean(process.env.CI)
 
   return defineConfig({
