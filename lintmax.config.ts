@@ -9,6 +9,10 @@ export default defineConfig({
         includes: ['packages/ui/**']
       },
       {
+        disableLinter: true,
+        includes: ['**/generated/**', '**/_generated/**']
+      },
+      {
         includes: ['**/e2e/**', '**/maestro/**'],
         rules: {
           'performance/noAwaitInLoops': 'off',
@@ -17,46 +21,12 @@ export default defineConfig({
       }
     ],
     rules: {
-      'a11y/useSemanticElements': 'off',
-      'correctness/useExhaustiveDependencies': 'off',
-      'correctness/useImageSize': 'off',
-      'correctness/useUniqueElementIds': 'off',
-      'nursery/noFloatingPromises': 'off',
-      'nursery/noLeakedRender': 'off',
-      'nursery/noUnnecessaryConditions': 'off',
-      'nursery/useAwaitThenable': 'off',
-      'nursery/useErrorCause': 'off',
-      'nursery/useGlobalThis': 'off',
-      'nursery/useNamedCaptureGroup': 'off',
-      'performance/noImgElement': 'off',
-      'security/noDangerouslySetInnerHtml': 'off',
-      'style/noProcessEnv': 'off',
-      'style/useExplicitLengthCheck': 'off',
-      'style/useExportsLast': 'off',
-      'suspicious/noDocumentCookie': 'off',
-      'suspicious/useAwait': 'off'
+      'nursery/noPlaywrightUselessAwait': 'off',
+      'nursery/useAwaitThenable': 'off'
     }
   },
   oxlint: {
     ignorePatterns: ['_generated/', 'mobile/maestro/', 'packages/ui/', 'tooling/eslint'],
-    rules: {
-      'import/exports-last': 'off',
-      'import/no-unassigned-import': 'off',
-      'jsx-a11y/prefer-tag-over-role': 'off',
-      'max-depth': 'off',
-      'nextjs/no-img-element': 'off',
-      'no-empty-function': 'off',
-      'promise/param-names': 'off',
-      'react-perf/jsx-no-jsx-as-prop': 'off',
-      'react-perf/jsx-no-new-array-as-prop': 'off',
-      'react-perf/jsx-no-new-object-as-prop': 'off',
-      'react-hooks/exhaustive-deps': 'off',
-      'react/jsx-handler-names': 'off',
-      'react/no-danger': 'off',
-      'sort-keys': 'off',
-      'unicorn/no-await-expression-member': 'off',
-      'unicorn/no-document-cookie': 'off'
-    },
     overrides: [
       {
         files: ['**/convex/blogProfile.ts', '**/convex/mobileAi.ts', '**/convex/orgProfile.ts'],
@@ -64,6 +34,23 @@ export default defineConfig({
           'unicorn/filename-case': 'off'
         }
       }
-    ]
+    ],
+    rules: {
+      '@next/next/no-img-element': 'off',
+      'eslint/max-depth': 'off',
+      'eslint/no-await-in-loop': 'off',
+      'eslint/no-empty-function': 'off',
+      'import/no-unassigned-import': 'off',
+      'jsx-a11y/prefer-tag-over-role': 'off',
+      'promise/prefer-await-to-callbacks': 'off',
+      'promise/prefer-await-to-then': 'off',
+      'react-perf/jsx-no-jsx-as-prop': 'off',
+      'react-perf/jsx-no-new-array-as-prop': 'off',
+      'react-perf/jsx-no-new-object-as-prop': 'off',
+      'react/jsx-handler-names': 'off',
+      'react/no-danger': 'off',
+      'unicorn/no-await-expression-member': 'off',
+      'unicorn/no-document-cookie': 'off'
+    }
   }
 })
