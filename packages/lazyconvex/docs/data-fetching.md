@@ -107,6 +107,52 @@ const { handleBulkDelete, selected, toggleSelect } = useBulkSelection({
 })
 ```
 
+When `bulkRm` is not available, pass `rm` as a fallback — it deletes items one at a
+time:
+
+```tsx
+const { handleBulkDelete, selected } = useBulkSelection({
+  rm: id => remove({ id }),
+  items: posts ?? [],
+  orgId: org._id
+})
+```
+
+## Bulk Mutations with Progress
+
+`useBulkMutate` executes a list of mutations with progress tracking, error collection,
+and optional toast notifications.
+Caps at 100 items per batch (`BULK_MAX`).
+
+```tsx
+import { useBulkMutate } from 'lazyconvex/react'
+
+const { execute, progress, isRunning } = useBulkMutate({
+  toast: { success: n => `${n} updated`, error: n => `${n} failed` }
+})
+
+const handleBulkComplete = async () => {
+  const ops = selectedIds.map(id => () => updateTask({ id, done: true }))
+  const result = await execute(ops)
+  if (result.failCount > 0) console.error(result.errors)
+}
+```
+
+`progress` updates after each mutation resolves, enabling progress bars.
+Errors are collected (not thrown) so the batch always completes.
+
+## Ownership-Aware Lists
+
+`useOwnRows` annotates each row with an `own` boolean — `true` when the row belongs to
+the current user. Useful for showing edit/delete buttons only on owned items.
+
+```tsx
+import { useOwnRows } from 'lazyconvex/react'
+
+const rows = useOwnRows(items, userId)
+rows.map(r => (r.own ? <EditButton id={r._id} /> : null))
+```
+
 Enable soft delete on any table by adding `deletedAt: number().optional()` to the schema
 and `softDelete: true` to the factory:
 
