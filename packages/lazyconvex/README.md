@@ -165,6 +165,8 @@ generated.
 | ESLint plugin — 16 rules (`api-casing`, `form-field-exists`, `require-rate-limit`, ...)                |       0       |
 | Pre-built components (ConflictDialog, AutoSaveIndicator, OfflineIndicator, PermissionGuard)            |       0       |
 | React hooks (`useSearch`, `usePresence`, `useBulkSelection`, `useInfiniteList`, ...)                   |       0       |
+| `useOwnRows` — per-row ownership flag with memoized predicate                                          |       0       |
+| `useBulkMutate` live progress tracking (`onProgress`, `BulkProgress`, `progress`)                      |       0       |
 | Server middleware (`composeMiddleware`, `inputSanitize`, `auditLog`, `slowQueryWarn`)                  |       0       |
 | Next.js server utilities (`getToken`, `setActiveOrgCookie`, `makeImageRoute`)                          |       0       |
 | Real-time presence tracking (`usePresence`, `makePresence`, `presenceTable`)                           |       0       |
@@ -296,19 +298,19 @@ bun add lazyconvex
 
 ## Entry Points
 
-| Import                  | What’s inside                                                                                                                                                                                                                           |
-| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `lazyconvex`            | `guardApi`, `strictApi`                                                                                                                                                                                                                 |
-| `lazyconvex/schema`     | `makeOwned`, `makeOrgScoped`, `makeBase`, `makeSingleton`, `child`, `cvFile`, `cvFiles`, `orgSchema`                                                                                                                                    |
-| `lazyconvex/server`     | `setup`, table helpers, `makeOrg`, `makePresence`, `makeFileUpload`, middleware, error handling                                                                                                                                         |
-| `lazyconvex/react`      | `useList`, `useSearch`, `usePresence`, `useBulkSelection`, `useMutate`, `useInfiniteList`, `useUpload`, `useSoftDelete`, `useCacheEntry`, `useOptimisticMutation`, `useErrorToast`, `LazyConvexDevtools`, `SchemaPlayground`, org hooks |
-| `lazyconvex/components` | `Form`, `ConflictDialog`, `AutoSaveIndicator`, `OfflineIndicator`, `PermissionGuard`, `ConvexErrorBoundary`, `FileApiProvider`, `OrgAvatar`, `RoleBadge`, `EditorsSection`, `defineSteps`                                               |
-| `lazyconvex/next`       | `getToken`, `isAuthenticated`, `setActiveOrgCookie`, `clearActiveOrgCookie`, `getActiveOrg`, `makeImageRoute`                                                                                                                           |
-| `lazyconvex/eslint`     | `plugin`, `recommended`, 16 lint rules                                                                                                                                                                                                  |
-| `lazyconvex/zod`        | `unwrapZod`, `cvFileKindOf`, `defaultValues`, `enumToOptions`, `pickValues`, `coerceOptionals`                                                                                                                                          |
-| `lazyconvex/test`       | `discoverModules`, `createTestContext`, `makeTestAuth`, `makeOrgTestCrud`                                                                                                                                                               |
-| `lazyconvex/seed`       | `generateOne`, `generateSeed`, `generateFieldValue`                                                                                                                                                                                     |
-| `lazyconvex/retry`      | `withRetry`, `fetchWithRetry`                                                                                                                                                                                                           |
+| Import                  | What’s inside                                                                                                                                                                                                                                                          |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `lazyconvex`            | `guardApi`, `strictApi`                                                                                                                                                                                                                                                |
+| `lazyconvex/schema`     | `makeOwned`, `makeOrgScoped`, `makeBase`, `makeSingleton`, `child`, `cvFile`, `cvFiles`, `orgSchema`                                                                                                                                                                   |
+| `lazyconvex/server`     | `setup`, table helpers, `makeOrg`, `makePresence`, `makeFileUpload`, middleware, error handling                                                                                                                                                                        |
+| `lazyconvex/react`      | `useList`, `useSearch`, `usePresence`, `useBulkSelection`, `useBulkMutate`, `useOwnRows`, `useMutate`, `useInfiniteList`, `useUpload`, `useSoftDelete`, `useCacheEntry`, `useOptimisticMutation`, `useErrorToast`, `LazyConvexDevtools`, `SchemaPlayground`, org hooks |
+| `lazyconvex/components` | `Form`, `ConflictDialog`, `AutoSaveIndicator`, `OfflineIndicator`, `PermissionGuard`, `ConvexErrorBoundary`, `FileApiProvider`, `OrgAvatar`, `RoleBadge`, `EditorsSection`, `defineSteps`                                                                              |
+| `lazyconvex/next`       | `getToken`, `isAuthenticated`, `setActiveOrgCookie`, `clearActiveOrgCookie`, `getActiveOrg`, `makeImageRoute`                                                                                                                                                          |
+| `lazyconvex/eslint`     | `plugin`, `recommended`, 16 lint rules                                                                                                                                                                                                                                 |
+| `lazyconvex/zod`        | `unwrapZod`, `cvFileKindOf`, `defaultValues`, `enumToOptions`, `pickValues`, `coerceOptionals`                                                                                                                                                                         |
+| `lazyconvex/test`       | `discoverModules`, `createTestContext`, `makeTestAuth`, `makeOrgTestCrud`                                                                                                                                                                                              |
+| `lazyconvex/seed`       | `generateOne`, `generateSeed`, `generateFieldValue`                                                                                                                                                                                                                    |
+| `lazyconvex/retry`      | `withRetry`, `fetchWithRetry`                                                                                                                                                                                                                                          |
 
 ## Type Safety
 
@@ -443,7 +445,7 @@ Passing an owned schema to `orgCrud()` is a compile error.
 
 ## Demo Apps
 
-4 apps × 3 platforms = 12 real-world demos with **1,486 tests** across all platforms:
+4 apps × 3 platforms = 12 real-world demos with **1,497 tests** across all platforms:
 
 | App                                                             | What it shows                                                                     | Backend                                                                             |
 | --------------------------------------------------------------- | --------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
@@ -460,7 +462,7 @@ Passing an owned schema to `orgCrud()` is a compile error.
 | Desktop  | Swift Testing + XCTest |    32 |
 | Mobile   | Maestro (Skip)         |    92 |
 | Backend  | convex-test            |   219 |
-| Library  | bun:test               |   923 |
+| Library  | bun:test               |   934 |
 
 ### Native Apps
 
@@ -495,6 +497,7 @@ bunx lazyconvex codegen-swift --schema packages/be/t.ts --convex packages/be/con
 | [Migration](docs/migration.md)               | Incremental adoption, convert one table at a time, coexistence with raw Convex                     |
 | [Schema Evolution](docs/schema-evolution.md) | Adding, renaming, removing fields, type changes, deployment strategies                             |
 | [Ejecting](docs/ejecting.md)                 | Gradual replacement of factories with raw Convex, what you lose/keep                               |
+| [Security](docs/security.md)                 | Input sanitization, rate limiting, auth enforcement, ownership verification, org ACL               |
 | [Recipes](docs/recipes.md)                   | 7 real-world composition patterns: blog+files, org+ACL, custom queries, presence, multi-step forms |
 
 ## Contributing
@@ -503,7 +506,7 @@ The library is independently testable without the demo apps:
 
 ```bash
 cd packages/lazyconvex
-bun test          # 923 library-only tests, no Convex needed
+bun test          # 934 library-only tests, no Convex needed
 bun lint          # library-scoped linting
 bun typecheck     # library-only type checking
 ```
