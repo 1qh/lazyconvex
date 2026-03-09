@@ -2,7 +2,7 @@ import { defineConfig } from 'lintmax'
 
 export default defineConfig({
   biome: {
-    ignorePatterns: ['mobile/maestro', 'tooling/eslint'],
+    ignorePatterns: ['mobile/maestro', 'tooling/eslint', 'apps/*/next-env.d.ts'],
     overrides: [
       {
         disableLinter: true,
