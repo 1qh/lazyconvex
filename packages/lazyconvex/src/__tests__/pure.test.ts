@@ -109,6 +109,7 @@ import { makeErrorHandler } from '../react/error-toast'
 import { buildMeta, getMeta } from '../react/form'
 import { createOptimisticStore, makeTempId } from '../react/optimistic-store'
 import { canEditResource } from '../react/org'
+import { collectSettled, resolveBulkError } from '../react/use-bulk-mutate'
 import { applyOptimistic, DEFAULT_PAGE_SIZE } from '../react/use-list'
 import { DEFAULT_DEBOUNCE_MS, DEFAULT_MIN_LENGTH } from '../react/use-search'
 import { fetchWithRetry, withRetry } from '../retry'
@@ -141,7 +142,6 @@ import {
   time,
   warnLargeFilterSet
 } from '../server/helpers'
-import { collectSettled, resolveBulkError } from '../react/use-bulk-mutate'
 import {
   auditLog,
   composeMiddleware,
@@ -6156,6 +6156,8 @@ describe('middleware', () => {
     })
 
     test('removes javascript: protocol URIs', () => {
+      // oxlint-disable-next-line no-script-url
+      // eslint-disable-next-line no-script-url
       expect(sanitizeString('javascript: alert(1)')).toBe(' alert(1)')
     })
 
@@ -6256,31 +6258,31 @@ describe('middleware', () => {
   describe('collectSettled', () => {
     test('separates fulfilled from rejected', () => {
       const settled: PromiseSettledResult<number>[] = [
-        { status: 'fulfilled', value: 1 },
-        { reason: 'fail', status: 'rejected' },
-        { status: 'fulfilled', value: 2 }
-      ]
-      const { errors, results } = collectSettled(settled)
+          { status: 'fulfilled', value: 1 },
+          { reason: 'fail', status: 'rejected' },
+          { status: 'fulfilled', value: 2 }
+        ],
+        { errors, results } = collectSettled(settled)
       expect(results).toEqual([1, 2])
       expect(errors).toEqual(['fail'])
     })
 
     test('handles all fulfilled', () => {
       const settled: PromiseSettledResult<string>[] = [
-        { status: 'fulfilled', value: 'a' },
-        { status: 'fulfilled', value: 'b' }
-      ]
-      const { errors, results } = collectSettled(settled)
+          { status: 'fulfilled', value: 'a' },
+          { status: 'fulfilled', value: 'b' }
+        ],
+        { errors, results } = collectSettled(settled)
       expect(results).toEqual(['a', 'b'])
       expect(errors).toEqual([])
     })
 
     test('handles all rejected', () => {
       const settled: PromiseSettledResult<string>[] = [
-        { reason: 'e1', status: 'rejected' },
-        { reason: 'e2', status: 'rejected' }
-      ]
-      const { errors, results } = collectSettled(settled)
+          { reason: 'e1', status: 'rejected' },
+          { reason: 'e2', status: 'rejected' }
+        ],
+        { errors, results } = collectSettled(settled)
       expect(results).toEqual([])
       expect(errors).toEqual(['e1', 'e2'])
     })
@@ -6304,8 +6306,11 @@ describe('middleware', () => {
     })
 
     test('returns custom handler when provided', () => {
-      const custom = () => {}
-      const handler = resolveBulkError({ onError: custom })
+      const errors: unknown[] = [],
+        custom = (e: unknown) => {
+          errors.push(e)
+        },
+        handler = resolveBulkError({ onError: custom })
       expect(handler).toBe(custom)
     })
   })
